@@ -175,7 +175,7 @@ export default function Maquinas() {
           </div>
           {can('maquinas') && (
             <Button onClick={() => setShowCreate(true)} className="gap-1">
-              <Plus className="h-4 w-4" /> Nueva Máquina
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Nueva Máquina</span>
             </Button>
           )}
         </ActionBarRight>

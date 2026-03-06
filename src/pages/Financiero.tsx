@@ -340,19 +340,19 @@ export default function Financiero() {
     <div className="space-y-6">
       {/* Date Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <label className="text-xs font-dm text-muted-foreground">Desde</label>
           <input type="date" value={dateRange.from} onChange={e => {
             const val = e.target.value;
             if (val) setPeriod('all'); // switch to custom
           }}
-            className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" />
-          <span className="text-muted-foreground">→</span>
+            className="h-9 w-full sm:w-auto rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" />
+          <span className="text-muted-foreground hidden sm:inline">→</span>
           <label className="text-xs font-dm text-muted-foreground">Hasta</label>
           <input type="date" value={dateRange.to}
-            className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" readOnly />
+            className="h-9 w-full sm:w-auto rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" readOnly />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {PERIOD_OPTIONS.map(p => (
             <button
               key={p.key}

@@ -100,6 +100,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Barlow Condensed', sans-serif;
@@ -220,6 +221,24 @@
 /* Button active */
 button:active:not(:disabled) {
   transform: scale(0.97);
+}
+
+/* PWA safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pwa-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Touch targets */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  button.h-7, button.h-9, [class*="size-sm"] {
+    min-height: 36px;
+  }
 }
 
 /* Nav item stagger */

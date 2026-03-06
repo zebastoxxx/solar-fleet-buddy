@@ -170,17 +170,17 @@ export default function OrdenesTrabajo() {
     <div className="space-y-4">
       {/* ActionBar */}
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por código, máquina..." className="flex-shrink-0" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por código, máquina..." className="flex-shrink-0 w-full sm:w-auto" />
         <FilterPills options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="h-9 w-36 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectTrigger className="h-9 w-full sm:w-36 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
             {Object.entries(TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="h-9 w-32 text-xs"><SelectValue placeholder="Prioridad" /></SelectTrigger>
+          <SelectTrigger className="h-9 w-full sm:w-32 text-xs"><SelectValue placeholder="Prioridad" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
             <SelectItem value="normal">Normal</SelectItem>
@@ -191,7 +191,7 @@ export default function OrdenesTrabajo() {
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1" />Exportar</Button>
           <Button size="sm" className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase text-xs" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />Nueva OT
+            <Plus className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Nueva OT</span>
           </Button>
         </div>
       </div>
@@ -214,11 +214,11 @@ export default function OrdenesTrabajo() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Prioridad</TableHead>
                 <TableHead>Asignado a</TableHead>
-                <TableHead>Ubicación</TableHead>
+                <TableHead className="hidden md:table-cell">Ubicación</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Horas</TableHead>
-                <TableHead>Costo</TableHead>
-                <TableHead>Fecha</TableHead>
+                <TableHead className="hidden md:table-cell">Horas</TableHead>
+                <TableHead className="hidden md:table-cell">Costo</TableHead>
+                <TableHead className="hidden md:table-cell">Fecha</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -238,16 +238,16 @@ export default function OrdenesTrabajo() {
                       {ot.location_type === 'taller_tercero' ? <span>🏭 {ot.suppliers?.name || '—'}</span> :
                         techs.length > 0 ? (techs.length <= 2 ? techs.join(', ') : `${techs.slice(0, 2).join(', ')} +${techs.length - 2}`) : '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <span className="inline-flex items-center gap-1 text-[11px] font-dm text-muted-foreground">{loc.icon} {loc.label}</span>
                     </TableCell>
                     <TableCell><StatusBadge status={ot.status} /></TableCell>
-                    <TableCell className="text-xs font-dm">
+                    <TableCell className="hidden md:table-cell text-xs font-dm">
                       {ot.status === 'en_curso' ? <ChronoPill otId={ot.id} /> :
                         ot.actual_hours ? `${ot.actual_hours}h` : '—'}
                     </TableCell>
-                    <TableCell className="text-xs font-dm">{formatCost(ot.total_cost)}</TableCell>
-                    <TableCell className="text-xs font-dm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-xs font-dm">{formatCost(ot.total_cost)}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs font-dm text-muted-foreground">
                       {ot.created_at ? format(new Date(ot.created_at), 'dd MMM yy', { locale: es }) : ''}
                     </TableCell>
                     <TableCell>

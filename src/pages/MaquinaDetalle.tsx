@@ -239,7 +239,7 @@ export default function MaquinaDetalle() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex flex-wrap md:flex-col gap-2 shrink-0">
             <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowEdit(true)}>
               <Edit className="h-4 w-4" /> Editar
             </Button>
@@ -265,7 +265,7 @@ export default function MaquinaDetalle() {
 
       {/* Tabs */}
       <Tabs defaultValue="ficha" className="space-y-4">
-        <TabsList className="bg-card border border-border h-auto flex-wrap">
+        <TabsList className="bg-card border border-border h-auto flex-wrap overflow-x-auto w-full">
           <TabsTrigger value="ficha" className="font-dm text-xs">Ficha Técnica</TabsTrigger>
           <TabsTrigger value="ot" className="font-dm text-xs">Historial OT</TabsTrigger>
           <TabsTrigger value="preop" className="font-dm text-xs">Preoperacionales</TabsTrigger>

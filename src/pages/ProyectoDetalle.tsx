@@ -172,8 +172,8 @@ export default function ProyectoDetalle() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="icon" onClick={() => navigate('/proyectos')}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
             <div className="flex items-center gap-2">
@@ -314,7 +314,7 @@ export default function ProyectoDetalle() {
         </TabsContent>
 
         <TabsContent value="costos">
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <StatCard label="Total gastado" value={`$${totalCost.toLocaleString()}`} />
             <StatCard label="% del presupuesto" value={project.budget ? `${budgetPct.toFixed(1)}%` : '—'} />
             <StatCard label="Promedio mensual" value={costs.length > 0 ? `$${Math.round(totalCost / Math.max(1, new Set(costs.map((c: any) => c.cost_date?.substring(0, 7))).size)).toLocaleString()}` : '—'} />

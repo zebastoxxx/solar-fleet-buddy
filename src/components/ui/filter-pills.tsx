@@ -9,7 +9,7 @@ interface FilterPillsProps {
 
 export function FilterPills({ options, value, onChange, className }: FilterPillsProps) {
   return (
-    <div className={cn("flex items-center gap-1.5", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5 overflow-x-auto", className)}>
       {options.map((opt) => (
         <button
           key={opt.value}

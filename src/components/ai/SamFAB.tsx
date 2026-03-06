@@ -11,7 +11,7 @@ export function SamFAB({ onClick, hasUnread }: Props) {
     <button
       onClick={onClick}
       className={cn(
-        'fixed bottom-6 right-6 z-50 flex items-center justify-center',
+        'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] right-4 sm:right-6 z-50 flex items-center justify-center',
         'h-14 w-14 rounded-full shadow-lg transition-all',
         'bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-bright))] text-white',
         'hover:scale-105 active:scale-95'

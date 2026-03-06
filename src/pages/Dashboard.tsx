@@ -96,13 +96,13 @@ export default function Dashboard() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)
         ) : (
           <>
-            <StatCard label="Flota Activa" value={`${fleet.data?.active ?? 0} de ${fleet.data?.total ?? 0}`} />
+             <StatCard label="Flota Activa" value={`${fleet.data?.active ?? 0} de ${fleet.data?.total ?? 0}`} />
             <StatCard
               label="OT Abiertas"
               value={`${openOTs.data?.count ?? 0} abiertas`}
               trend={openOTs.data?.hasCritical ? { value: 'Hay OT críticas', positive: false } : undefined}
             />
-            <div className="h-[88px] rounded-xl border border-border bg-card p-3.5 px-4">
+            <div className="min-h-[88px] h-auto rounded-xl border border-border bg-card p-3.5 px-4">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-dm">Gasto Mensual</p>
               <p className="mt-1 text-[28px] font-bold leading-tight font-barlow text-foreground">
                 {formatCOP(spend.data?.total ?? 0)}
@@ -128,13 +128,13 @@ export default function Dashboard() {
         <div className="lg:col-span-3 rounded-xl border border-border bg-card p-4">
           <h3 className="font-barlow text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Flota Completa</h3>
           {machines.isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
               {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-xl" />)}
             </div>
           ) : !machines.data?.length ? (
             <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin máquinas registradas</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
               {machines.data.map((m) => (
                 <button
                   key={m.id}
@@ -195,7 +195,7 @@ export default function Dashboard() {
             {alerts.data?.slice(0, 5).map((a) => (
               <div
                 key={a.id}
-                className={`flex items-center justify-between rounded-lg border-l-4 p-3 ${
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border-l-4 p-3 ${
                   a.severity === 'critical'
                     ? 'border-l-danger bg-danger-bg'
                     : a.severity === 'warning'
