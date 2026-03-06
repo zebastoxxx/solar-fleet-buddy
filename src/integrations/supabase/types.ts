@@ -53,6 +53,13 @@ export type Database = {
             foreignKeyName: "alerts_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "alerts_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
           },
@@ -137,53 +144,91 @@ export type Database = {
       cost_entries: {
         Row: {
           amount: number
+          category_id: string | null
           cost_date: string
           cost_type: string
           created_at: string | null
           created_by: string | null
           description: string | null
+          entry_type: string | null
           id: string
+          imported_from: string | null
+          invoice_number: string | null
+          invoice_url: string | null
           machine_id: string | null
+          notes: string | null
           project_id: string | null
           source: string
           source_id: string | null
+          supplier_id: string | null
           tenant_id: string
+          work_order_id: string | null
         }
         Insert: {
           amount: number
+          category_id?: string | null
           cost_date: string
           cost_type: string
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          entry_type?: string | null
           id?: string
+          imported_from?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
           machine_id?: string | null
+          notes?: string | null
           project_id?: string | null
           source: string
           source_id?: string | null
+          supplier_id?: string | null
           tenant_id: string
+          work_order_id?: string | null
         }
         Update: {
           amount?: number
+          category_id?: string | null
           cost_date?: string
           cost_type?: string
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          entry_type?: string | null
           id?: string
+          imported_from?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
           machine_id?: string | null
+          notes?: string | null
           project_id?: string | null
           source?: string
           source_id?: string | null
+          supplier_id?: string | null
           tenant_id?: string
+          work_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cost_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "financial_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cost_entries_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_entries_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
           },
           {
             foreignKeyName: "cost_entries_machine_id_fkey"
@@ -196,7 +241,21 @@ export type Database = {
             foreignKeyName: "cost_entries_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "cost_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_entries_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -204,6 +263,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_entries_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -278,6 +344,50 @@ export type Database = {
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_categories: {
+        Row: {
+          active: boolean | null
+          color: string | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -421,6 +531,13 @@ export type Database = {
             foreignKeyName: "inventory_kits_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "inventory_kits_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
           },
@@ -490,6 +607,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "work_orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_related_project_id_fkey"
+            columns: ["related_project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "inventory_movements_related_project_id_fkey"
@@ -607,6 +731,13 @@ export type Database = {
             foreignKeyName: "machine_conditions_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "machine_conditions_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
           },
@@ -651,6 +782,13 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "machine_documents_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
           {
             foreignKeyName: "machine_documents_machine_id_fkey"
             columns: ["machine_id"]
@@ -729,6 +867,13 @@ export type Database = {
           year?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "machines_current_project_id_fkey"
+            columns: ["current_project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "machines_current_project_id_fkey"
             columns: ["current_project_id"]
@@ -909,6 +1054,13 @@ export type Database = {
             foreignKeyName: "preop_records_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "preop_records_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
           },
@@ -918,6 +1070,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "personnel"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preop_records_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "preop_records_project_id_fkey"
@@ -965,8 +1124,22 @@ export type Database = {
             foreignKeyName: "project_machines_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "project_machines_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_machines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "project_machines_project_id_fkey"
@@ -1009,6 +1182,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "personnel"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_personnel_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "project_personnel_project_id_fkey"
@@ -1624,8 +1804,22 @@ export type Database = {
             foreignKeyName: "work_orders_machine_id_fkey"
             columns: ["machine_id"]
             isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "work_orders_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
             referencedRelation: "machines"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "work_orders_project_id_fkey"
@@ -1652,7 +1846,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      machine_financials: {
+        Row: {
+          internal_code: string | null
+          machine_id: string | null
+          machine_name: string | null
+          machine_type: Database["public"]["Enums"]["machine_type"] | null
+          profit: number | null
+          profit_margin_pct: number | null
+          tenant_id: string | null
+          total_expenses: number | null
+          total_income: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_financials: {
+        Row: {
+          budget: number | null
+          budget_used_pct: number | null
+          client_name: string | null
+          profit: number | null
+          profit_margin_pct: number | null
+          project_id: string | null
+          project_name: string | null
+          tenant_id: string | null
+          total_expenses: number | null
+          total_income: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_role: { Args: never; Returns: string }

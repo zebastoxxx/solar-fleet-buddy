@@ -16,6 +16,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   inventario: ['superadmin', 'gerente', 'supervisor'],
   configuracion: ['superadmin', 'gerente'],
   logs: ['superadmin', 'gerente'],
+  financiero: ['superadmin', 'gerente'],
 };
 
 export function usePermissions() {
