@@ -2,6 +2,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { NAV_ITEMS } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
 import { RoleBadge } from '@/components/ui/role-badge';
 import {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
@@ -31,6 +32,21 @@ const PERM_MAP: Record<string, string> = {
 
 interface AppSidebarProps {
   onClose: () => void;
+}
+
+function OTTimerChip() {
+  const timerStore = useOTTimerStore();
+  const chrono = useChrono();
+  const navigate = useNavigate();
+  if (timerStore.status === 'idle') return null;
+  return (
+    <div className="mx-2 mb-2 p-3 rounded-lg border border-[hsl(var(--gold)/0.3)] bg-[hsl(var(--gold)/0.08)]">
+      <p className="text-[11px] font-barlow uppercase text-[hsl(var(--gold-bright))]">🔧 {timerStore.activeOTCode} en curso</p>
+      <p className={cn('font-barlow text-lg font-bold', timerStore.status === 'running' ? 'text-[hsl(var(--gold-bright))]' : 'text-muted-foreground')}>⏱ {chrono}</p>
+      <p className="text-[11px] text-[hsl(var(--sidebar-text))] font-dm">{timerStore.machineName}</p>
+      <button onClick={() => navigate(`/mis-ot/${timerStore.activeOTId}`)} className="text-[11px] text-[hsl(var(--gold-bright))] font-dm font-semibold mt-1 hover:underline">Ver OT →</button>
+    </div>
+  );
 }
 
 export function AppSidebar({ onClose }: AppSidebarProps) {
@@ -84,6 +100,9 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
           );
         })}
       </nav>
+
+      {/* OT Timer Chip */}
+      <OTTimerChip />
 
       {/* Footer */}
       <div className="border-t border-white/10 px-4 py-3">
