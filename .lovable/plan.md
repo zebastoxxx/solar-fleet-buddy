@@ -1,145 +1,103 @@
 
 
-## Plan: Mejoras Completas al Módulo de Máquinas
+## Plan: PWA + Cámara/Galería + Compresión + Agente IA "Sam"
 
-Este plan abarca 8 áreas: vistas múltiples (cards/tabla/kanban), filtros avanzados, foto de máquina, botones funcionales en detalle, hoja de vida PDF, ficha técnica editable, documentos adjuntos, indicadores de rentabilidad y alertas de mantenimiento preventivo configurables.
+### 1. PWA — App Instalable desde el Navegador
 
----
+**Archivos**: `vite.config.ts`, `public/manifest.json`, `index.html`, `src/main.tsx`
 
-### Parte 1 — Base de Datos (Migración)
+- Instalar `vite-plugin-pwa` y configurar en `vite.config.ts` con `registerType: 'autoUpdate'`, manifest completo (nombre, iconos 192x512, colores), y `navigateFallbackDenylist: [/^\/~oauth/]`
+- Ampliar `public/manifest.json` con iconos PWA (192x192 y 512x512) generados desde el logo existente
+- Agregar meta tags PWA en `index.html` (apple-touch-icon, apple-mobile-web-app-capable)
+- Registrar el service worker en `src/main.tsx`
+- El `start_url` será `/preoperacional` para operarios (ya está), pero se puede cambiar a `/` para que el sistema redirija según rol
 
-1. **Tabla `machine_maintenance_alerts`** para alertas de mantenimiento preventivo configurables por máquina:
-   - `id`, `machine_id`, `tenant_id`, `alert_name` (text), `trigger_type` (enum: 'horometer' | 'calendar'), `horometer_interval` (numeric, nullable), `calendar_interval_days` (int, nullable), `start_date` (date, nullable), `last_triggered_at` (timestamptz), `next_trigger_value` (numeric — next horometer value or date), `active` (bool default true), `created_at`
-   - RLS: tenant_isolation via machine_id -> machines.tenant_id
+### 2. Cámara Directa + Galería en OT y Preoperacional
 
-2. **Storage bucket `machine-photos`** (public) para fotos de máquinas.
+**Archivos**: `src/pages/MisOT.tsx`, `src/pages/PreoperacionalOperario.tsx`
 
-3. Campos adicionales en `machines` si faltan para ficha técnica completa:
-   - `max_height`, `engine_model`, `fuel_type`, `plate_number` (ya tiene weight_kg, max_capacity, serial_number)
+Actualmente en MisOT el input ya tiene `capture="environment"`, pero solo permite cámara. Se cambiará a un selector dual:
 
----
+- **Botón "Cámara"**: `<input type="file" accept="image/*" capture="environment">` — abre cámara directamente
+- **Botón "Galería"**: `<input type="file" accept="image/*">` (sin capture) — abre selector de archivos/galería
+- Ambos botones visibles en la zona de fotos de OT (antes/durante/después)
+- En **Preoperacional**: agregar campo de foto en `ChecklistItem` cuando resultado es `malo` — botones cámara + galería para evidencia del daño. También en observaciones generales del Formato B
 
-### Parte 2 — Vista de Máquinas con 3 Modos (`src/pages/Maquinas.tsx`)
+### 3. Compresión de Imágenes antes de Upload
 
-Reescribir completamente. Agregar:
+**Archivo nuevo**: `src/lib/image-compress.ts`
 
-- **Toggle de vista**: Tarjetas (grid) | Lista (tabla) | Kanban (por estado)
-- **Tarjetas más compactas**: Eliminar la zona de imagen de 130px, reducir a ~90px. Mostrar foto real si `cover_photo_url` existe.
-- **Reemplazar FilterPills + SearchInput** por `AdvancedFilters` con:
-  - Filtro por estado (las mismas pills pero dentro del panel)
-  - Filtro por tipo de máquina
-  - Filtro por proyecto actual
-  - Filtro por fecha de creación (rango)
-  - Ordenar por: nombre, horómetro, tipo, antigüedad (año), rentabilidad
-- **SearchInput** se mantiene en el ActionBar (búsqueda rápida)
-- **Vista Kanban**: 4 columnas (En campo, Bodega, Dañadas, Varadas), cards mínimas draggables (solo visual, sin drag-and-drop funcional inicialmente)
-- **Vista Lista/Tabla**: Usar DataTable con columnas: Código, Nombre, Tipo, Estado, Horómetro, Proyecto, Rentabilidad
+```typescript
+export async function compressImage(file: File, maxWidth = 1200, quality = 0.7): Promise<File>
+```
 
----
+- Usa Canvas API nativo del navegador (sin dependencias)
+- Redimensiona a maxWidth manteniendo aspect ratio
+- Comprime a JPEG con quality 0.7 (~70% reducción)
+- Retorna nuevo File listo para upload
+- Aplicar en: `handlePhotoUpload` de MisOT, uploads en PreoperacionalOperario, `MachinePhotoUpload.tsx`
 
-### Parte 3 — Foto de Máquina (Crear/Editar)
+### 4. Agente IA "Sam" — Panel Conversacional Lateral
 
-**`CreateMachineModal.tsx`**: Agregar campo de upload de foto al inicio del formulario.
-- Input file que sube a bucket `machine-photos` con path `{tenant_id}/{machine_id}.jpg`
-- Preview de la imagen seleccionada
-- Guardar URL en `cover_photo_url`
+Este es el componente más grande. Se implementará con Lovable AI Gateway.
 
-**`EditMachineModal.tsx`** (nuevo componente): Modal similar a Create pero con datos precargados. Incluye:
-- Todos los campos existentes + campos nuevos de ficha técnica
-- Upload/cambio de foto
-- Sección de **alertas de mantenimiento preventivo** (ver Parte 8)
+**Archivos nuevos**:
+- `supabase/functions/sam-agent/index.ts` — Edge function que conecta con Lovable AI Gateway
+- `src/components/ai/SamChat.tsx` — Panel lateral derecho (sheet/drawer) con chat
+- `src/components/ai/SamFAB.tsx` — Botón flotante para abrir Sam
 
----
+**Edge Function `sam-agent`**:
+- Usa `LOVABLE_API_KEY` (ya disponible) con modelo `google/gemini-2.5-pro` (el más potente para razonamiento complejo)
+- System prompt con ingeniería de prompts completa:
+  - Contexto: "Eres Sam, asistente IA de Up & Down Solar OS. Ayudas a gestionar maquinaria pesada, proyectos solares y mantenimiento."
+  - Capacidades: crear clientes, proveedores, máquinas; registrar ingresos/gastos; consultar datos
+  - Tool calling para operaciones CRUD: `create_client`, `create_supplier`, `create_machine`, `add_cost_entry`, `query_data`
+- Cada tool ejecuta queries contra Supabase usando service role key con validación de tenant_id
+- Streaming SSE para respuestas fluidas token por token
 
-### Parte 4 — Botones Funcionales en Detalle (`MaquinaDetalle.tsx`)
+**Panel UI (`SamChat.tsx`)**:
+- Sheet que se despliega desde la derecha (400px desktop, full width mobile)
+- Header: avatar de Sam + nombre "Sam" + badge "IA"
+- Área de mensajes con scroll, renderizado markdown (`react-markdown` no está instalado, se usará formato simple con `prose` classes)
+- Input con envío por Enter y botón
+- Mensajes del asistente con indicador de "escribiendo..."
+- Cuando Sam ejecuta una acción (crear cliente, etc.), muestra tarjeta de confirmación en el chat
 
-Actualmente los botones "Editar" y "Nueva OT" no tienen onClick handlers.
+**Integración en AppLayout**:
+- `SamFAB` visible en todas las páginas (botón flotante bottom-right con icono de chat/sparkle)
+- Al click abre `SamChat` como Sheet desde la derecha
+- Estado gestionado con useState en AppLayout
 
-- **Editar**: `onClick={() => setShowEdit(true)}` → abre `EditMachineModal`
-- **Nueva OT**: `onClick={() => navigate('/ordenes-trabajo?machine=' + id)}` o abrir CreateOTModal con machine preseleccionada
-- **Cambiar estado**: Ya funcional (dropdown)
-- **Foto clickeable**: En el header, el placeholder de foto se convierte en un upload zone (click para subir/cambiar foto)
+**Flujo de tool-calling**:
+1. Usuario dice "Crea un cliente llamado Solar Corp, NIT 900123456"
+2. Edge function envía a Lovable AI con tools definidas
+3. AI responde con tool_call `create_client({name: "Solar Corp", tax_id: "900123456", ...})`
+4. Edge function ejecuta el insert en Supabase, retorna resultado
+5. AI responde "✅ Cliente Solar Corp creado exitosamente"
+6. Frontend invalida queries relevantes para refrescar datos
 
----
-
-### Parte 5 — Hoja de Vida PDF (`src/lib/pdf-generator.ts`)
-
-Nueva función `generateMachineReportPDF(machine, ots, conditions)`:
-- Header con logo Up & Down Solar
-- Sección "Datos del Equipo": código, nombre, marca, modelo, año, serie, peso, capacidad, tipo, estado actual, horómetro actual (a la fecha)
-- Sección "Condición del Equipo": tabla con item_name + condition_pct
-- Sección "Historial de Órdenes de Trabajo": tabla con código, tipo, estado, fecha, horas, costo, descripción
-- Footer con fecha de generación
-
-Botón "📄 Descargar Hoja de Vida" en el header del detalle de máquina.
-
----
-
-### Parte 6 — Ficha Técnica Editable
-
-En `MaquinaDetalle.tsx` Tab "Ficha Técnica":
-- Convertir campos de solo lectura a editables inline (click para editar, blur para guardar)
-- Agregar campos adicionales: motor, combustible, placa, altura máxima
-- Mantener la sección de condiciones como está
-
----
-
-### Parte 7 — Documentos y Upload
-
-En Tab "Documentos":
-- Botón "Subir documento" que abre un mini-form: nombre, tipo (SOAT, Tecnomecánica, Póliza, Manual, Foto, Otro), fecha vencimiento (opcional), archivo
-- Upload a bucket `documents` con path `machines/{machine_id}/{filename}`
-- Guardar en `machine_documents`
-- Mostrar documentos con link de descarga + badges de vencimiento (ya existente)
-
----
-
-### Parte 8 — Indicadores de Rentabilidad
-
-En Tab "Costos" → renombrar a "Financiero":
-- Separar ingresos (entry_type='ingreso') y gastos (entry_type='gasto') del cost_entries
-- Mostrar: Total Ingresos, Total Gastos, Utilidad (ingresos - gastos), Margen %
-- Gráfico de barras agrupadas: ingresos vs gastos por mes
-- Indicador visual de recomendación:
-  - Si margen < 0%: "⚠️ Evaluar venta del equipo"
-  - Si margen 0-15%: "🔧 Requiere optimización"
-  - Si margen > 15%: "✅ Rentable"
-- En la vista de lista de Maquinas.tsx, agregar columna de rentabilidad y poder ordenar por ella
-- Usar vista `machine_financials` ya existente en DB
-
----
-
-### Parte 9 — Alertas de Mantenimiento Preventivo Configurables
-
-En el `EditMachineModal` y `CreateMachineModal`, nueva sección "Alertas de Mantenimiento":
-- Lista de alertas configuradas para esa máquina
-- Botón "+ Agregar alerta" con form inline:
-  - Nombre (ej: "Cambio de aceite")
-  - Tipo: Horómetro (cada X horas) | Calendario (cada X días/anual)
-  - Intervalo: número de horas o días
-  - Fecha inicio (para calendario)
-- **Plantilla por defecto** al crear máquina: pre-cargar alertas comunes:
-  - Cambio de aceite (cada 250h)
-  - Filtro de aire (cada 500h)
-  - Filtro hidráulico (cada 1000h)
-  - Engrase general (cada 50h)
-  - Revisión de frenos (cada 500h)
-  - Inspección general anual (cada 365 días)
-- Toggle para aplicar/quitar plantilla
-- CRUD completo sobre `machine_maintenance_alerts`
-
----
+**Tools disponibles para Sam**:
+- `create_client` / `create_supplier` / `create_machine`
+- `add_financial_entry` (ingreso o gasto con proyecto/máquina asociado)
+- `query_machines` / `query_projects` / `query_clients` / `query_work_orders`
+- `get_machine_status` / `get_project_financials`
 
 ### Archivos a crear:
-- `src/components/machines/EditMachineModal.tsx`
-- `src/components/machines/MachineAlertConfig.tsx`
-- `src/components/machines/MachinePhotoUpload.tsx`
-- Migración SQL para `machine_maintenance_alerts` + campos adicionales en machines + bucket
+- `src/lib/image-compress.ts`
+- `src/components/ai/SamChat.tsx`
+- `src/components/ai/SamFAB.tsx`
+- `supabase/functions/sam-agent/index.ts`
 
 ### Archivos a modificar:
-- `src/pages/Maquinas.tsx` — reescribir con 3 vistas + filtros avanzados
-- `src/pages/MaquinaDetalle.tsx` — botones funcionales, foto upload, ficha editable, tab financiero, documentos upload
-- `src/components/machines/CreateMachineModal.tsx` — foto + alertas de mantenimiento
-- `src/hooks/useMachineDetail.ts` — hooks para alertas, update machine, financials
-- `src/lib/pdf-generator.ts` — función de hoja de vida
+- `vite.config.ts` — agregar vite-plugin-pwa
+- `public/manifest.json` — iconos completos
+- `index.html` — meta tags PWA
+- `src/pages/MisOT.tsx` — botones cámara/galería + compresión
+- `src/pages/PreoperacionalOperario.tsx` — foto en items malos + compresión
+- `src/components/machines/MachinePhotoUpload.tsx` — compresión
+- `src/components/layout/AppLayout.tsx` — integrar SamFAB + SamChat
+- `supabase/config.toml` — registrar function sam-agent
+
+### Dependencias nuevas:
+- `vite-plugin-pwa`
 
