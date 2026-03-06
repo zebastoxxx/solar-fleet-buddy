@@ -9,7 +9,6 @@ import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { ScrollToTop } from '@/components/ScrollToTop';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/stores/authStore';
-import { SkeletonStatCards, SkeletonTableRows } from '@/components/ui/SkeletonLoaders';
 
 const Login = lazy(() => import('./pages/Login'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
@@ -33,20 +32,6 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
 
-function PageSkeleton() {
-  return (
-    <div className="space-y-6 p-6">
-      <div className="skeleton-shimmer h-10 w-48" />
-      <SkeletonStatCards />
-      <div className="rounded-xl border border-border bg-card">
-        <table className="w-full">
-          <tbody><SkeletonTableRows /></tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function AppInit({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((s) => s.initialize);
   useEffect(() => { initialize(); }, [initialize]);
@@ -61,7 +46,7 @@ const App = () => (
       <BrowserRouter>
         <ScrollToTop />
         <AppInit>
-          <Suspense fallback={<PageSkeleton />}>
+          <Suspense fallback={null}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
