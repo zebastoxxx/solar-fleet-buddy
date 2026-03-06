@@ -1,0 +1,39 @@
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import { AppSidebar } from "./AppSidebar";
+import { TopHeader } from "./TopHeader";
+import { Menu } from "lucide-react";
+
+export function AppLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <div className="flex min-h-screen w-full bg-background">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 z-40 h-screen w-[220px] bg-[hsl(var(--sidebar-bg))] flex flex-col
+        transition-transform duration-200
+        md:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <AppSidebar onClose={() => setSidebarOpen(false)} />
+      </aside>
+
+      {/* Main */}
+      <div className="flex flex-1 flex-col md:ml-[220px]">
+        <TopHeader onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 p-5 px-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
