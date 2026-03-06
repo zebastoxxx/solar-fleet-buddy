@@ -3,9 +3,11 @@ import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
 import { Menu } from "lucide-react";
+import { useAlerts } from "@/hooks/useAlerts";
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useAlerts(); // Initialize realtime alerts globally
 
   return (
     <div className="flex min-h-screen w-full bg-background">

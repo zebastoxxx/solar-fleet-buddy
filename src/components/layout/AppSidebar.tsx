@@ -3,6 +3,7 @@ import { NAV_ITEMS } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
+import { useAlertsStore } from '@/stores/alertsStore';
 import { RoleBadge } from '@/components/ui/role-badge';
 import {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
@@ -54,6 +55,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
   const { can } = usePermissions();
+  const { criticalCount } = useAlertsStore();
 
   const handleLogout = async () => {
     await signOut();
@@ -82,13 +84,14 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
         {visibleItems.map((item) => {
           const Icon = ICON_MAP[item.icon] || Settings;
           const active = location.pathname.startsWith(item.path);
+          const showBadge = item.path === '/dashboard' && criticalCount > 0;
           return (
             <Link
               key={item.path}
               to={item.path}
               onClick={onClose}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-barlow font-medium uppercase tracking-wide transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-barlow font-medium uppercase tracking-wide transition-colors relative",
                 active
                   ? "border-l-[3px] border-gold bg-gold/[0.08] text-gold-bright"
                   : "border-l-[3px] border-transparent text-[hsl(var(--sidebar-text))] hover:bg-white/[0.05]"
@@ -96,6 +99,11 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span>{item.label}</span>
+              {showBadge && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse-dot">
+                  {criticalCount}
+                </span>
+              )}
             </Link>
           );
         })}
