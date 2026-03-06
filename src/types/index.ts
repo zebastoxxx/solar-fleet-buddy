@@ -219,5 +219,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Preoperacionales', path: '/preoperacionales', icon: 'ClipboardList', permission: 'preop_view' },
   { label: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: 'Wrench', permission: 'ot_view' },
   { label: 'Inventario', path: '/inventario', icon: 'Package', permission: 'inventario' },
+  { label: 'Financiero', path: '/financiero', icon: 'DollarSign', permission: 'financiero' },
   { label: 'Configuración', path: '/configuracion', icon: 'Settings', permission: 'configuracion' },
 ];

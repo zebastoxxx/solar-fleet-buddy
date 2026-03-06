@@ -28,6 +28,7 @@ const OrdenesTrabajo = lazy(() => import('./pages/OrdenesTrabajo'));
 const MisOT = lazy(() => import('./pages/MisOT'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
+const Financiero = lazy(() => import('./pages/Financiero'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -92,6 +93,7 @@ const App = () => (
                   </Route>
                   <Route element={<ProtectedRoute allowedRoles={['superadmin', 'gerente']} />}>
                     <Route path="/analytics" element={<ErrorBoundary moduleName="Analytics"><Analytics /></ErrorBoundary>} />
+                    <Route path="/financiero" element={<ErrorBoundary moduleName="Financiero"><Financiero /></ErrorBoundary>} />
                     <Route path="/configuracion" element={<ErrorBoundary moduleName="Configuración"><Configuracion /></ErrorBoundary>} />
                   </Route>
                 </Route>
