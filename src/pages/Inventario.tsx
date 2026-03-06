@@ -202,7 +202,7 @@ export default function Inventario() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full justify-start bg-card border border-border">
+        <TabsList className="w-full justify-start bg-card border border-border overflow-x-auto">
           <TabsTrigger value="consumibles" className="gap-1.5 font-dm text-xs">
             <Package className="h-3.5 w-3.5" /> Consumibles
           </TabsTrigger>

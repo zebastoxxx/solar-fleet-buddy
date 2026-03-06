@@ -52,7 +52,7 @@ export function AppLayout() {
       {/* Main */}
       <div className="flex flex-1 flex-col md:ml-[220px]">
         <TopHeader onMenuClick={() => setSidebarOpen(true)} />
-        <main id="main-content" className="flex-1 p-5 px-6 page-content">
+        <main id="main-content" className="flex-1 p-3 sm:p-5 sm:px-6 page-content pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-primary focus:text-primary-foreground focus:p-2 focus:rounded">
             Ir al contenido principal
           </a>

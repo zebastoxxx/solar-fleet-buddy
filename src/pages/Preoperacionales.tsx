@@ -129,16 +129,16 @@ export default function Preoperacionales() {
     <div className="space-y-3">
       {/* Action bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar operario, máquina, proyecto..." className="w-64" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar operario, máquina, proyecto..." className="w-full sm:w-64" />
         <Select value={projectFilter} onValueChange={setProjectFilter}>
-          <SelectTrigger className="w-48 h-9"><SelectValue placeholder="Proyecto" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 h-9"><SelectValue placeholder="Proyecto" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos los proyectos</SelectItem>
             {projects?.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={machineFilter} onValueChange={setMachineFilter}>
-          <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Máquina" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44 h-9"><SelectValue placeholder="Máquina" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas las máquinas</SelectItem>
             {machines?.map((m: any) => <SelectItem key={m.id} value={m.id}>[{m.internal_code}] {m.name}</SelectItem>)}

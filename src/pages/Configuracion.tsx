@@ -678,9 +678,9 @@ export default function Configuracion() {
   return (
     <div className="space-y-6">
       <h1 className="font-barlow text-xl font-bold uppercase tracking-wider text-foreground">Configuración</h1>
-      <div className="flex gap-6">
-        {/* Vertical tabs */}
-        <nav className="w-[180px] shrink-0 space-y-1">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* Tabs - horizontal on mobile, vertical on desktop */}
+        <nav className="flex md:flex-col md:w-[180px] md:shrink-0 gap-1 overflow-x-auto pb-1 md:pb-0">
           {TABS.map(tab => {
             const Icon = tab.icon;
             return (
@@ -688,7 +688,7 @@ export default function Configuracion() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  'flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm font-dm transition-colors text-left',
+                  'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-dm transition-colors text-left shrink-0',
                   activeTab === tab.key
                     ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-muted-foreground hover:bg-muted'
