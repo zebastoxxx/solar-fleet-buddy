@@ -3,6 +3,7 @@ import { Camera, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
+import { compressImage } from '@/lib/image-compress';
 
 interface Props {
   currentUrl?: string | null;
@@ -21,20 +22,21 @@ export function MachinePhotoUpload({ currentUrl, machineId, onUrlChange, onFileS
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
 
   const handleFile = async (file: File) => {
-    const objectUrl = URL.createObjectURL(file);
+    const compressed = await compressImage(file);
+    const objectUrl = URL.createObjectURL(compressed);
     setPreview(objectUrl);
 
     if (onFileSelect) {
-      onFileSelect(file);
+      onFileSelect(compressed);
       return;
     }
 
     if (!machineId || !tenantId) return;
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
+      const ext = compressed.name.split('.').pop() || 'jpg';
       const path = `${tenantId}/${machineId}.${ext}`;
-      const { error } = await supabase.storage.from('machine-photos').upload(path, file, { upsert: true });
+      const { error } = await supabase.storage.from('machine-photos').upload(path, compressed, { upsert: true });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('machine-photos').getPublicUrl(path);
       await supabase.from('machines').update({ cover_photo_url: publicUrl }).eq('id', machineId);
@@ -86,9 +88,10 @@ export function MachinePhotoUpload({ currentUrl, machineId, onUrlChange, onFileS
 }
 
 export async function uploadMachinePhoto(file: File, machineId: string, tenantId: string): Promise<string> {
-  const ext = file.name.split('.').pop() || 'jpg';
+  const compressed = await compressImage(file);
+  const ext = compressed.name.split('.').pop() || 'jpg';
   const path = `${tenantId}/${machineId}.${ext}`;
-  const { error } = await supabase.storage.from('machine-photos').upload(path, file, { upsert: true });
+  const { error } = await supabase.storage.from('machine-photos').upload(path, compressed, { upsert: true });
   if (error) throw error;
   const { data: { publicUrl } } = supabase.storage.from('machine-photos').getPublicUrl(path);
   await supabase.from('machines').update({ cover_photo_url: publicUrl }).eq('id', machineId);

@@ -8,7 +8,7 @@ import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { LogOut, ChevronLeft, ChevronRight, Camera, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock } from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { SearchInput } from '@/components/ui/search-input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { compressImage } from '@/lib/image-compress';
 
 const TYPE_LABELS: Record<string, string> = { preventivo: 'Preventivo', correctivo: 'Correctivo', inspeccion: 'Inspección', preparacion: 'Preparación' };
 const TYPE_STYLES: Record<string, string> = {
@@ -324,8 +325,9 @@ function OTActiveView({ otId }: { otId: string }) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      const compressed = await compressImage(file);
       const path = `${user!.tenant_id}/${otId}/${photoTab}/${Date.now()}.jpg`;
-      const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, file);
+      const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
       if (uploadErr) throw uploadErr;
       const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
       await supabase.from('work_order_photos').insert([{
@@ -447,8 +449,13 @@ function OTActiveView({ otId }: { otId: string }) {
             ))}
             <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
               <Camera className="h-5 w-5 text-muted-foreground mb-1" />
-              <span className="text-[10px] text-muted-foreground font-dm">Agregar</span>
+              <span className="text-[10px] text-muted-foreground font-dm">Cámara</span>
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+            </label>
+            <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+              <ImageIcon className="h-5 w-5 text-muted-foreground mb-1" />
+              <span className="text-[10px] text-muted-foreground font-dm">Galería</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
             </label>
           </div>
         </div>

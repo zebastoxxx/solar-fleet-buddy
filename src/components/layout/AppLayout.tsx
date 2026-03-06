@@ -5,6 +5,8 @@ import { TopHeader } from "./TopHeader";
 import { Menu } from "lucide-react";
 import { useAlerts } from "@/hooks/useAlerts";
 import { SkeletonStatCards, SkeletonTableRows } from "@/components/ui/SkeletonLoaders";
+import { SamFAB } from "@/components/ai/SamFAB";
+import { SamChat } from "@/components/ai/SamChat";
 
 function ContentSkeleton() {
   return (
@@ -24,6 +26,7 @@ function ContentSkeleton() {
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [samOpen, setSamOpen] = useState(false);
   useAlerts(); // Initialize realtime alerts globally
 
   return (
@@ -58,6 +61,10 @@ export function AppLayout() {
           </Suspense>
         </main>
       </div>
+
+      {/* Sam AI Agent */}
+      <SamFAB onClick={() => setSamOpen(true)} />
+      <SamChat open={samOpen} onOpenChange={setSamOpen} />
     </div>
   );
 }
