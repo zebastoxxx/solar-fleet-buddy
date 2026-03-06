@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonMachineCards } from '@/components/ui/SkeletonLoaders';
 import { ActionBar, ActionBarLeft, ActionBarRight } from '@/components/ui/action-bar';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterPills } from '@/components/ui/filter-pills';
@@ -34,6 +37,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function Maquinas() {
+  usePageTitle('Máquinas');
   const navigate = useNavigate();
   const { can } = usePermissions();
   const machines = useAllMachines();
@@ -72,17 +76,18 @@ export default function Maquinas() {
       </ActionBar>
 
       {machines.isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[280px] rounded-xl" />)}
-        </div>
+        <SkeletonMachineCards />
       ) : !filtered.length ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <p className="text-muted-foreground font-dm">No se encontraron máquinas</p>
-        </div>
+        <EmptyState
+          icon="🏗️"
+          title="Sin máquinas registradas"
+          description="Agrega tu primera máquina al sistema para comenzar a gestionar tu flota."
+          action={can('maquinas') ? { label: '+ Nueva Máquina', onClick: () => setShowCreate(true) } : undefined}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((m) => (
-            <div key={m.id} className="rounded-xl border border-border bg-card overflow-hidden hover:border-gold transition-colors">
+            <div key={m.id} className="rounded-xl border border-border bg-card overflow-hidden hover:border-primary transition-colors card-hover cursor-pointer" onClick={() => navigate(`/maquinas/${m.id}`)}>
               {/* Placeholder image area */}
               <div className="h-[130px] bg-muted flex items-center justify-center">
                 <span className="text-4xl opacity-30">

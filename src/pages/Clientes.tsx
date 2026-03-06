@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -64,6 +65,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function Clientes() {
+  usePageTitle('Clientes');
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
   const { log } = useLog();
   const qc = useQueryClient();

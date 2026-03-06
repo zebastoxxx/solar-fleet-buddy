@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Truck, Wrench, DollarSign, FolderOpen, AlertTriangle, CheckCircle, Clock, Package, User } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { FilterPills } from '@/components/ui/filter-pills';
@@ -49,6 +50,7 @@ const OT_STATUS_MAP: Record<string, string> = {
 };
 
 export default function Dashboard() {
+  usePageTitle('Dashboard');
   const navigate = useNavigate();
   const { toast } = useToast();
   const [feedPeriod, setFeedPeriod] = useState<'today' | 'week' | 'month'>('today');

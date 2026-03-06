@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -77,6 +78,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
 }
 
 export default function Proveedores() {
+  usePageTitle('Proveedores');
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
   const { log } = useLog();
   const qc = useQueryClient();

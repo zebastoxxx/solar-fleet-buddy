@@ -1,0 +1,11 @@
+{
+  "name": "Up & Down Solar OS",
+  "short_name": "UD Solar",
+  "start_url": "/preoperacional",
+  "display": "standalone",
+  "background_color": "#F5F3EE",
+  "theme_color": "#D4881E",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" }
+  ]
+}

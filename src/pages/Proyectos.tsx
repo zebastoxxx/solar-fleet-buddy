@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +53,7 @@ const STATUS_FILTERS = [
 
 export default function Proyectos() {
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  usePageTitle('Proyectos');
   const { log } = useLog();
   const qc = useQueryClient();
   const navigate = useNavigate();
