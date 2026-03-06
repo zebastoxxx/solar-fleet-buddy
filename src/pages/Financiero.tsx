@@ -1020,20 +1020,20 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="font-dm text-xs">Máquina</Label>
-              <Select value={machineId} onValueChange={setMachineId}>
+              <Select value={machineId || '__none__'} onValueChange={v => setMachineId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Sin máquina" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin máquina</SelectItem>
+                  <SelectItem value="__none__">Sin máquina</SelectItem>
                   {machines.map(m => <SelectItem key={m.id} value={m.id}>{m.name} [{m.internal_code}]</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="font-dm text-xs">Proyecto</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select value={projectId || '__none__'} onValueChange={v => setProjectId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin proyecto</SelectItem>
+                  <SelectItem value="__none__">Sin proyecto</SelectItem>
                   {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -1051,10 +1051,10 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
             {entryType === 'gasto' && (
               <div>
                 <Label className="font-dm text-xs">Proveedor</Label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
+                <Select value={supplierId || '__none__'} onValueChange={v => setSupplierId(v === '__none__' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="Sin proveedor" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin proveedor</SelectItem>
+                    <SelectItem value="__none__">Sin proveedor</SelectItem>
                     {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -1062,10 +1062,10 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
             )}
             <div>
               <Label className="font-dm text-xs">OT vinculada</Label>
-              <Select value={workOrderId} onValueChange={handleOTChange}>
+              <Select value={workOrderId || '__none__'} onValueChange={v => handleOTChange(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Sin OT" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin OT</SelectItem>
+                  <SelectItem value="__none__">Sin OT</SelectItem>
                   {workOrders.map(w => <SelectItem key={w.id} value={w.id}>{w.code} · {w.type}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -1267,10 +1267,10 @@ function ImportModal({ open, onClose, categories, machines, projects, tenantId, 
               ].map(f => (
                 <div key={f.label} className="flex items-center gap-3">
                   <span className="text-xs font-dm w-40">{f.label}</span>
-                  <Select value={f.value} onValueChange={f.set}>
+                  <Select value={f.value || '__none__'} onValueChange={v => f.set(v === '__none__' ? '' : v)}>
                     <SelectTrigger className="flex-1 h-8 text-xs"><SelectValue placeholder="Seleccionar columna" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">— No mapear —</SelectItem>
+                      <SelectItem value="__none__">— No mapear —</SelectItem>
                       {columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -1295,20 +1295,20 @@ function ImportModal({ open, onClose, categories, machines, projects, tenantId, 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Asignar a máquina</Label>
-                <Select value={globalMachineId} onValueChange={setGlobalMachineId}>
+                <Select value={globalMachineId || '__none__'} onValueChange={v => setGlobalMachineId(v === '__none__' ? '' : v)}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sin máquina" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin máquina</SelectItem>
+                    <SelectItem value="__none__">Sin máquina</SelectItem>
                     {machines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-xs">Asignar a proyecto</Label>
-                <Select value={globalProjectId} onValueChange={setGlobalProjectId}>
+                <Select value={globalProjectId || '__none__'} onValueChange={v => setGlobalProjectId(v === '__none__' ? '' : v)}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin proyecto</SelectItem>
+                    <SelectItem value="__none__">Sin proyecto</SelectItem>
                     {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
