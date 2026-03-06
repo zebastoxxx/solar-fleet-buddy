@@ -1657,6 +1657,7 @@ export type Database = {
     Functions: {
       get_user_role: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
+      update_ot_parts_cost: { Args: { ot_id: string }; Returns: undefined }
     }
     Enums: {
       inventory_category:
