@@ -412,7 +412,7 @@ function Step1Identification({ projectId, setProjectId, machineId, setMachineId,
         <Select value={projectId} onValueChange={setProjectId}>
           <SelectTrigger className="h-11"><SelectValue placeholder="Selecciona un proyecto" /></SelectTrigger>
           <SelectContent>
-            {projects.map((p: any) => (
+            {(Array.isArray(projects) ? projects : []).map((p: any) => (
               <SelectItem key={p.id} value={p.id}>{p.name}{p.city ? ` — ${p.city}` : ''}</SelectItem>
             ))}
           </SelectContent>
@@ -424,7 +424,7 @@ function Step1Identification({ projectId, setProjectId, machineId, setMachineId,
         <Select value={machineId} onValueChange={setMachineId} disabled={!projectId}>
           <SelectTrigger className="h-11"><SelectValue placeholder={projectId ? 'Selecciona una máquina' : 'Primero selecciona un proyecto'} /></SelectTrigger>
           <SelectContent>
-            {machines.map((m: any) => (
+            {(Array.isArray(machines) ? machines : []).map((m: any) => (
               <SelectItem key={m.id} value={m.id}>[{m.internal_code}] {m.name}</SelectItem>
             ))}
           </SelectContent>
