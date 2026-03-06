@@ -168,7 +168,7 @@ export type Database = {
           amount: number
           category_id?: string | null
           cost_date: string
-          cost_type: string
+          cost_type?: string
           created_at?: string | null
           created_by?: string | null
           description?: string | null
