@@ -21,6 +21,7 @@ import ProyectoDetalle from './pages/ProyectoDetalle';
 import Preoperacionales from './pages/Preoperacionales';
 import PreoperacionalOperario from './pages/PreoperacionalOperario';
 import OrdenesTrabajo from './pages/OrdenesTrabajo';
+import MisOT from './pages/MisOT';
 import Inventario from './pages/Inventario';
 import Configuracion from './pages/Configuracion';
 import NotFound from './pages/NotFound';
@@ -50,6 +51,12 @@ const App = () => (
             {/* Operario: full-screen preop (no AppLayout) */}
             <Route element={<ProtectedRoute allowedRoles={['operario']} />}>
               <Route path="/preoperacional" element={<PreoperacionalOperario />} />
+            </Route>
+
+            {/* Técnico: OT views */}
+            <Route element={<ProtectedRoute allowedRoles={['tecnico']} />}>
+              <Route path="/mis-ot" element={<MisOT />} />
+              <Route path="/mis-ot/:id" element={<MisOT />} />
             </Route>
 
             {/* Protected routes with AppLayout */}
