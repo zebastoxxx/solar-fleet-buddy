@@ -338,19 +338,27 @@ export default function Financiero() {
   // ─── Render ───
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-barlow font-bold text-foreground">💵 Financiero</h1>
-          <p className="text-sm font-dm text-muted-foreground">Centro de costos e ingresos</p>
+      {/* Date Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-dm text-muted-foreground">Desde</label>
+          <input type="date" value={dateRange.from} onChange={e => {
+            const val = e.target.value;
+            if (val) setPeriod('all'); // switch to custom
+          }}
+            className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" />
+          <span className="text-muted-foreground">→</span>
+          <label className="text-xs font-dm text-muted-foreground">Hasta</label>
+          <input type="date" value={dateRange.to}
+            className="h-9 rounded-lg border border-border bg-card px-3 text-xs font-dm text-foreground" readOnly />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1.5">
           {PERIOD_OPTIONS.map(p => (
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-dm font-medium transition-colors',
+                'px-2.5 py-1 rounded-md text-[11px] font-dm font-medium transition-colors',
                 period === p.key
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'

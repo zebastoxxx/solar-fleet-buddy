@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore, ROLE_REDIRECTS } from '@/stores/authStore';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -33,9 +34,7 @@ const Login = () => {
         <div className="rounded-2xl border border-line bg-card p-8 shadow-sm">
           {/* Logo */}
           <div className="flex flex-col items-center gap-1.5 mb-6">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gold/15">
-              <span className="text-xl font-bold font-barlow text-gold-bright">U&D</span>
-            </div>
+            <img src={logo} alt="Up & Down Solar" className="h-16 w-auto object-contain" />
             <h1 className="text-2xl font-barlow font-bold uppercase tracking-wide text-gold">
               Up & Down Solar
             </h1>

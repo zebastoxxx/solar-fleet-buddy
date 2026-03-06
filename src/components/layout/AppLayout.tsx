@@ -1,9 +1,26 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
 import { Menu } from "lucide-react";
 import { useAlerts } from "@/hooks/useAlerts";
+import { SkeletonStatCards, SkeletonTableRows } from "@/components/ui/SkeletonLoaders";
+
+function ContentSkeleton() {
+  return (
+    <div className="space-y-4 animate-in fade-in duration-150">
+      <div className="skeleton-shimmer h-8 w-40" />
+      <SkeletonStatCards count={4} />
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton-shimmer h-10 w-full" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +53,9 @@ export function AppLayout() {
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-primary focus:text-primary-foreground focus:p-2 focus:rounded">
             Ir al contenido principal
           </a>
-          <Outlet />
+          <Suspense fallback={<ContentSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

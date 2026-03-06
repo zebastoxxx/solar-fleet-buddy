@@ -10,6 +10,7 @@ import {
   FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import logoImg from '@/assets/logo.png';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
@@ -71,12 +72,10 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   return (
     <>
       {/* Logo area */}
-      <div className="flex flex-col items-center gap-1 px-4 py-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gold/20">
-          <span className="text-xl font-bold font-barlow text-gold-bright">U&D</span>
-        </div>
-        <span className="text-xs font-barlow font-semibold uppercase tracking-wider text-gold-bright">
-          UpDown Solar OS
+      <div className="flex flex-col items-center gap-1 px-4 py-4">
+        <img src={logoImg} alt="Up & Down Solar" className="h-12 w-auto object-contain" />
+        <span className="text-[10px] font-barlow font-semibold uppercase tracking-wider text-gold-bright">
+          Solar OS
         </span>
       </div>
 
