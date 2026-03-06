@@ -10,7 +10,8 @@ import type { PreopSection, PreopItem } from '@/data/preop-templates';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { LogOut, ChevronLeft, ChevronDown, ChevronUp, AlertTriangle, WifiOff, CheckCircle2 } from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronDown, ChevronUp, AlertTriangle, WifiOff, CheckCircle2, Camera, Image as ImageIcon } from 'lucide-react';
+import { compressImage } from '@/lib/image-compress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -505,6 +506,31 @@ function ChecklistItem({ item, result, observation, onResult, onObservation }: {
   item: PreopItem; sectionName: string; result?: ItemResult; observation: string;
   onResult: (r: ItemResult) => void; onObservation: (v: string) => void;
 }) {
+  const { user } = useAuthStore();
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      const path = `${user.tenant_id}/preop/${Date.now()}_${item.id}.jpg`;
+      const { error } = await supabase.storage.from('ot-photos').upload(path, compressed);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
+      setPhotoUrl(urlData.publicUrl);
+      // Store URL in observation for persistence
+      onObservation((observation ? observation + ' ' : '') + `[foto: ${urlData.publicUrl}]`);
+      toast.success('Foto adjuntada');
+    } catch (err: any) {
+      toast.error('Error al subir foto');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const btnClass = (type: ItemResult) => {
     const base = 'min-h-[44px] min-w-[52px] rounded-lg font-barlow font-semibold text-sm transition-all touch-manipulation';
     if (result !== type) return `${base} bg-card border border-border text-muted-foreground`;
@@ -526,11 +552,33 @@ function ChecklistItem({ item, result, observation, onResult, onObservation }: {
           <button className={btnClass('na')} onClick={() => onResult('na')}>N/A</button>
         </div>
       </div>
-      {result === 'malo' && !item.critical && (
-        <Textarea
-          className="mt-2 text-xs" rows={2} placeholder="Describe la novedad observada..."
-          value={observation} onChange={(e) => onObservation(e.target.value)}
-        />
+      {result === 'malo' && (
+        <div className="mt-2 space-y-2">
+          {!item.critical && (
+            <Textarea
+              className="text-xs" rows={2} placeholder="Describe la novedad observada..."
+              value={observation} onChange={(e) => onObservation(e.target.value)}
+            />
+          )}
+          {/* Photo evidence for bad items */}
+          <div className="flex gap-2">
+            {photoUrl && (
+              <div className="h-16 w-16 rounded-lg overflow-hidden border border-border">
+                <img src={photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <label className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 text-muted-foreground">
+              <Camera className="h-4 w-4" />
+              <span className="text-[9px] font-dm">{uploading ? '...' : 'Cámara'}</span>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
+            </label>
+            <label className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 text-muted-foreground">
+              <ImageIcon className="h-4 w-4" />
+              <span className="text-[9px] font-dm">Galería</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
+            </label>
+          </div>
+        </div>
       )}
     </div>
   );
