@@ -1,27 +1,31 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
+import { usePermissions } from '@/hooks/usePermissions';
 import { ActionBar, ActionBarLeft, ActionBarRight } from '@/components/ui/action-bar';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterPills } from '@/components/ui/filter-pills';
+import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+import { DataTable, type Column } from '@/components/ui/DataTable';
+import { SafeDeleteDialog } from '@/components/ui/SafeDeleteDialog';
+import { checkDeleteSupplier } from '@/lib/delete-guards';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, XCircle, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -67,11 +71,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          className={`h-4 w-4 ${i <= value ? 'fill-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'text-border'} ${onChange ? 'cursor-pointer' : ''}`}
-          onClick={() => onChange?.(i)}
-        />
+        <Star key={i} className={`h-4 w-4 ${i <= value ? 'fill-[hsl(var(--gold))] text-[hsl(var(--gold))]' : 'text-border'} ${onChange ? 'cursor-pointer' : ''}`} onClick={() => onChange?.(i)} />
       ))}
     </div>
   );
@@ -80,6 +80,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
 export default function Proveedores() {
   usePageTitle('Proveedores');
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  const { role } = usePermissions();
   const { log } = useLog();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -87,6 +88,9 @@ export default function Proveedores() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierRow | null>(null);
   const [detail, setDetail] = useState<SupplierRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SupplierRow | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [ratingFilter, setRatingFilter] = useState('all');
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', tenantId],
@@ -99,14 +103,18 @@ export default function Proveedores() {
     staleTime: 30000,
   });
 
-  const filtered = suppliers.filter((s) => {
-    if (typeFilter !== 'all' && s.type !== typeFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return s.name.toLowerCase().includes(q) || (s.specialty?.toLowerCase().includes(q)) || (s.city?.toLowerCase().includes(q));
-    }
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return suppliers.filter((s) => {
+      if (!showInactive && s.status === 'inactivo') return false;
+      if (typeFilter !== 'all' && s.type !== typeFilter) return false;
+      if (ratingFilter !== 'all' && (s.rating || 0) < Number(ratingFilter)) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return s.name.toLowerCase().includes(q) || (s.specialty?.toLowerCase().includes(q)) || (s.city?.toLowerCase().includes(q));
+      }
+      return true;
+    });
+  }, [suppliers, typeFilter, ratingFilter, search, showInactive]);
 
   const form = useForm<SupplierForm>({
     resolver: zodResolver(supplierSchema),
@@ -124,19 +132,12 @@ export default function Proveedores() {
   const mutation = useMutation({
     mutationFn: async (values: SupplierForm) => {
       const row = {
-        name: values.name,
-        type: values.type || null,
-        tax_id: values.tax_id || null,
-        contact_name: values.contact_name || null,
-        contact_phone: values.contact_phone || null,
-        contact_email: values.contact_email || null,
-        city: values.city || null,
-        country: values.country || 'Colombia',
-        specialty: values.specialty || null,
-        rating: values.rating ?? null,
-        notes: values.notes || null,
-        status: values.status || 'activo',
-        tenant_id: tenantId!,
+        name: values.name, type: values.type || null, tax_id: values.tax_id || null,
+        contact_name: values.contact_name || null, contact_phone: values.contact_phone || null,
+        contact_email: values.contact_email || null, city: values.city || null,
+        country: values.country || 'Colombia', specialty: values.specialty || null,
+        rating: values.rating ?? null, notes: values.notes || null,
+        status: values.status || 'activo', tenant_id: tenantId!,
       };
       if (editing) {
         const { error } = await supabase.from('suppliers').update(row).eq('id', editing.id);
@@ -152,64 +153,78 @@ export default function Proveedores() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const handleDelete = async (hardDelete: boolean) => {
+    if (!deleteTarget) return;
+    if (hardDelete) {
+      await supabase.from('suppliers').delete().eq('id', deleteTarget.id);
+    } else {
+      await supabase.from('suppliers').update({ status: 'inactivo' }).eq('id', deleteTarget.id);
+    }
+    qc.invalidateQueries({ queryKey: ['suppliers'] });
+    toast.success(hardDelete ? 'Proveedor eliminado' : 'Proveedor desactivado');
+  };
+
+  const reactivate = async (s: SupplierRow) => {
+    await supabase.from('suppliers').update({ status: 'activo' }).eq('id', s.id);
+    qc.invalidateQueries({ queryKey: ['suppliers'] });
+    toast.success('Registro reactivado correctamente');
+  };
+
+  const canManage = role === 'superadmin' || role === 'gerente';
+
+  const columns: Column<SupplierRow>[] = [
+    { key: 'name', label: 'Nombre', sortable: true, render: (s) => <span className="font-medium">{s.name}</span> },
+    { key: 'type', label: 'Tipo', sortable: true, render: (s) => s.type ? <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[s.type] || 'bg-secondary text-muted-foreground'}`}>{s.type.replace(/_/g, ' ')}</span> : <span className="text-muted-foreground">—</span> },
+    { key: 'specialty', label: 'Especialidad', sortable: true, render: (s) => <span className="text-muted-foreground">{s.specialty || '—'}</span> },
+    { key: 'city', label: 'Ciudad', sortable: true, render: (s) => <span className="text-muted-foreground">{s.city || '—'}</span> },
+    { key: 'rating', label: 'Rating', sortable: true, render: (s) => <StarRating value={s.rating || 0} /> },
+    { key: 'status', label: 'Estado', render: (s) => <StatusBadge status={s.status || 'activo'} /> },
+    {
+      key: 'actions', label: 'Acciones', render: (s) => (
+        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+          {canManage && s.status === 'inactivo' && <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => reactivate(s)}><RotateCcw className="h-3.5 w-3.5" /></Button>}
+          {canManage && s.status !== 'inactivo' && <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteTarget(s)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div>
+    <div className="space-y-3">
       <ActionBar>
         <ActionBarLeft>
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar proveedor..." />
           <FilterPills options={TYPE_FILTERS} value={typeFilter} onChange={setTypeFilter} />
+          <AdvancedFilters
+            customFilters={[
+              { key: 'rating', label: 'Rating mínimo', type: 'select', options: [{ value: 'all', label: 'Todos' }, { value: '3', label: '≥ 3 ⭐' }, { value: '4', label: '≥ 4 ⭐' }, { value: '5', label: '5 ⭐' }] },
+            ]}
+            filterValues={{ rating: ratingFilter }}
+            onFilterChange={(k, v) => { if (k === 'rating') setRatingFilter(v); }}
+            onClear={() => setRatingFilter('all')}
+            resultCount={filtered.length}
+          />
         </ActionBarLeft>
         <ActionBarRight>
+          {canManage && (
+            <Button variant="outline" size="sm" className="text-xs font-dm" onClick={() => setShowInactive(!showInactive)}>
+              {showInactive ? 'Ocultar inactivos' : 'Ver inactivos'}
+            </Button>
+          )}
           <Button onClick={openCreate} className="gap-1.5"><Plus className="h-4 w-4" /> Nuevo Proveedor</Button>
         </ActionBarRight>
       </ActionBar>
 
-      <div className="rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-secondary">
-              {['Nombre', 'Tipo', 'Especialidad', 'Ciudad', 'Rating', 'Estado', 'Acciones'].map((h) => (
-                <TableHead key={h} className="text-[11px] uppercase tracking-wider font-dm">{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={i} className="h-[44px]">{Array.from({ length: 7 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>)}</TableRow>
-            ))}
-            {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-dm">No hay proveedores registrados</TableCell></TableRow>
-            )}
-            {filtered.map((s) => (
-              <TableRow key={s.id} className="h-[44px] cursor-pointer hover:bg-[hsl(var(--gold)/0.04)]" onClick={() => setDetail(s)}>
-                <TableCell className="font-medium font-dm text-sm">{s.name}</TableCell>
-                <TableCell>
-                  {s.type && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[s.type] || 'bg-secondary text-muted-foreground'}`}>
-                    {s.type.replace(/_/g, ' ')}
-                  </span>}
-                </TableCell>
-                <TableCell className="font-dm text-sm text-muted-foreground">{s.specialty || '—'}</TableCell>
-                <TableCell className="font-dm text-sm text-muted-foreground">{s.city || '—'}</TableCell>
-                <TableCell><StarRating value={s.rating || 0} /></TableCell>
-                <TableCell><StatusBadge status={s.status || 'activo'} /></TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                      if (confirm('¿Desactivar este proveedor?')) {
-                        supabase.from('suppliers').update({ status: 'inactivo' }).eq('id', s.id).then(() => {
-                          qc.invalidateQueries({ queryKey: ['suppliers'] });
-                          toast.success('Proveedor desactivado');
-                        });
-                      }
-                    }}><XCircle className="h-3.5 w-3.5" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        onRowClick={(s) => setDetail(s)}
+        defaultSort={{ key: 'name', direction: 'asc' }}
+        rowKey={(s) => s.id}
+        emptyMessage="No hay proveedores registrados"
+      />
 
       {/* Create/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -279,12 +294,30 @@ export default function Proveedores() {
       </Dialog>
 
       {/* Detail Modal */}
-      <SupplierDetailModal supplier={detail} onClose={() => setDetail(null)} onEdit={(s) => { setDetail(null); openEdit(s); }} />
+      <SupplierDetailModal
+        supplier={detail}
+        onClose={() => setDetail(null)}
+        onEdit={(s) => { setDetail(null); openEdit(s); }}
+        onDelete={canManage ? (s) => { setDetail(null); setDeleteTarget(s); } : undefined}
+      />
+
+      {/* Safe Delete */}
+      {deleteTarget && (
+        <SafeDeleteDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          entityName={deleteTarget.name}
+          checkFn={() => checkDeleteSupplier(deleteTarget.id)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   );
 }
 
-function SupplierDetailModal({ supplier, onClose, onEdit }: { supplier: SupplierRow | null; onClose: () => void; onEdit: (s: SupplierRow) => void }) {
+function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
+  supplier: SupplierRow | null; onClose: () => void; onEdit: (s: SupplierRow) => void; onDelete?: (s: SupplierRow) => void;
+}) {
   const { data: ots = [] } = useQuery({
     queryKey: ['supplier-ots', supplier?.id],
     queryFn: async () => {
@@ -295,28 +328,74 @@ function SupplierDetailModal({ supplier, onClose, onEdit }: { supplier: Supplier
     enabled: !!supplier,
   });
 
+  const { data: costEntries = [] } = useQuery({
+    queryKey: ['supplier-costs', supplier?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('cost_entries').select('*').eq('supplier_id', supplier!.id).order('cost_date', { ascending: false }).limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!supplier,
+  });
+
   if (!supplier) return null;
+
+  const totalOTCost = ots.reduce((s: number, o: any) => s + Number(o.total_cost || 0), 0);
+  const activeOTs = ots.filter((o: any) => !['cerrada', 'firmada'].includes(o.status));
+  const totalPaid = costEntries.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
 
   return (
     <Dialog open={!!supplier} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] rounded-2xl">
+      <DialogContent className="sm:max-w-[700px] rounded-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-barlow text-lg flex items-center gap-2">
             {supplier.name}
             {supplier.type && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[supplier.type] || ''}`}>{supplier.type.replace(/_/g, ' ')}</span>}
           </DialogTitle>
-          <DialogDescription className="font-dm text-sm text-muted-foreground flex items-center gap-2">
-            {supplier.city || ''} <StarRating value={supplier.rating || 0} />
-          </DialogDescription>
+          <div className="font-dm text-sm text-muted-foreground flex items-center gap-2">
+            {supplier.city || ''}{supplier.specialty ? ` · ${supplier.specialty}` : ''} <StarRating value={supplier.rating || 0} />
+          </div>
         </DialogHeader>
-        <Tabs defaultValue="ots">
+        <Tabs defaultValue="info">
           <TabsList className="font-dm">
-            <TabsTrigger value="ots">Historial OT</TabsTrigger>
-            <TabsTrigger value="info">Información</TabsTrigger>
+            <TabsTrigger value="info">📋 Información</TabsTrigger>
+            <TabsTrigger value="ots">🔧 OT ({ots.length})</TabsTrigger>
+            <TabsTrigger value="invoices">💰 Facturas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="info">
+            <div className="grid grid-cols-2 gap-4 py-2">
+              {[
+                ['Especialidad', supplier.specialty],
+                ['NIT', supplier.tax_id],
+                ['Contacto', supplier.contact_name],
+                ['Teléfono', supplier.contact_phone ? <a href={`tel:${supplier.contact_phone}`} className="text-primary hover:underline">{supplier.contact_phone}</a> : null],
+                ['Email', supplier.contact_email ? <a href={`mailto:${supplier.contact_email}`} className="text-primary hover:underline">{supplier.contact_email}</a> : null],
+                ['Ciudad', supplier.city],
+              ].map(([l, v]) => (
+                <div key={l as string}><p className="text-[11px] uppercase text-muted-foreground font-dm">{l as string}</p><p className="text-sm font-dm">{v || '—'}</p></div>
+              ))}
+              {supplier.notes && <div className="col-span-2"><p className="text-[11px] uppercase text-muted-foreground font-dm">Notas</p><p className="text-sm font-dm whitespace-pre-wrap">{supplier.notes}</p></div>}
+            </div>
+          </TabsContent>
+
           <TabsContent value="ots">
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="bg-secondary rounded-lg p-2.5 text-center">
+                <p className="text-[11px] uppercase text-muted-foreground font-dm">Total OT</p>
+                <p className="text-lg font-barlow font-semibold">{ots.length}</p>
+              </div>
+              <div className="bg-secondary rounded-lg p-2.5 text-center">
+                <p className="text-[11px] uppercase text-muted-foreground font-dm">En curso</p>
+                <p className="text-lg font-barlow font-semibold">{activeOTs.length}</p>
+              </div>
+              <div className="bg-secondary rounded-lg p-2.5 text-center">
+                <p className="text-[11px] uppercase text-muted-foreground font-dm">Costo total</p>
+                <p className="text-lg font-barlow font-semibold">${totalOTCost.toLocaleString()}</p>
+              </div>
+            </div>
             {ots.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center font-dm">Sin órdenes de trabajo con este proveedor</p>
+              <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin órdenes de trabajo</p>
             ) : (
               <Table>
                 <TableHeader><TableRow className="bg-secondary">
@@ -336,15 +415,44 @@ function SupplierDetailModal({ supplier, onClose, onEdit }: { supplier: Supplier
               </Table>
             )}
           </TabsContent>
-          <TabsContent value="info">
-            <div className="grid grid-cols-2 gap-4 py-2">
-              {[['Especialidad', supplier.specialty], ['NIT', supplier.tax_id], ['Contacto', supplier.contact_name], ['Teléfono', supplier.contact_phone], ['Email', supplier.contact_email], ['Ciudad', supplier.city]].map(([l, v]) => (
-                <div key={l as string}><p className="text-[11px] uppercase text-muted-foreground font-dm">{l}</p><p className="text-sm font-dm">{v || '—'}</p></div>
-              ))}
+
+          <TabsContent value="invoices">
+            <div className="bg-secondary rounded-lg p-3 mb-3 text-center">
+              <p className="text-[11px] uppercase text-muted-foreground font-dm">Total pagado</p>
+              <p className="text-xl font-barlow font-semibold">${totalPaid.toLocaleString()}</p>
             </div>
-            <Button variant="ghost" className="mt-2" onClick={() => onEdit(supplier)}>Editar</Button>
+            {costEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin movimientos financieros</p>
+            ) : (
+              <Table>
+                <TableHeader><TableRow className="bg-secondary">
+                  {['Fecha', 'Factura #', 'Descripción', 'Monto'].map((h) => <TableHead key={h} className="text-[11px] uppercase font-dm">{h}</TableHead>)}
+                </TableRow></TableHeader>
+                <TableBody>
+                  {costEntries.map((e: any) => (
+                    <TableRow key={e.id} className="h-[44px]">
+                      <TableCell className="font-dm text-sm text-muted-foreground">{format(new Date(e.cost_date), 'dd MMM yyyy', { locale: es })}</TableCell>
+                      <TableCell className="font-dm text-sm">{e.invoice_number || '—'}</TableCell>
+                      <TableCell className="font-dm text-sm">{e.description || '—'}</TableCell>
+                      <TableCell className="font-dm text-sm font-medium">${Number(e.amount).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </TabsContent>
         </Tabs>
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+          <Button variant="ghost" size="sm" className="gap-1.5 font-dm" onClick={() => onEdit(supplier)}>
+            <Pencil className="h-3.5 w-3.5" /> Editar
+          </Button>
+          {onDelete && supplier.status !== 'inactivo' && (
+            <Button variant="ghost" size="sm" className="gap-1.5 font-dm text-destructive" onClick={() => onDelete(supplier)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

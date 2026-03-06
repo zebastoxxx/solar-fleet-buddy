@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
+import { usePermissions } from '@/hooks/usePermissions';
 import { ActionBar, ActionBarLeft, ActionBarRight } from '@/components/ui/action-bar';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterPills } from '@/components/ui/filter-pills';
+import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,9 @@ export default function Proyectos() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [clientFilter, setClientFilter] = useState('all');
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', tenantId],
@@ -86,14 +90,17 @@ export default function Proyectos() {
     enabled: !!tenantId,
   });
 
-  const filtered = projects.filter((p: any) => {
+  const filtered = useMemo(() => projects.filter((p: any) => {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (clientFilter !== 'all' && p.client_id !== clientFilter) return false;
+    if (dateFrom && p.start_date && p.start_date < dateFrom) return false;
+    if (dateTo && p.start_date && p.start_date > dateTo) return false;
     if (search) {
       const q = search.toLowerCase();
       return p.name.toLowerCase().includes(q) || (p.city?.toLowerCase().includes(q)) || (p.clients?.name?.toLowerCase().includes(q));
     }
     return true;
-  });
+  }), [projects, statusFilter, clientFilter, dateFrom, dateTo, search]);
 
   const form = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
@@ -148,49 +155,50 @@ export default function Proyectos() {
     return `$${n.toLocaleString()}`;
   };
 
+  const projectColumns: Column<any>[] = [
+    { key: 'name', label: 'Nombre', sortable: true, render: (p: any) => <span className="font-medium">{p.name}</span> },
+    { key: 'clients.name', label: 'Cliente', sortable: true, render: (p: any) => <span className="text-muted-foreground">{p.clients?.name || '—'}</span> },
+    { key: 'city', label: 'Ciudad', sortable: true, render: (p: any) => <span className="text-muted-foreground">{p.city || '—'}</span> },
+    { key: 'start_date', label: 'Inicio', sortable: true, render: (p: any) => <span className="text-muted-foreground text-xs">{p.start_date ? format(new Date(p.start_date), 'dd MMM yyyy', { locale: es }) : '—'}</span> },
+    { key: 'status', label: 'Estado', sortable: true, render: (p: any) => <StatusBadge status={p.status || 'activo'} /> },
+    { key: 'budget', label: 'Presupuesto', sortable: true, align: 'right', render: (p: any) => <span className="font-medium">{formatBudget(p.budget)}</span> },
+  ];
+
   return (
-    <div>
+    <div className="space-y-3">
       <ActionBar>
         <ActionBarLeft>
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar proyecto..." />
           <FilterPills options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+          <AdvancedFilters
+            dateRange
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            customFilters={[
+              { key: 'client', label: 'Cliente', type: 'select', options: [{ value: 'all', label: 'Todos' }, ...clients.map((c: any) => ({ value: c.id, label: c.name }))] },
+            ]}
+            filterValues={{ client: clientFilter }}
+            onFilterChange={(k, v) => { if (k === 'client') setClientFilter(v); }}
+            onClear={() => { setDateFrom(''); setDateTo(''); setClientFilter('all'); }}
+            resultCount={filtered.length}
+          />
         </ActionBarLeft>
         <ActionBarRight>
           <Button onClick={openCreate} className="gap-1.5"><Plus className="h-4 w-4" /> Nuevo Proyecto</Button>
         </ActionBarRight>
       </ActionBar>
 
-      <div className="rounded-xl border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-secondary">
-              {['Nombre', 'Cliente', 'Ciudad', 'Máquinas', 'Personal', 'Inicio', 'Estado', 'Presupuesto'].map((h) => (
-                <TableHead key={h} className="text-[11px] uppercase tracking-wider font-dm">{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={i} className="h-[44px]">{Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>)}</TableRow>
-            ))}
-            {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground font-dm">No hay proyectos registrados</TableCell></TableRow>
-            )}
-            {filtered.map((p: any) => (
-              <TableRow key={p.id} className="h-[44px] cursor-pointer hover:bg-[hsl(var(--gold)/0.04)]" onClick={() => navigate(`/proyectos/${p.id}`)}>
-                <TableCell className="font-medium font-dm text-sm">{p.name}</TableCell>
-                <TableCell className="font-dm text-sm text-muted-foreground">{p.clients?.name || '—'}</TableCell>
-                <TableCell className="font-dm text-sm text-muted-foreground">{p.city || '—'}</TableCell>
-                <TableCell className="font-dm text-sm"><Truck className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />—</TableCell>
-                <TableCell className="font-dm text-sm"><HardHat className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />—</TableCell>
-                <TableCell className="font-dm text-sm text-muted-foreground">{p.start_date ? format(new Date(p.start_date), 'dd MMM yyyy', { locale: es }) : '—'}</TableCell>
-                <TableCell><StatusBadge status={p.status || 'activo'} /></TableCell>
-                <TableCell className="font-dm text-sm font-medium">{formatBudget(p.budget)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        data={filtered}
+        columns={projectColumns}
+        isLoading={isLoading}
+        onRowClick={(p: any) => navigate(`/proyectos/${p.id}`)}
+        defaultSort={{ key: 'start_date', direction: 'desc' }}
+        rowKey={(p: any) => p.id}
+        emptyMessage="No hay proyectos registrados"
+      />
 
       {/* Create/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -208,10 +216,10 @@ export default function Proyectos() {
               </div>
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Cliente</Label>
-                <Select value={form.watch('client_id') || ''} onValueChange={(v) => form.setValue('client_id', v)}>
+                <Select value={form.watch('client_id') || '__none__'} onValueChange={(v) => form.setValue('client_id', v === '__none__' ? '' : v)}>
                   <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue placeholder="Sin cliente" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin cliente asignado</SelectItem>
+                    <SelectItem value="__none__">Sin cliente asignado</SelectItem>
                     {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}{c.city ? ` · ${c.city}` : ''}</SelectItem>)}
                   </SelectContent>
                 </Select>

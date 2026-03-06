@@ -7,11 +7,12 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterPills } from '@/components/ui/filter-pills';
+import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Download, Eye } from 'lucide-react';
@@ -24,6 +25,8 @@ export default function Preoperacionales() {
   const [projectFilter, setProjectFilter] = useState('todos');
   const [machineFilter, setMachineFilter] = useState('todas');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['preop-records-supervisor', user?.tenant_id],
@@ -71,9 +74,11 @@ export default function Preoperacionales() {
       if (typeFilter === 'criticos' && !r.has_critical_failures) return false;
       if (projectFilter !== 'todos' && r.project_id !== projectFilter) return false;
       if (machineFilter !== 'todas' && r.machine_id !== machineFilter) return false;
+      if (dateFrom && r.created_at && r.created_at < dateFrom) return false;
+      if (dateTo && r.created_at && r.created_at > dateTo + 'T23:59:59') return false;
       return true;
     });
-  }, [records, search, typeFilter, projectFilter, machineFilter]);
+  }, [records, search, typeFilter, projectFilter, machineFilter, dateFrom, dateTo]);
 
   const exportCSV = () => {
     const headers = ['Fecha', 'Operario', 'Máquina', 'Proyecto', 'Tipo', 'Horómetro', 'Críticos', 'Estado'];
@@ -102,8 +107,26 @@ export default function Preoperacionales() {
     { label: 'Con críticos', value: 'criticos' },
   ];
 
+  const preopColumns: Column<any>[] = [
+    { key: 'created_at', label: 'Fecha/Hora', sortable: true, render: (r: any) => <span className="text-xs">{format(new Date(r.created_at), 'dd MMM yyyy HH:mm', { locale: es })}</span> },
+    { key: 'personnel.full_name', label: 'Operario', sortable: true, render: (r: any) => <span className="text-xs">{(r.personnel as any)?.full_name || '—'}</span> },
+    { key: 'machines.name', label: 'Máquina', sortable: true, render: (r: any) => <span className="text-xs">[{(r.machines as any)?.internal_code}] {(r.machines as any)?.name}</span> },
+    { key: 'projects.name', label: 'Proyecto', sortable: true, render: (r: any) => <span className="text-xs">{(r.projects as any)?.name || '—'}</span> },
+    { key: 'record_type', label: 'Tipo', sortable: true, render: (r: any) => r.record_type === 'inicio'
+      ? <Badge className="bg-[hsl(217,80%,93%)] text-[hsl(217,91%,60%)] border-0 text-[10px]">▶ Inicio</Badge>
+      : <Badge className="bg-muted text-foreground border-0 text-[10px]">⏹ Cierre</Badge>
+    },
+    { key: 'horometer_value', label: 'Horómetro', sortable: true, render: (r: any) => <span className="text-xs">{Number(r.horometer_value).toLocaleString('es-CO')}</span> },
+    { key: 'critical_failures_count', label: 'Críticos', sortable: true, render: (r: any) => r.critical_failures_count > 0
+      ? <Badge variant="destructive" className="text-[10px] animate-pulse">⚠️ {r.critical_failures_count}</Badge>
+      : <span className="text-xs text-muted-foreground">—</span>
+    },
+    { key: 'machine_status_at_close', label: 'Estado', render: (r: any) => <StatusBadge status={r.machine_status_at_close} recordType={r.record_type} /> },
+    { key: 'actions', label: '', render: (r: any) => <Button variant="ghost" size="sm" className="text-xs"><Eye size={14} /></Button> },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Action bar */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar operario, máquina, proyecto..." className="w-64" />
@@ -122,60 +145,27 @@ export default function Preoperacionales() {
           </SelectContent>
         </Select>
         <FilterPills options={typeFilters} value={typeFilter} onChange={setTypeFilter} />
+        <AdvancedFilters
+          dateRange
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+          onClear={() => { setDateFrom(''); setDateTo(''); }}
+          resultCount={filtered.length}
+        />
         <Button variant="ghost" size="sm" onClick={exportCSV} className="ml-auto"><Download size={14} className="mr-1" /> CSV</Button>
       </div>
 
-      {/* Table */}
-      {isLoading ? (
-        <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
-      ) : !filtered.length ? (
-        <div className="text-center py-12 text-sm text-muted-foreground font-dm">No hay preoperacionales en el rango seleccionado</div>
-      ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha/Hora</TableHead>
-                <TableHead>Operario</TableHead>
-                <TableHead>Máquina</TableHead>
-                <TableHead>Proyecto</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Horómetro</TableHead>
-                <TableHead>Críticos</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r: any) => (
-                <TableRow key={r.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailId(r.id)}>
-                  <TableCell className="text-xs font-dm">{format(new Date(r.created_at), 'dd MMM yyyy HH:mm', { locale: es })}</TableCell>
-                  <TableCell className="text-xs font-dm">{(r.personnel as any)?.full_name || '—'}</TableCell>
-                  <TableCell className="text-xs font-dm">[{(r.machines as any)?.internal_code}] {(r.machines as any)?.name}</TableCell>
-                  <TableCell className="text-xs font-dm">{(r.projects as any)?.name || '—'}</TableCell>
-                  <TableCell>
-                    {r.record_type === 'inicio'
-                      ? <Badge className="bg-[hsl(217,80%,93%)] text-[hsl(217,91%,60%)] border-0 text-[10px]">▶ Inicio</Badge>
-                      : <Badge className="bg-muted text-foreground border-0 text-[10px]">⏹ Cierre</Badge>}
-                  </TableCell>
-                  <TableCell className="text-xs font-dm">{Number(r.horometer_value).toLocaleString('es-CO')}</TableCell>
-                  <TableCell>
-                    {r.critical_failures_count > 0
-                      ? <Badge variant="destructive" className="text-[10px] animate-pulse">⚠️ {r.critical_failures_count}</Badge>
-                      : <span className="text-xs text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={r.machine_status_at_close} recordType={r.record_type} />
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" className="text-xs"><Eye size={14} /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        data={filtered}
+        columns={preopColumns}
+        isLoading={isLoading}
+        onRowClick={(r: any) => setDetailId(r.id)}
+        defaultSort={{ key: 'created_at', direction: 'desc' }}
+        rowKey={(r: any) => r.id}
+        emptyMessage="No hay preoperacionales en el rango seleccionado"
+      />
 
       {/* Detail Modal */}
       {detailId && <PreopDetailModal id={detailId} onClose={() => setDetailId(null)} />}
