@@ -159,10 +159,26 @@ export function useAllMachines() {
     queryFn: async () => {
       const { data } = await supabase
         .from('machines')
-        .select('id, internal_code, name, brand, model, type, status, horometer_current, monthly_cost_estimate, current_project_id, cover_photo_url, projects:current_project_id(name)')
+        .select('id, internal_code, name, brand, model, type, status, horometer_current, monthly_cost_estimate, current_project_id, cover_photo_url, year, created_at, projects:current_project_id(name)')
         .eq('tenant_id', tenantId!)
         .order('status')
         .order('internal_code');
+      return data ?? [];
+    },
+  });
+}
+
+export function useAllMachineFinancials() {
+  const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  return useQuery({
+    queryKey: ['machine-financials-all', tenantId],
+    enabled: !!tenantId,
+    staleTime: 60000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('machine_financials')
+        .select('*')
+        .eq('tenant_id', tenantId!);
       return data ?? [];
     },
   });
