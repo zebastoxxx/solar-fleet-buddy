@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -16,6 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Download, Eye } from 'lucide-react';
 
 export default function Preoperacionales() {
+  usePageTitle('Preoperacionales');
   const user = useAuthStore((s) => s.user);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -79,6 +80,7 @@ function ChronoPill({ otId }: { otId: string }) {
 
 // ─── MAIN ───
 export default function OrdenesTrabajo() {
+  usePageTitle('Órdenes de Trabajo');
   const { user } = useAuthStore();
   const { log } = useLog();
   const qc = useQueryClient();

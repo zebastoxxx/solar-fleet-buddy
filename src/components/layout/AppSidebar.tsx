@@ -91,7 +91,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
               to={item.path}
               onClick={onClose}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-barlow font-medium uppercase tracking-wide transition-colors relative",
+                "nav-item flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-barlow font-medium uppercase tracking-wide transition-colors relative",
                 active
                   ? "border-l-[3px] border-gold bg-gold/[0.08] text-gold-bright"
                   : "border-l-[3px] border-transparent text-[hsl(var(--sidebar-text))] hover:bg-white/[0.05]"

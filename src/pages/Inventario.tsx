@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -139,6 +140,7 @@ function SignatureCanvas({ onSignature, height = 150 }: { onSignature: (data: st
 
 // ─── Main Inventario Page ───────────────────────────
 export default function Inventario() {
+  usePageTitle('Inventario');
   const user = useAuthStore((s) => s.user);
   const tenantId = user?.tenant_id;
   const { log } = useLog();

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery } from '@tanstack/react-query';
 import { subMonths, subDays, startOfYear, format, differenceInDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -488,6 +489,7 @@ function PreopsTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
 
 // ─── MAIN ───
 export default function Analytics() {
+  usePageTitle('Analytics');
   const [period, setPeriod] = useState('6m');
   const { from: dateFrom, to: dateTo } = getDateRange(period);
 

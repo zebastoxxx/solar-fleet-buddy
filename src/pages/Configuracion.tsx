@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -671,6 +672,7 @@ function LogsTab() {
 
 // ─── MAIN ───
 export default function Configuracion() {
+  usePageTitle('Configuración');
   const [activeTab, setActiveTab] = useState('usuarios');
 
   return (
