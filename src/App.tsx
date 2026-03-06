@@ -19,6 +19,7 @@ import Personal from './pages/Personal';
 import Proyectos from './pages/Proyectos';
 import ProyectoDetalle from './pages/ProyectoDetalle';
 import Preoperacionales from './pages/Preoperacionales';
+import PreoperacionalOperario from './pages/PreoperacionalOperario';
 import OrdenesTrabajo from './pages/OrdenesTrabajo';
 import Inventario from './pages/Inventario';
 import Configuracion from './pages/Configuracion';
@@ -45,6 +46,11 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            {/* Operario: full-screen preop (no AppLayout) */}
+            <Route element={<ProtectedRoute allowedRoles={['operario']} />}>
+              <Route path="/preoperacional" element={<PreoperacionalOperario />} />
+            </Route>
 
             {/* Protected routes with AppLayout */}
             <Route element={<ProtectedRoute allowedRoles={['superadmin', 'gerente', 'supervisor', 'tecnico', 'operario']} />}>
