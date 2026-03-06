@@ -14,6 +14,7 @@ import Analytics from './pages/Analytics';
 import Clientes from './pages/Clientes';
 import Proveedores from './pages/Proveedores';
 import Maquinas from './pages/Maquinas';
+import MaquinaDetalle from './pages/MaquinaDetalle';
 import Personal from './pages/Personal';
 import Proyectos from './pages/Proyectos';
 import Preoperacionales from './pages/Preoperacionales';
@@ -52,6 +53,7 @@ const App = () => (
                   <Route path="/clientes" element={<Clientes />} />
                   <Route path="/proveedores" element={<Proveedores />} />
                   <Route path="/maquinas" element={<Maquinas />} />
+                  <Route path="/maquinas/:id" element={<MaquinaDetalle />} />
                   <Route path="/personal" element={<Personal />} />
                   <Route path="/proyectos" element={<Proyectos />} />
                   <Route path="/preoperacionales" element={<Preoperacionales />} />
