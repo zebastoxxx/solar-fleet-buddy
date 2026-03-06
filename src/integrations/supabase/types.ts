@@ -805,6 +805,73 @@ export type Database = {
           },
         ]
       }
+      machine_maintenance_alerts: {
+        Row: {
+          active: boolean | null
+          alert_name: string
+          calendar_interval_days: number | null
+          created_at: string | null
+          horometer_interval: number | null
+          id: string
+          last_triggered_at: string | null
+          machine_id: string
+          next_trigger_value: number | null
+          start_date: string | null
+          tenant_id: string
+          trigger_type: string
+        }
+        Insert: {
+          active?: boolean | null
+          alert_name: string
+          calendar_interval_days?: number | null
+          created_at?: string | null
+          horometer_interval?: number | null
+          id?: string
+          last_triggered_at?: string | null
+          machine_id: string
+          next_trigger_value?: number | null
+          start_date?: string | null
+          tenant_id: string
+          trigger_type?: string
+        }
+        Update: {
+          active?: boolean | null
+          alert_name?: string
+          calendar_interval_days?: number | null
+          created_at?: string | null
+          horometer_interval?: number | null
+          id?: string
+          last_triggered_at?: string | null
+          machine_id?: string
+          next_trigger_value?: number | null
+          start_date?: string | null
+          tenant_id?: string
+          trigger_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_maintenance_alerts_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "machine_maintenance_alerts_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "machine_maintenance_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           active: boolean | null
@@ -812,14 +879,18 @@ export type Database = {
           cover_photo_url: string | null
           created_at: string | null
           current_project_id: string | null
+          engine_model: string | null
+          fuel_type: string | null
           horometer_current: number | null
           id: string
           internal_code: string
           max_capacity: string | null
+          max_height: string | null
           model: string | null
           monthly_cost_estimate: number | null
           name: string
           notes: string | null
+          plate_number: string | null
           serial_number: string | null
           status: Database["public"]["Enums"]["machine_status"] | null
           tenant_id: string
@@ -833,14 +904,18 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string | null
           current_project_id?: string | null
+          engine_model?: string | null
+          fuel_type?: string | null
           horometer_current?: number | null
           id?: string
           internal_code: string
           max_capacity?: string | null
+          max_height?: string | null
           model?: string | null
           monthly_cost_estimate?: number | null
           name: string
           notes?: string | null
+          plate_number?: string | null
           serial_number?: string | null
           status?: Database["public"]["Enums"]["machine_status"] | null
           tenant_id: string
@@ -854,14 +929,18 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string | null
           current_project_id?: string | null
+          engine_model?: string | null
+          fuel_type?: string | null
           horometer_current?: number | null
           id?: string
           internal_code?: string
           max_capacity?: string | null
+          max_height?: string | null
           model?: string | null
           monthly_cost_estimate?: number | null
           name?: string
           notes?: string | null
+          plate_number?: string | null
           serial_number?: string | null
           status?: Database["public"]["Enums"]["machine_status"] | null
           tenant_id?: string

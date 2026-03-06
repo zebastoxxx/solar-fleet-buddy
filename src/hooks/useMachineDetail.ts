@@ -25,10 +25,7 @@ export function useMachineConditions(machineId: string) {
     enabled: !!machineId,
     staleTime: 30000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('machine_conditions')
-        .select('*')
-        .eq('machine_id', machineId);
+      const { data } = await supabase.from('machine_conditions').select('*').eq('machine_id', machineId);
       return data ?? [];
     },
   });
@@ -72,10 +69,7 @@ export function useMachineKits(machineId: string) {
     queryKey: ['machine-kits', machineId],
     enabled: !!machineId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('inventory_kits')
-        .select('*, inventory_kit_items(*)')
-        .eq('machine_id', machineId);
+      const { data } = await supabase.from('inventory_kits').select('*, inventory_kit_items(*)').eq('machine_id', machineId);
       return data ?? [];
     },
   });
@@ -101,11 +95,7 @@ export function useMachineDocuments(machineId: string) {
     queryKey: ['machine-documents', machineId],
     enabled: !!machineId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('machine_documents')
-        .select('*')
-        .eq('machine_id', machineId)
-        .order('uploaded_at', { ascending: false });
+      const { data } = await supabase.from('machine_documents').select('*').eq('machine_id', machineId).order('uploaded_at', { ascending: false });
       return data ?? [];
     },
   });
@@ -116,11 +106,7 @@ export function useMachineCosts(machineId: string) {
     queryKey: ['machine-costs', machineId],
     enabled: !!machineId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('cost_entries')
-        .select('*')
-        .eq('machine_id', machineId)
-        .order('cost_date', { ascending: true });
+      const { data } = await supabase.from('cost_entries').select('*').eq('machine_id', machineId).order('cost_date', { ascending: true });
       return data ?? [];
     },
   });
@@ -131,12 +117,48 @@ export function useMachineAlerts(machineId: string) {
     queryKey: ['machine-alerts', machineId],
     enabled: !!machineId,
     queryFn: async () => {
+      const { data } = await supabase.from('alerts').select('*').eq('machine_id', machineId).order('created_at', { ascending: false });
+      return data ?? [];
+    },
+  });
+}
+
+export function useMachineFinancials(machineId: string) {
+  return useQuery({
+    queryKey: ['machine-financials', machineId],
+    enabled: !!machineId,
+    queryFn: async () => {
       const { data } = await supabase
-        .from('alerts')
+        .from('machine_financials')
         .select('*')
         .eq('machine_id', machineId)
-        .order('created_at', { ascending: false });
+        .maybeSingle();
+      return data;
+    },
+  });
+}
+
+export function useMachineMaintenanceAlerts(machineId: string) {
+  return useQuery({
+    queryKey: ['machine-maint-alerts', machineId],
+    enabled: !!machineId,
+    queryFn: async () => {
+      const { data } = await supabase.from('machine_maintenance_alerts').select('*').eq('machine_id', machineId).order('created_at', { ascending: false });
       return data ?? [];
+    },
+  });
+}
+
+export function useUpdateMachine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
+      const { error } = await supabase.from('machines').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['machine'] });
+      qc.invalidateQueries({ queryKey: ['machines'] });
     },
   });
 }
@@ -152,14 +174,8 @@ export function useUpdateMachineStatus() {
       if (error) throw error;
       if (user) {
         await supabase.from('system_logs').insert({
-          tenant_id: user.tenant_id,
-          user_id: user.id,
-          user_name: user.full_name,
-          user_role: user.role,
-          module: 'maquinas',
-          action: 'cambiar_estado',
-          entity_type: 'machine',
-          entity_id: id,
+          tenant_id: user.tenant_id, user_id: user.id, user_name: user.full_name, user_role: user.role,
+          module: 'maquinas', action: 'cambiar_estado', entity_type: 'machine', entity_id: id,
           detail: { new_status: status },
         });
       }
@@ -182,15 +198,8 @@ export function useCreateMachine() {
       if (error) throw error;
       if (user) {
         await supabase.from('system_logs').insert({
-          tenant_id: user.tenant_id,
-          user_id: user.id,
-          user_name: user.full_name,
-          user_role: user.role,
-          module: 'maquinas',
-          action: 'crear_maquina',
-          entity_type: 'machine',
-          entity_id: data.id,
-          entity_name: data.name,
+          tenant_id: user.tenant_id, user_id: user.id, user_name: user.full_name, user_role: user.role,
+          module: 'maquinas', action: 'crear_maquina', entity_type: 'machine', entity_id: data.id, entity_name: data.name,
         });
       }
       return data;
@@ -199,5 +208,26 @@ export function useCreateMachine() {
       qc.invalidateQueries({ queryKey: ['machines'] });
       qc.invalidateQueries({ queryKey: ['fleet-stats'] });
     },
+  });
+}
+
+export function useUploadMachineDocument() {
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  return useMutation({
+    mutationFn: async ({ machineId, file, name, docType, expiryDate }: {
+      machineId: string; file: File; name: string; docType: string; expiryDate?: string;
+    }) => {
+      const path = `machines/${machineId}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('documents').upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path);
+      const { error } = await supabase.from('machine_documents').insert({
+        machine_id: machineId, name, doc_type: docType, file_url: publicUrl,
+        expiry_date: expiryDate || null, uploaded_by: user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['machine-documents'] }),
   });
 }
