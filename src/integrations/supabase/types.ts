@@ -807,6 +807,7 @@ export type Database = {
       }
       machines: {
         Row: {
+          active: boolean | null
           brand: string | null
           cover_photo_url: string | null
           created_at: string | null
@@ -827,6 +828,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          active?: boolean | null
           brand?: string | null
           cover_photo_url?: string | null
           created_at?: string | null
@@ -847,6 +849,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          active?: boolean | null
           brand?: string | null
           cover_photo_url?: string | null
           created_at?: string | null
