@@ -1,0 +1,68 @@
+import { useLocation, Link } from "react-router-dom";
+import { NAV_ITEMS } from "@/types";
+import {
+  BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
+  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
+  FolderOpen, ClipboardList, Wrench, Package, Settings,
+};
+
+interface AppSidebarProps {
+  onClose: () => void;
+}
+
+export function AppSidebar({ onClose }: AppSidebarProps) {
+  const location = useLocation();
+
+  return (
+    <>
+      {/* Logo area */}
+      <div className="flex flex-col items-center gap-1 px-4 py-5">
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gold/20">
+          <span className="text-xl font-bold font-barlow text-gold-bright">U&D</span>
+        </div>
+        <span className="text-xs font-barlow font-semibold uppercase tracking-wider text-gold-bright">
+          UpDown Solar OS
+        </span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
+        {NAV_ITEMS.map((item) => {
+          const Icon = ICON_MAP[item.icon] || Settings;
+          const active = location.pathname.startsWith(item.path);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onClose}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-barlow font-medium uppercase tracking-wide transition-colors",
+                active
+                  ? "border-l-[3px] border-gold bg-gold/[0.08] text-gold-bright"
+                  : "border-l-[3px] border-transparent text-[hsl(var(--sidebar-text))] hover:bg-white/[0.05]"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-white/10 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[hsl(var(--sidebar-text))] font-dm">Power by God</span>
+          <button className="text-[hsl(var(--sidebar-text))] hover:text-white transition-colors">
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
