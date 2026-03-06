@@ -876,6 +876,10 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
   const [entryType, setEntryType] = useState<'ingreso' | 'gasto'>(entry?.entry_type as any ?? 'gasto');
   const [costDate, setCostDate] = useState(entry?.cost_date ?? format(new Date(), 'yyyy-MM-dd'));
   const [categoryId, setCategoryId] = useState(entry?.category_id ?? '');
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('📦');
+  const [creatingCat, setCreatingCat] = useState(false);
   const [description, setDescription] = useState(entry?.description ?? '');
   const [amount, setAmount] = useState(entry ? String(entry.amount) : '');
   const [machineId, setMachineId] = useState(entry?.machine_id ?? '');
@@ -912,6 +916,32 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
   };
 
   const filteredCategories = categories.filter(c => c.type === entryType);
+
+  const handleCreateCategory = async () => {
+    if (!newCatName.trim()) return;
+    setCreatingCat(true);
+    try {
+      const { data, error } = await supabase.from('financial_categories').insert({
+        tenant_id: tenantId,
+        name: newCatName.trim(),
+        type: entryType,
+        icon: newCatIcon,
+        color: entryType === 'ingreso' ? '#D4881E' : '#C0392B',
+        is_default: false,
+        active: true,
+      }).select().single();
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['financial-categories'] });
+      setCategoryId(data.id);
+      setNewCatName('');
+      setShowNewCategory(false);
+      toast({ title: `Categoría "${data.name}" creada` });
+    } catch (err: any) {
+      toast({ title: 'Error creando categoría', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreatingCat(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!description.trim() || !amount || !costDate) {
@@ -990,15 +1020,38 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
               <Input type="date" value={costDate} onChange={e => setCostDate(e.target.value)} className="font-dm" />
             </div>
             <div>
-              <Label className="font-dm text-xs">Categoría *</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="font-dm text-xs">Categoría *</Label>
+                <button type="button" onClick={() => setShowNewCategory(!showNewCategory)}
+                  className="text-xs text-primary hover:underline font-dm">
+                  {showNewCategory ? 'Cancelar' : '+ Nueva'}
+                </button>
+              </div>
+              {showNewCategory ? (
+                <div className="flex gap-2">
+                  <Select value={newCatIcon} onValueChange={setNewCatIcon}>
+                    <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['📦','💰','⚙️','📋','🎯','🔩','🛢️','⛽','🏭','👷','🔧','🚚','🧴','➕'].map(icon => (
+                        <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input placeholder="Nombre categoría" value={newCatName} onChange={e => setNewCatName(e.target.value)} className="flex-1 font-dm text-sm" />
+                  <Button size="sm" onClick={handleCreateCategory} disabled={creatingCat || !newCatName.trim()}>
+                    {creatingCat ? '...' : '✓'}
+                  </Button>
+                </div>
+              ) : (
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
+                  <SelectContent>
+                    {filteredCategories.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
