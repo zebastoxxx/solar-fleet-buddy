@@ -1,14 +1,15 @@
 {
-  "name": "Up & Down Solar OS",
-  "short_name": "UD Solar",
+  "name": "Up & Down App",
+  "short_name": "UD App",
   "description": "Sistema de gestión de maquinaria pesada y proyectos solares",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F3EE",
+  "background_color": "#1C1C1E",
   "theme_color": "#D4881E",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "/favicon.ico", "sizes": "64x64", "type": "image/x-icon" },
+    { "src": "/pwa-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png" }
   ]
