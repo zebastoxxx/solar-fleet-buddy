@@ -246,8 +246,7 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
 
   const bulkDeleteConsumables = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('inventory_consumables').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteConsumables(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-consumables'] });
