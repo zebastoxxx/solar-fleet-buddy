@@ -151,6 +151,20 @@ export default function Proyectos() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('projects').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects', tenantId] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const formatBudget = (n: number | null) => {
     if (!n) return '—';
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(0)}M`;
