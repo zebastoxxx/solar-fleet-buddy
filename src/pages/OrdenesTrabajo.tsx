@@ -93,6 +93,30 @@ export default function OrdenesTrabajo() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [detailOT, setDetailOT] = useState<any>(null);
+  const [selectedOTs, setSelectedOTs] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteOTs = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await supabase.from('work_order_technicians').delete().in('work_order_id', ids);
+      await supabase.from('work_order_parts').delete().in('work_order_id', ids);
+      await supabase.from('work_order_photos').delete().in('work_order_id', ids);
+      await supabase.from('work_order_tools').delete().in('work_order_id', ids);
+      await supabase.from('work_order_timers').delete().in('work_order_id', ids);
+      const { error } = await supabase.from('work_orders').delete().eq('tenant_id', tenantId!).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['work-orders'] });
+      toast.success(`${selectedOTs.length} OT(s) eliminada(s)`);
+      setSelectedOTs([]);
+      setShowBulkDelete(false);
+    },
+    onError: (err) => {
+      console.error('Bulk delete OTs error:', err);
+      toast.error('Error al eliminar. Algunas OTs pueden tener dependencias.');
+    },
+  });
 
   // Fetch work orders
   const { data: workOrders = [], isLoading } = useQuery({
