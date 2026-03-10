@@ -222,6 +222,18 @@ export default function OrdenesTrabajo() {
       </div>
 
       {/* Table */}
+      {selectedOTs.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30">
+          <span className="text-sm font-dm font-medium">{selectedOTs.length} seleccionada{selectedOTs.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedOTs([])}>Cancelar</Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedOTs.length})
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
         {isLoading ? (
           <div className="p-6 space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
@@ -234,6 +246,12 @@ export default function OrdenesTrabajo() {
           <Table>
             <TableHeader>
               <TableRow className="text-[11px] font-barlow uppercase">
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedOTs.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedOTs(e.target.checked ? filtered.map((o: any) => o.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Máquina</TableHead>
                 <TableHead>Tipo</TableHead>
