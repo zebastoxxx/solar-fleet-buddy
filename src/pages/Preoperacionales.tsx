@@ -105,6 +105,20 @@ export default function Preoperacionales() {
     URL.revokeObjectURL(url);
   };
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('preop_records').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['preop-records-supervisor', user?.tenant_id] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const typeFilters = [
     { label: 'Todos', value: 'todos' },
     { label: 'Solo inicio', value: 'inicio' },
