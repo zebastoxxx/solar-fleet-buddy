@@ -270,7 +270,12 @@ export default function OrdenesTrabajo() {
                 const techs = otTechnicians[ot.id] || [];
                 const loc = LOCATION_BADGES[ot.location_type] || { icon: '', label: '' };
                 return (
-                  <TableRow key={ot.id} className="h-11 cursor-pointer hover:bg-muted/50" onClick={() => setDetailOT(ot)}>
+                  <TableRow key={ot.id} className={cn("h-11 cursor-pointer hover:bg-muted/50", selectedOTs.includes(ot.id) && "bg-primary/5")} onClick={() => setDetailOT(ot)}>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedOTs.includes(ot.id)}
+                        onChange={e => setSelectedOTs(e.target.checked ? [...selectedOTs, ot.id] : selectedOTs.filter(x => x !== ot.id))}
+                        className="h-3.5 w-3.5 rounded border-border" />
+                    </TableCell>
                     <TableCell className="font-barlow text-[hsl(var(--gold-bright))] font-semibold text-[13px]">{ot.code}</TableCell>
                     <TableCell className="text-xs font-dm">
                       {ot.machines ? <span>[{ot.machines.internal_code}] {ot.machines.name}</span> : '—'}
