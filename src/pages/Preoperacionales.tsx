@@ -107,7 +107,7 @@ export default function Preoperacionales() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('preop_records').delete().in('id', ids);
+      const { error } = await supabase.from('preop_records').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
       if (error) throw error;
     },
     onSuccess: () => {

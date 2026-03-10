@@ -177,7 +177,7 @@ export default function Proveedores() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('suppliers').delete().in('id', ids);
+      const { error } = await supabase.from('suppliers').delete().eq('tenant_id', tenantId!).in('id', ids);
       if (error) throw error;
     },
     onSuccess: () => {
