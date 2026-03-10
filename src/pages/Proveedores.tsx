@@ -92,6 +92,8 @@ export default function Proveedores() {
   const [deleteTarget, setDeleteTarget] = useState<SupplierRow | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [selectedRows, setSelectedRows] = useState<SupplierRow[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', tenantId],
