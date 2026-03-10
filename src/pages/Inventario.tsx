@@ -892,6 +892,22 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
   const [editing, setEditing] = useState<any>(null);
   const [showAssign, setShowAssign] = useState<any>(null);
   const [showReturn, setShowReturn] = useState<any>(null);
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteTools = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('inventory_tools').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-tools'] });
+      toast.success(`${selectedTools.length} herramienta(s) eliminada(s)`);
+      setSelectedTools([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar. Herramientas asignadas a OTs activas no se pueden eliminar.'),
+  });
 
   const statusOptions = [
     { label: 'Todas', value: 'todos' }, { label: 'Disponible', value: 'disponible' },
