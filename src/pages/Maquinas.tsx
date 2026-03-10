@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, LayoutGrid, List, Columns3 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, LayoutGrid, List, Columns3, Trash2 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonMachineCards } from '@/components/ui/SkeletonLoaders';
@@ -11,9 +12,13 @@ import { StatusIndicator } from '@/components/ui/status-indicator';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { AdvancedFilters, type FilterField } from '@/components/ui/AdvancedFilters';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAllMachines, useAllMachineFinancials } from '@/hooks/useDashboardData';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/integrations/supabase/client';
 import { CreateMachineModal } from '@/components/machines/CreateMachineModal';
+import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
