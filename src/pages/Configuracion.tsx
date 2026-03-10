@@ -47,6 +47,9 @@ function UsuariosTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<any>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<any>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [showBulkDeactivate, setShowBulkDeactivate] = useState(false);
+  const [bulkDeactivating, setBulkDeactivating] = useState(false);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['config-users', user?.tenant_id],
