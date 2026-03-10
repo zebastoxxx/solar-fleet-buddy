@@ -99,13 +99,7 @@ export default function OrdenesTrabajo() {
 
   const bulkDeleteOTs = useMutation({
     mutationFn: async (ids: string[]) => {
-      await supabase.from('work_order_technicians').delete().in('work_order_id', ids);
-      await supabase.from('work_order_parts').delete().in('work_order_id', ids);
-      await supabase.from('work_order_photos').delete().in('work_order_id', ids);
-      await supabase.from('work_order_tools').delete().in('work_order_id', ids);
-      await supabase.from('work_order_timers').delete().in('work_order_id', ids);
-      const { error } = await supabase.from('work_orders').delete().eq('tenant_id', tenantId!).in('id', ids);
-      if (error) throw error;
+      await deleteWorkOrders(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['work-orders'] });

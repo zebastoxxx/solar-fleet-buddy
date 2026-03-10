@@ -108,8 +108,7 @@ export default function Preoperacionales() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('preop_records').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
-      if (error) throw error;
+      await deletePreoperacionales(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['preop-records-supervisor', user?.tenant_id] });
