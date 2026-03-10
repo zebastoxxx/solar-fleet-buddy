@@ -72,6 +72,8 @@ export default function Clientes() {
   const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<ClientRow[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Advanced filters
   const [dateFrom, setDateFrom] = useState('');
