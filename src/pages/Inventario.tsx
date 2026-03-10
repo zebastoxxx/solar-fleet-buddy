@@ -240,6 +240,22 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
   const [showExit, setShowExit] = useState<any>(null);
   const [showEntry, setShowEntry] = useState(false);
   const [showHistory, setShowHistory] = useState<any>(null);
+  const [selectedConsumables, setSelectedConsumables] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteConsumables = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('inventory_consumables').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-consumables'] });
+      toast.success(`${selectedConsumables.length} consumible(s) eliminado(s)`);
+      setSelectedConsumables([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar. Algunos pueden tener movimientos asociados.'),
+  });
 
   const catOptions = [
     { label: 'Todos', value: 'todos' }, { label: 'Combustible', value: 'combustible' },
