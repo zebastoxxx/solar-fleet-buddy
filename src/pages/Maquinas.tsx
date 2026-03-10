@@ -311,6 +311,23 @@ export default function Maquinas() {
       )}
 
       {showCreate && <CreateMachineModal open={showCreate} onClose={() => setShowCreate(false)} />}
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedRows.length} registro{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Los registros seleccionados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); bulkDeleteMutation.mutate(selectedRows.map((r: any) => r.id)); }}>
+              {bulkDeleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
