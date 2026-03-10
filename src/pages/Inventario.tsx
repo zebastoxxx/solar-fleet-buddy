@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteConsumables, deleteTools, deleteKits } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { toast } from 'sonner';
