@@ -369,15 +369,24 @@ export default function Clientes() {
         onDelete={canManage ? (c) => { setDetailClient(null); setDeleteTarget(c); } : undefined}
       />
 
-      {/* Safe Delete */}
+      {/* Delete Confirm */}
       {deleteTarget && (
-        <SafeDeleteDialog
-          open={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          entityName={deleteTarget.name}
-          checkFn={() => checkDeleteClient(deleteTarget.id)}
-          onConfirm={handleDelete}
-        />
+        <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-barlow">¿Eliminar "{deleteTarget.name}"?</AlertDialogTitle>
+              <AlertDialogDescription className="font-dm">
+                Esta acción eliminará el cliente y todos sus datos asociados (proyectos, costos). No se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-dm">Cancelar</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" onClick={(e) => { e.preventDefault(); handleDelete(); }}>
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
