@@ -185,13 +185,13 @@ export default function Maquinas() {
         <ActionBarRight>
           <div className="flex gap-0.5 border border-border rounded-lg p-0.5">
             {([['cards', LayoutGrid], ['table', List], ['kanban', Columns3]] as const).map(([mode, Icon]) => (
-              <Button
-                key={mode}
-                variant={viewMode === mode ? 'default' : 'ghost'}
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setViewMode(mode)}
-              >
+                <Button
+                  key={mode}
+                  variant={viewMode === mode ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => { setViewMode(mode); setSelectedRows([]); }}
+                >
                 <Icon className="h-3.5 w-3.5" />
               </Button>
             ))}
