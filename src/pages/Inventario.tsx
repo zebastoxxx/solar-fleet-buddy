@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,8 +12,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   Package, Wrench, BriefcaseMedical, Plus, Download, Upload,
-  Search, ArrowRightLeft, X, Check, AlertTriangle, Mic
+  Search, ArrowRightLeft, X, Check, AlertTriangle, Mic, Trash2
 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '@/components/ui/stat-card';
 import { SearchInput } from '@/components/ui/search-input';
