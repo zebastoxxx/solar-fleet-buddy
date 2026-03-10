@@ -944,9 +944,26 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
+          {selectedTools.length > 0 && (
+            <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-primary/30">
+              <span className="text-sm font-dm font-medium">{selectedTools.length} seleccionado{selectedTools.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedTools([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedTools.length})
+                </Button>
+              </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedTools.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedTools(e.target.checked ? filtered.map((t: any) => t.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead className="font-dm text-xs">Código</TableHead>
                 <TableHead className="font-dm text-xs">Nombre</TableHead>
                 <TableHead className="font-dm text-xs">Categoría</TableHead>
@@ -960,7 +977,12 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
               {filtered.map((t: any) => {
                 const st = TOOL_STATUS_STYLES[t.status] || TOOL_STATUS_STYLES.disponible;
                 return (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} className={selectedTools.includes(t.id) ? 'bg-primary/5' : ''}>
+                    <TableCell>
+                      <input type="checkbox" checked={selectedTools.includes(t.id)}
+                        onChange={e => setSelectedTools(e.target.checked ? [...selectedTools, t.id] : selectedTools.filter(x => x !== t.id))}
+                        className="h-3.5 w-3.5 rounded border-border" />
+                    </TableCell>
                     <TableCell className="text-xs font-barlow text-gold">{t.internal_code || '—'}</TableCell>
                     <TableCell className="text-sm font-dm font-medium">{t.name}</TableCell>
                     <TableCell className="text-xs text-muted-foreground font-dm capitalize">{t.category || '—'}</TableCell>
