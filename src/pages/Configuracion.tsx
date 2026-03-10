@@ -183,6 +183,35 @@ function UsuariosTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={showBulkDeactivate} onOpenChange={setShowBulkDeactivate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">🔒 ¿Desactivar {selectedUsers.length} usuario{selectedUsers.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Perderán acceso al sistema. Esta acción se puede revertir activándolos individualmente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeactivating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeactivating}
+              onClick={async (e) => {
+                e.preventDefault();
+                setBulkDeactivating(true);
+                try {
+                  await supabase.from('users').update({ active: false }).eq('tenant_id', user!.tenant_id).in('id', selectedUsers);
+                  await log('configuracion', 'desactivar_usuarios_batch', 'user', undefined, `${selectedUsers.length} usuarios`);
+                  qc.invalidateQueries({ queryKey: ['config-users'] });
+                  toast.success(`${selectedUsers.length} usuario(s) desactivado(s)`);
+                  setSelectedUsers([]);
+                  setShowBulkDeactivate(false);
+                } catch { toast.error('Error al desactivar usuarios'); }
+                finally { setBulkDeactivating(false); }
+              }}>
+              {bulkDeactivating ? 'Desactivando...' : `Desactivar ${selectedUsers.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -318,6 +318,23 @@ export default function OrdenesTrabajo() {
       {detailOT && (
         <DetailOTModal ot={detailOT} onClose={() => setDetailOT(null)} tenantId={tenantId!} userId={user?.id!} />
       )}
+
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedOTs.length} OT{selectedOTs.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Las OTs en estado abierta o en proceso pueden tener técnicos y costos asociados. Esta acción es irreversible.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteOTs.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteOTs.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteOTs.mutate(selectedOTs); }}>
+              {bulkDeleteOTs.isPending ? 'Eliminando...' : `Eliminar ${selectedOTs.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1498,6 +1498,23 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
       {showReceive && (
         <ReceiveKitModal open={!!showReceive} onClose={() => setShowReceive(null)} kit={showReceive} tenantId={tenantId} userId={userId} log={log} qc={qc} />
       )}
+
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedKits.length} kit{selectedKits.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Esta acción es permanente. Los kits en campo pueden tener herramientas asociadas.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteKits.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteKits.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteKits.mutate(selectedKits); }}>
+              {bulkDeleteKits.isPending ? 'Eliminando...' : `Eliminar ${selectedKits.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
