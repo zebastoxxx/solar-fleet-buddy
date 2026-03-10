@@ -177,6 +177,20 @@ export default function Clientes() {
 
   const canManage = role === 'superadmin' || role === 'gerente';
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('clients').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients', tenantId] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const columns: Column<ClientRow>[] = [
     { key: 'name', label: 'Nombre', sortable: true, render: (c) => <span className="font-medium">{c.name}</span> },
     { key: 'tax_id', label: 'NIT/Cédula', sortable: true, render: (c) => <span className="text-muted-foreground">{c.tax_id || '—'}</span> },
