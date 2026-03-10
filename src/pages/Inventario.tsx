@@ -434,6 +434,21 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
           consumable={showHistory}
         />
       )}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedConsumables.length} consumible{selectedConsumables.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Esta acción es permanente. Consumibles con movimientos asociados pueden fallar.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteConsumables.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" disabled={bulkDeleteConsumables.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteConsumables.mutate(selectedConsumables); }}>
+              {bulkDeleteConsumables.isPending ? 'Eliminando...' : `Eliminar ${selectedConsumables.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
