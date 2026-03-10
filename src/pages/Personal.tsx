@@ -4,14 +4,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
+import { deletePersonnel } from '@/lib/cascade-delete';
 import { ActionBar, ActionBarLeft, ActionBarRight } from '@/components/ui/action-bar';
 import { SearchInput } from '@/components/ui/search-input';
 import { FilterPills } from '@/components/ui/filter-pills';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +24,7 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -32,6 +35,8 @@ const personSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   specialty: z.string().optional(),
+  contract_type: z.enum(['empresa', 'proyecto', 'jornada']).default('empresa'),
+  monthly_salary: z.coerce.number().min(0).optional(),
   hourly_rate: z.coerce.number().min(0).optional(),
   status: z.string().default('activo'),
   notes: z.string().optional(),
@@ -41,7 +46,8 @@ type PersonForm = z.infer<typeof personSchema>;
 type PersonRow = {
   id: string; full_name: string; type: string; id_number: string | null;
   phone: string | null; email: string | null; specialty: string | null;
-  hourly_rate: number | null; status: string | null; notes: string | null;
+  hourly_rate: number | null; monthly_salary: number | null; contract_type: string | null;
+  status: string | null; notes: string | null;
   tenant_id: string; created_at: string | null;
 };
 
@@ -65,6 +71,20 @@ const SPECIALTY_LABEL: Record<string, string> = {
   multifuncion: 'Multifunción',
 };
 
+const CONTRACT_LABEL: Record<string, string> = {
+  empresa: 'Empresa',
+  proyecto: 'Por proyecto',
+  jornada: 'Por jornada',
+};
+
+function formatSalary(person: PersonRow) {
+  const ct = person.contract_type || 'empresa';
+  if (ct === 'empresa') {
+    return `$${Number(person.monthly_salary || 0).toLocaleString()}/mes`;
+  }
+  return `$${Number(person.hourly_rate || 0).toLocaleString()}/h`;
+}
+
 export default function Personal() {
   usePageTitle('Personal');
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
@@ -75,6 +95,9 @@ export default function Personal() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PersonRow | null>(null);
   const [detail, setDetail] = useState<PersonRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<PersonRow | null>(null);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
 
   const { data: personnel = [], isLoading } = useQuery({
     queryKey: ['personnel', tenantId],
@@ -101,27 +124,46 @@ export default function Personal() {
 
   const form = useForm<PersonForm>({
     resolver: zodResolver(personSchema),
-    defaultValues: { type: 'tecnico', status: 'activo' },
+    defaultValues: { type: 'tecnico', status: 'activo', contract_type: 'empresa' },
   });
   const watchType = form.watch('type');
+  const watchContract = form.watch('contract_type');
 
-  const openCreate = () => { setEditing(null); form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', hourly_rate: 0, notes: '' }); setModalOpen(true); };
+  const openCreate = () => {
+    setEditing(null);
+    form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', contract_type: 'empresa', monthly_salary: 0, hourly_rate: 0, notes: '' });
+    setModalOpen(true);
+  };
   const openEdit = (p: PersonRow) => {
     setEditing(p);
-    form.reset({ full_name: p.full_name, type: p.type as 'tecnico' | 'operario', id_number: p.id_number || '', phone: p.phone || '', email: p.email || '', specialty: p.specialty || '', hourly_rate: p.hourly_rate || 0, status: p.status || 'activo', notes: p.notes || '' });
+    form.reset({
+      full_name: p.full_name,
+      type: p.type as 'tecnico' | 'operario',
+      id_number: p.id_number || '',
+      phone: p.phone || '',
+      email: p.email || '',
+      specialty: p.specialty || '',
+      contract_type: (p.contract_type as 'empresa' | 'proyecto' | 'jornada') || 'empresa',
+      monthly_salary: p.monthly_salary || 0,
+      hourly_rate: p.hourly_rate || 0,
+      status: p.status || 'activo',
+      notes: p.notes || '',
+    });
     setModalOpen(true);
   };
 
   const mutation = useMutation({
     mutationFn: async (values: PersonForm) => {
-      const row = {
+      const row: any = {
         full_name: values.full_name,
-        type: values.type as 'tecnico' | 'operario',
+        type: values.type,
         id_number: values.id_number || null,
         phone: values.phone || null,
         email: values.email || null,
         specialty: values.type === 'tecnico' ? (values.specialty || null) : null,
-        hourly_rate: values.type === 'tecnico' ? (values.hourly_rate || 0) : 0,
+        contract_type: values.contract_type || 'empresa',
+        monthly_salary: values.contract_type === 'empresa' ? (values.monthly_salary || 0) : 0,
+        hourly_rate: values.contract_type !== 'empresa' ? (values.hourly_rate || 0) : 0,
         status: values.status || 'activo',
         notes: values.notes || null,
         tenant_id: tenantId!,
@@ -140,34 +182,83 @@ export default function Personal() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => { await deletePersonnel(ids); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['personnel'] });
+      toast.success('Eliminado correctamente');
+      setDeleteTarget(null);
+      setShowBulkDelete(false);
+      setSelectedIds(new Set());
+    },
+    onError: (e: Error) => { toast.error('Error al eliminar'); console.error(e); },
+  });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = (people: PersonRow[]) => {
+    const allSelected = people.every(p => selectedIds.has(p.id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      people.forEach(p => { if (allSelected) next.delete(p.id); else next.add(p.id); });
+      return next;
+    });
+  };
+
   const renderTable = (people: PersonRow[], isTecnico: boolean) => (
     <Table>
       <TableHeader>
         <TableRow className="bg-secondary">
+          <TableHead className="w-10">
+            <Checkbox
+              checked={people.length > 0 && people.every(p => selectedIds.has(p.id))}
+              onCheckedChange={() => toggleAll(people)}
+            />
+          </TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Nombre</TableHead>
           {isTecnico && <TableHead className="text-[11px] uppercase tracking-wider font-dm">Especialidad</TableHead>}
-          {isTecnico && <TableHead className="text-[11px] uppercase tracking-wider font-dm">Tarifa/h</TableHead>}
+          <TableHead className="text-[11px] uppercase tracking-wider font-dm">Contratación</TableHead>
+          <TableHead className="text-[11px] uppercase tracking-wider font-dm">Salario</TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Estado</TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Acciones</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {people.length === 0 && (
-          <TableRow><TableCell colSpan={isTecnico ? 5 : 3} className="text-center py-8 text-muted-foreground font-dm">Sin registros</TableCell></TableRow>
+          <TableRow><TableCell colSpan={isTecnico ? 7 : 6} className="text-center py-8 text-muted-foreground font-dm">Sin registros</TableCell></TableRow>
         )}
         {people.map((p) => (
-          <TableRow key={p.id} className="h-[44px] cursor-pointer hover:bg-[hsl(var(--gold)/0.04)]" onClick={() => setDetail(p)}>
+          <TableRow
+            key={p.id}
+            className={`h-[44px] cursor-pointer hover:bg-[hsl(var(--gold)/0.04)] ${selectedIds.has(p.id) ? 'bg-primary/5' : ''}`}
+            onClick={() => setDetail(p)}
+          >
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              <Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
+            </TableCell>
             <TableCell className="font-medium font-dm text-sm">{p.full_name}</TableCell>
             {isTecnico && (
               <TableCell>
                 {p.specialty && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${SPECIALTY_BADGE[p.specialty] || 'bg-secondary text-muted-foreground'}`}>{SPECIALTY_LABEL[p.specialty] || p.specialty}</span>}
               </TableCell>
             )}
-            {isTecnico && <TableCell className="font-dm text-sm">${Number(p.hourly_rate || 0).toLocaleString()}/h</TableCell>}
+            <TableCell>
+              <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-secondary text-muted-foreground">
+                {CONTRACT_LABEL[p.contract_type || 'empresa'] || p.contract_type}
+              </span>
+            </TableCell>
+            <TableCell className="font-dm text-sm">{formatSalary(p)}</TableCell>
             <TableCell><StatusBadge status={p.status || 'activo'} /></TableCell>
             <TableCell>
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(p)}><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>
             </TableCell>
           </TableRow>
@@ -184,6 +275,11 @@ export default function Personal() {
           <FilterPills options={TYPE_FILTERS} value={typeFilter} onChange={setTypeFilter} />
         </ActionBarLeft>
         <ActionBarRight>
+          {selectedIds.size > 0 && (
+            <Button variant="destructive" onClick={() => setShowBulkDelete(true)} className="gap-1.5">
+              <Trash2 className="h-4 w-4" /> Eliminar ({selectedIds.size})
+            </Button>
+          )}
           <Button onClick={openCreate} className="gap-1.5"><Plus className="h-4 w-4" /> Agregar Persona</Button>
         </ActionBarRight>
       </ActionBar>
@@ -251,30 +347,47 @@ export default function Personal() {
                   <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="activo">Activo</SelectItem>
+                    <SelectItem value="en_proyecto">En proyecto</SelectItem>
                     <SelectItem value="inactivo">Inactivo</SelectItem>
                     <SelectItem value="de_baja">De baja</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {watchType === 'tecnico' && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="font-dm text-xs">Especialidad</Label>
-                    <Select value={form.watch('specialty') || ''} onValueChange={(v) => form.setValue('specialty', v)}>
-                      <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mecanico_hidraulico">Mecánico hidráulico</SelectItem>
-                        <SelectItem value="mecanico_electrico">Mecánico eléctrico</SelectItem>
-                        <SelectItem value="mecanico_general">Mecánico general</SelectItem>
-                        <SelectItem value="multifuncion">Multifunción</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="font-dm text-xs">Tarifa / hora (COP)</Label>
-                    <Input {...form.register('hourly_rate')} type="number" placeholder="45000" className="h-10 rounded-lg font-dm" />
-                  </div>
-                </>
+                <div className="space-y-1.5">
+                  <Label className="font-dm text-xs">Especialidad</Label>
+                  <Select value={form.watch('specialty') || ''} onValueChange={(v) => form.setValue('specialty', v)}>
+                    <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mecanico_hidraulico">Mecánico hidráulico</SelectItem>
+                      <SelectItem value="mecanico_electrico">Mecánico eléctrico</SelectItem>
+                      <SelectItem value="mecanico_general">Mecánico general</SelectItem>
+                      <SelectItem value="multifuncion">Multifunción</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label className="font-dm text-xs">Tipo de contratación</Label>
+                <Select value={watchContract} onValueChange={(v) => form.setValue('contract_type', v as 'empresa' | 'proyecto' | 'jornada')}>
+                  <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="empresa">Contrato empresa (salario mensual)</SelectItem>
+                    <SelectItem value="proyecto">Por proyecto (tarifa/hora)</SelectItem>
+                    <SelectItem value="jornada">Por jornada (tarifa/hora)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {watchContract === 'empresa' ? (
+                <div className="space-y-1.5">
+                  <Label className="font-dm text-xs">Salario mensual (COP)</Label>
+                  <Input {...form.register('monthly_salary')} type="number" placeholder="2500000" className="h-10 rounded-lg font-dm" />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="font-dm text-xs">Tarifa / hora (COP)</Label>
+                  <Input {...form.register('hourly_rate')} type="number" placeholder="45000" className="h-10 rounded-lg font-dm" />
+                </div>
               )}
             </div>
             <div className="space-y-1.5">
@@ -288,6 +401,50 @@ export default function Personal() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Single Delete */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar "{deleteTarget?.full_name}"?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">
+              Se eliminarán todas las asignaciones a OTs, proyectos y registros asociados. Esta acción es irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) deleteMutation.mutate([deleteTarget.id]); }}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete */}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar {selectedIds.size} persona(s)?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">
+              Se eliminarán todas las asignaciones a OTs, proyectos y registros asociados. Esta acción es irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => { e.preventDefault(); deleteMutation.mutate(Array.from(selectedIds)); }}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Detail Modal */}
       <PersonDetailModal person={detail} onClose={() => setDetail(null)} onEdit={(p) => { setDetail(null); openEdit(p); }} />
@@ -329,6 +486,8 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
 
   if (!person) return null;
 
+  const ct = person.contract_type || 'empresa';
+
   return (
     <Dialog open={!!person} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[650px] rounded-2xl">
@@ -341,7 +500,7 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
             )}
           </DialogTitle>
           <DialogDescription className="font-dm text-sm text-muted-foreground">
-            {isTecnico ? `Técnico · $${Number(person.hourly_rate || 0).toLocaleString()}/h` : 'Operario'}
+            {isTecnico ? 'Técnico' : 'Operario'} · {CONTRACT_LABEL[ct]} · {formatSalary(person)}
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="info">
@@ -352,7 +511,14 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
           </TabsList>
           <TabsContent value="info">
             <div className="grid grid-cols-2 gap-4 py-2">
-              {[['Cédula', person.id_number], ['Teléfono', person.phone], ['Email', person.email], ['Estado', person.status]].map(([l, v]) => (
+              {[
+                ['Cédula', person.id_number],
+                ['Teléfono', person.phone],
+                ['Email', person.email],
+                ['Estado', person.status],
+                ['Contratación', CONTRACT_LABEL[ct]],
+                ['Remuneración', formatSalary(person)],
+              ].map(([l, v]) => (
                 <div key={l as string}><p className="text-[11px] uppercase text-muted-foreground font-dm">{l}</p><p className="text-sm font-dm">{v || '—'}</p></div>
               ))}
               {person.notes && <div className="col-span-2"><p className="text-[11px] uppercase text-muted-foreground font-dm">Notas</p><p className="text-sm font-dm">{person.notes}</p></div>}
