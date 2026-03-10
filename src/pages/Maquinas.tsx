@@ -17,6 +17,7 @@ import { useAllMachines, useAllMachineFinancials } from '@/hooks/useDashboardDat
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteMachines } from '@/lib/cascade-delete';
 import { CreateMachineModal } from '@/components/machines/CreateMachineModal';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
