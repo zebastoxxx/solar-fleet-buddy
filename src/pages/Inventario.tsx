@@ -1435,9 +1435,12 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
             const consumableItems = items.filter((i: any) => i.item_type === 'consumible').length;
 
             return (
-              <div key={k.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div key={k.id} className={`rounded-xl border bg-card p-4 space-y-3 ${selectedKits.includes(k.id) ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex items-start gap-2">
+                    <input type="checkbox" checked={selectedKits.includes(k.id)}
+                      onChange={e => setSelectedKits(e.target.checked ? [...selectedKits, k.id] : selectedKits.filter(x => x !== k.id))}
+                      className="h-3.5 w-3.5 rounded border-border mt-1" />
                     <p className="font-barlow font-semibold text-[15px] text-foreground">🧰 {k.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.bg} ${st.text}`}>{st.label}</span>
