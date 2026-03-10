@@ -110,7 +110,7 @@ export default function Financiero() {
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<PeriodKey>('6m');
   const dateRange = useMemo(() => getDateRange(period), [period]);
-  const [activeTab, setActiveTab] = useState('resumen');
+  const [activeTab, setActiveTab] = useState('movimientos');
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editEntry, setEditEntry] = useState<FinancialEntry | null>(null);
@@ -120,6 +120,10 @@ export default function Financiero() {
   const [filterCategoryId, setFilterCategoryId] = useState<string>('all');
   const [filterMachineId, setFilterMachineId] = useState<string>('all');
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
+  const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [movDateFrom, setMovDateFrom] = useState('');
+  const [movDateTo, setMovDateTo] = useState('');
 
   // ─── Queries ───
   const { data: categories = [] } = useQuery({
