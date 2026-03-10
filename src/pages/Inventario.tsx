@@ -1028,6 +1028,21 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
       {showReturn && (
         <ReturnToolModal open={!!showReturn} onClose={() => setShowReturn(null)} tool={showReturn} tenantId={tenantId} userId={userId} log={log} qc={qc} />
       )}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedTools.length} herramienta{selectedTools.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Herramientas asignadas a OTs activas pueden no eliminarse.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteTools.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" disabled={bulkDeleteTools.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteTools.mutate(selectedTools); }}>
+              {bulkDeleteTools.isPending ? 'Eliminando...' : `Eliminar ${selectedTools.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
