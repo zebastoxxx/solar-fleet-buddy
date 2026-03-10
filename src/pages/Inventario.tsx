@@ -1355,6 +1355,24 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
   const [showDetail, setShowDetail] = useState<any>(null);
   const [showSend, setShowSend] = useState<any>(null);
   const [showReceive, setShowReceive] = useState<any>(null);
+  const [selectedKits, setSelectedKits] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteKits = useMutation({
+    mutationFn: async (ids: string[]) => {
+      // Delete kit items first
+      await supabase.from('inventory_kit_items').delete().in('kit_id', ids);
+      const { error } = await supabase.from('inventory_kits').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-kits'] });
+      toast.success(`${selectedKits.length} kit(s) eliminado(s)`);
+      setSelectedKits([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar kits.'),
+  });
 
   const statusOptions = [
     { label: 'Todos', value: 'todos' }, { label: 'En bodega', value: 'en_bodega' },
@@ -1386,6 +1404,18 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
           </Button>
         </ActionBarRight>
       </ActionBar>
+
+      {selectedKits.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30 mb-3">
+          <span className="text-sm font-dm font-medium">{selectedKits.length} kit{selectedKits.length !== 1 ? 's' : ''} seleccionado{selectedKits.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedKits([])}>Cancelar</Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedKits.length})
+            </Button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
