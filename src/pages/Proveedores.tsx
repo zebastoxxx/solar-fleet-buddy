@@ -347,7 +347,6 @@ export default function Proveedores() {
           onConfirm={handleDelete}
         />
       )}
-    </div>
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
@@ -365,6 +364,7 @@ export default function Proveedores() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
   );
 }
 

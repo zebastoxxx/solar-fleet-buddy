@@ -315,7 +315,6 @@ export default function Proyectos() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
@@ -333,6 +332,7 @@ export default function Proyectos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
   );
 }
 
