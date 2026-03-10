@@ -529,21 +529,21 @@ export default function Financiero() {
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar descripción, factura..." className="w-64" />
             <div className="flex gap-1">
               {(['all', 'ingreso', 'gasto'] as const).map(t => (
-                <button key={t} onClick={() => setFilterType(t)}
+                <button key={t} onClick={() => { setFilterType(t); setSelectedMovements([]); }}
                   className={cn('px-3 py-1.5 rounded-full text-xs font-dm font-medium transition-colors',
                     filterType === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
                   {t === 'all' ? 'Todos' : t === 'ingreso' ? '💰 Ingresos' : '📤 Gastos'}
                 </button>
               ))}
             </div>
-            <Select value={filterMachineId} onValueChange={setFilterMachineId}>
+            <Select value={filterMachineId} onValueChange={v => { setFilterMachineId(v); setSelectedMovements([]); }}>
               <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Máquina" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las máquinas</SelectItem>
                 {machines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filterProjectId} onValueChange={setFilterProjectId}>
+            <Select value={filterProjectId} onValueChange={v => { setFilterProjectId(v); setSelectedMovements([]); }}>
               <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Proyecto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los proyectos</SelectItem>
@@ -561,6 +561,51 @@ export default function Financiero() {
               <Plus className="h-3.5 w-3.5 mr-1" /> Nuevo registro
             </Button>
           </div>
+
+          {/* Date range filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs font-dm text-muted-foreground">Desde</label>
+            <input type="date" value={movDateFrom} onChange={e => { setMovDateFrom(e.target.value); setSelectedMovements([]); }}
+              className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-dm text-foreground" />
+            <label className="text-xs font-dm text-muted-foreground">Hasta</label>
+            <input type="date" value={movDateTo} onChange={e => { setMovDateTo(e.target.value); setSelectedMovements([]); }}
+              className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-dm text-foreground" />
+            <div className="flex gap-1">
+              {[
+                { label: 'Hoy', fn: () => { const d = format(new Date(), 'yyyy-MM-dd'); setMovDateFrom(d); setMovDateTo(d); } },
+                { label: 'Esta semana', fn: () => { const now = new Date(); const d = new Date(now); d.setDate(d.getDate() - d.getDay()); setMovDateFrom(format(d, 'yyyy-MM-dd')); setMovDateTo(format(now, 'yyyy-MM-dd')); } },
+                { label: 'Este mes', fn: () => { setMovDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: 'Último trim.', fn: () => { setMovDateFrom(format(subMonths(new Date(), 3), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: 'Este año', fn: () => { setMovDateFrom(format(startOfYear(new Date()), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+              ].map(b => (
+                <button key={b.label} onClick={() => { b.fn(); setSelectedMovements([]); }}
+                  className="px-2 py-1 rounded-md text-[10px] font-dm font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
+                  {b.label}
+                </button>
+              ))}
+              {(movDateFrom || movDateTo) && (
+                <button onClick={() => { setMovDateFrom(''); setMovDateTo(''); setSelectedMovements([]); }}
+                  className="px-2 py-1 rounded-md text-[10px] font-dm font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                  ✕ Limpiar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bulk action bar */}
+          {selectedMovements.length > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-2">
+              <span className="text-sm font-dm font-medium">
+                {selectedMovements.length} seleccionado{selectedMovements.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedMovements([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeleteConfirm(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedMovements.length})
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           {entriesLoading ? (
