@@ -57,6 +57,7 @@ export function AdvancedFilters({
   }, [dateFrom, dateTo, filterValues]);
 
   return (
+    <div className="relative">
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>
         <Button
@@ -77,8 +78,8 @@ export function AdvancedFilters({
           <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-3">
-        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+      <CollapsibleContent className="absolute right-0 top-full mt-2 z-50 min-w-[480px] max-w-[95vw]">
+        <div className="rounded-xl border border-border bg-card shadow-xl p-4 space-y-4">
           {/* Date Range */}
           {dateRange && (
             <div className="space-y-2">
@@ -178,5 +179,6 @@ export function AdvancedFilters({
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </div>
   );
 }

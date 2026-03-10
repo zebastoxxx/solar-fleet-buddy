@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SafeDeleteDialog } from '@/components/ui/SafeDeleteDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { checkDeleteSupplier } from '@/lib/delete-guards';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -91,6 +92,8 @@ export default function Proveedores() {
   const [deleteTarget, setDeleteTarget] = useState<SupplierRow | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [selectedRows, setSelectedRows] = useState<SupplierRow[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', tenantId],
@@ -172,6 +175,20 @@ export default function Proveedores() {
 
   const canManage = role === 'superadmin' || role === 'gerente';
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('suppliers').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['suppliers', tenantId] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const columns: Column<SupplierRow>[] = [
     { key: 'name', label: 'Nombre', sortable: true, render: (s) => <span className="font-medium">{s.name}</span> },
     { key: 'type', label: 'Tipo', sortable: true, render: (s) => s.type ? <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[s.type] || 'bg-secondary text-muted-foreground'}`}>{s.type.replace(/_/g, ' ')}</span> : <span className="text-muted-foreground">—</span> },
@@ -216,6 +233,23 @@ export default function Proveedores() {
         </ActionBarRight>
       </ActionBar>
 
+      {selectedRows.length > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-2">
+          <span className="text-sm font-dm font-medium">
+            {selectedRows.length} seleccionado{selectedRows.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedRows([])}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeleteConfirm(true)}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Eliminar {selectedRows.length}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         data={filtered}
         columns={columns}
@@ -224,6 +258,8 @@ export default function Proveedores() {
         defaultSort={{ key: 'name', direction: 'asc' }}
         rowKey={(s) => s.id}
         emptyMessage="No hay proveedores registrados"
+        selectable={true}
+        onSelectionChange={setSelectedRows}
       />
 
       {/* Create/Edit Modal */}
@@ -311,6 +347,23 @@ export default function Proveedores() {
           onConfirm={handleDelete}
         />
       )}
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedRows.length} registro{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Los registros seleccionados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); bulkDeleteMutation.mutate(selectedRows.map(r => r.id)); }}>
+              {bulkDeleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

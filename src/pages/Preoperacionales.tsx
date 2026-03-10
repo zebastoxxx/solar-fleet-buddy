@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
@@ -14,12 +14,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Preoperacionales() {
   usePageTitle('Preoperacionales');
   const user = useAuthStore((s) => s.user);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [projectFilter, setProjectFilter] = useState('todos');
@@ -27,6 +30,8 @@ export default function Preoperacionales() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['preop-records-supervisor', user?.tenant_id],
@@ -100,6 +105,20 @@ export default function Preoperacionales() {
     URL.revokeObjectURL(url);
   };
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('preop_records').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['preop-records-supervisor', user?.tenant_id] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const typeFilters = [
     { label: 'Todos', value: 'todos' },
     { label: 'Solo inicio', value: 'inicio' },
@@ -157,6 +176,23 @@ export default function Preoperacionales() {
         <Button variant="ghost" size="sm" onClick={exportCSV} className="ml-auto"><Download size={14} className="mr-1" /> CSV</Button>
       </div>
 
+      {selectedRows.length > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-2">
+          <span className="text-sm font-dm font-medium">
+            {selectedRows.length} seleccionado{selectedRows.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedRows([])}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeleteConfirm(true)}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Eliminar {selectedRows.length}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         data={filtered}
         columns={preopColumns}
@@ -165,10 +201,28 @@ export default function Preoperacionales() {
         defaultSort={{ key: 'created_at', direction: 'desc' }}
         rowKey={(r: any) => r.id}
         emptyMessage="No hay preoperacionales en el rango seleccionado"
+        selectable={true}
+        onSelectionChange={setSelectedRows}
       />
 
-      {/* Detail Modal */}
       {detailId && <PreopDetailModal id={detailId} onClose={() => setDetailId(null)} />}
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedRows.length} registro{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Los registros seleccionados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); bulkDeleteMutation.mutate(selectedRows.map((r: any) => r.id)); }}>
+              {bulkDeleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
