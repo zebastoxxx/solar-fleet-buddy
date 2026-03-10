@@ -175,6 +175,20 @@ export default function Proveedores() {
 
   const canManage = role === 'superadmin' || role === 'gerente';
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('suppliers').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['suppliers', tenantId] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
+
   const columns: Column<SupplierRow>[] = [
     { key: 'name', label: 'Nombre', sortable: true, render: (s) => <span className="font-medium">{s.name}</span> },
     { key: 'type', label: 'Tipo', sortable: true, render: (s) => s.type ? <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[s.type] || 'bg-secondary text-muted-foreground'}`}>{s.type.replace(/_/g, ' ')}</span> : <span className="text-muted-foreground">—</span> },
