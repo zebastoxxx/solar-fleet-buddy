@@ -68,6 +68,8 @@ export default function Maquinas() {
   usePageTitle('Máquinas');
   const navigate = useNavigate();
   const { can } = usePermissions();
+  const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  const qc = useQueryClient();
   const machines = useAllMachines();
   const financials = useAllMachineFinancials();
   const [search, setSearch] = useState('');
@@ -76,6 +78,22 @@ export default function Maquinas() {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('machines').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['all-machines', tenantId] });
+      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      setSelectedRows([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast.error('Error al eliminar los registros seleccionados'),
+  });
 
   const financialsMap = useMemo(() => {
     const m = new Map<string, any>();
