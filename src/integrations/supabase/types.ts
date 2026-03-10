@@ -975,12 +975,14 @@ export type Database = {
       personnel: {
         Row: {
           certifications: Json | null
+          contract_type: string
           created_at: string | null
           email: string | null
           full_name: string
           hourly_rate: number | null
           id: string
           id_number: string | null
+          monthly_salary: number | null
           notes: string | null
           phone: string | null
           specialty: string | null
@@ -991,12 +993,14 @@ export type Database = {
         }
         Insert: {
           certifications?: Json | null
+          contract_type?: string
           created_at?: string | null
           email?: string | null
           full_name: string
           hourly_rate?: number | null
           id?: string
           id_number?: string | null
+          monthly_salary?: number | null
           notes?: string | null
           phone?: string | null
           specialty?: string | null
@@ -1007,12 +1011,14 @@ export type Database = {
         }
         Update: {
           certifications?: Json | null
+          contract_type?: string
           created_at?: string | null
           email?: string | null
           full_name?: string
           hourly_rate?: number | null
           id?: string
           id_number?: string | null
+          monthly_salary?: number | null
           notes?: string | null
           phone?: string | null
           specialty?: string | null
