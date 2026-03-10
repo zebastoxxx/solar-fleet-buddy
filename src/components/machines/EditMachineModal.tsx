@@ -8,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MachinePhotoUpload, uploadMachinePhoto } from './MachinePhotoUpload';
 import { MachineAlertConfig, type MaintenanceAlert } from './MachineAlertConfig';
+import { SafeDeleteDialog } from '@/components/ui/SafeDeleteDialog';
+import { checkDeleteMachine } from '@/lib/delete-guards';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { Trash2 } from 'lucide-react';
 
 const MACHINE_TYPES = [
   { value: 'telehandler', label: 'Telehandler' },
@@ -35,6 +38,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
   const user = useAuthStore((s) => s.user);
   const [saving, setSaving] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
 
   const [form, setForm] = useState({
     name: '', internal_code: '', type: '', brand: '', model: '', year: '',
@@ -147,6 +151,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -219,10 +224,32 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
         </div>
 
         <DialogFooter>
+          <Button variant="destructive" size="sm" className="mr-auto font-dm gap-1.5"
+            onClick={() => setShowDelete(true)}>
+            <Trash2 className="h-4 w-4" /> Eliminar
+          </Button>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={saving}>{saving ? 'Guardando...' : 'Guardar Cambios'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <SafeDeleteDialog
+      open={showDelete}
+      onClose={() => setShowDelete(false)}
+      entityName={machine?.name || ''}
+      checkFn={() => checkDeleteMachine(machine.id)}
+      onConfirm={async (hardDelete) => {
+        if (hardDelete) {
+          await supabase.from('machines').delete().eq('id', machine.id);
+        } else {
+          await supabase.from('machines').update({ active: false, status: 'fuera_de_servicio' as any }).eq('id', machine.id);
+        }
+        qc.invalidateQueries({ queryKey: ['machines'] });
+        qc.invalidateQueries({ queryKey: ['machine'] });
+        onClose();
+      }}
+    />
+    </>
   );
 }

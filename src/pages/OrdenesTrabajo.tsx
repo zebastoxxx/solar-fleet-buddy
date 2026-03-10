@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
@@ -8,7 +8,8 @@ import { useChrono, useOTTimerStore } from '@/stores/otTimerStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Plus, Search, Wrench, Eye, UserPlus, Download } from 'lucide-react';
+import { Plus, Search, Wrench, Eye, UserPlus, Download, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,6 +93,30 @@ export default function OrdenesTrabajo() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [detailOT, setDetailOT] = useState<any>(null);
+  const [selectedOTs, setSelectedOTs] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteOTs = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await supabase.from('work_order_technicians').delete().in('work_order_id', ids);
+      await supabase.from('work_order_parts').delete().in('work_order_id', ids);
+      await supabase.from('work_order_photos').delete().in('work_order_id', ids);
+      await supabase.from('work_order_tools').delete().in('work_order_id', ids);
+      await supabase.from('work_order_timers').delete().in('work_order_id', ids);
+      const { error } = await supabase.from('work_orders').delete().eq('tenant_id', tenantId!).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['work-orders'] });
+      toast.success(`${selectedOTs.length} OT(s) eliminada(s)`);
+      setSelectedOTs([]);
+      setShowBulkDelete(false);
+    },
+    onError: (err) => {
+      console.error('Bulk delete OTs error:', err);
+      toast.error('Error al eliminar. Algunas OTs pueden tener dependencias.');
+    },
+  });
 
   // Fetch work orders
   const { data: workOrders = [], isLoading } = useQuery({
@@ -197,6 +222,18 @@ export default function OrdenesTrabajo() {
       </div>
 
       {/* Table */}
+      {selectedOTs.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30">
+          <span className="text-sm font-dm font-medium">{selectedOTs.length} seleccionada{selectedOTs.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedOTs([])}>Cancelar</Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedOTs.length})
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
         {isLoading ? (
           <div className="p-6 space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
@@ -209,6 +246,12 @@ export default function OrdenesTrabajo() {
           <Table>
             <TableHeader>
               <TableRow className="text-[11px] font-barlow uppercase">
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedOTs.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedOTs(e.target.checked ? filtered.map((o: any) => o.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Máquina</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -227,7 +270,12 @@ export default function OrdenesTrabajo() {
                 const techs = otTechnicians[ot.id] || [];
                 const loc = LOCATION_BADGES[ot.location_type] || { icon: '', label: '' };
                 return (
-                  <TableRow key={ot.id} className="h-11 cursor-pointer hover:bg-muted/50" onClick={() => setDetailOT(ot)}>
+                  <TableRow key={ot.id} className={cn("h-11 cursor-pointer hover:bg-muted/50", selectedOTs.includes(ot.id) && "bg-primary/5")} onClick={() => setDetailOT(ot)}>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedOTs.includes(ot.id)}
+                        onChange={e => setSelectedOTs(e.target.checked ? [...selectedOTs, ot.id] : selectedOTs.filter(x => x !== ot.id))}
+                        className="h-3.5 w-3.5 rounded border-border" />
+                    </TableCell>
                     <TableCell className="font-barlow text-[hsl(var(--gold-bright))] font-semibold text-[13px]">{ot.code}</TableCell>
                     <TableCell className="text-xs font-dm">
                       {ot.machines ? <span>[{ot.machines.internal_code}] {ot.machines.name}</span> : '—'}
@@ -270,6 +318,23 @@ export default function OrdenesTrabajo() {
       {detailOT && (
         <DetailOTModal ot={detailOT} onClose={() => setDetailOT(null)} tenantId={tenantId!} userId={user?.id!} />
       )}
+
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedOTs.length} OT{selectedOTs.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Las OTs en estado abierta o en proceso pueden tener técnicos y costos asociados. Esta acción es irreversible.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteOTs.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteOTs.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteOTs.mutate(selectedOTs); }}>
+              {bulkDeleteOTs.isPending ? 'Eliminando...' : `Eliminar ${selectedOTs.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

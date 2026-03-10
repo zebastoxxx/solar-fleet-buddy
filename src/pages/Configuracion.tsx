@@ -47,6 +47,9 @@ function UsuariosTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState<any>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<any>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [showBulkDeactivate, setShowBulkDeactivate] = useState(false);
+  const [bulkDeactivating, setBulkDeactivating] = useState(false);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['config-users', user?.tenant_id],
@@ -81,10 +84,28 @@ function UsuariosTab() {
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
       ) : (
+        <>
+        {selectedUsers.length > 0 && (
+          <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30 mb-3">
+            <span className="text-sm font-dm font-medium">{selectedUsers.length} seleccionado{selectedUsers.length !== 1 ? 's' : ''}</span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedUsers([])}>Cancelar</Button>
+              <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeactivate(true)}>
+                🔒 Desactivar ({selectedUsers.length})
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedUsers.length === filtered.filter(u => u.id !== user?.id && u.active).length && filtered.filter(u => u.id !== user?.id && u.active).length > 0}
+                    onChange={e => setSelectedUsers(e.target.checked ? filtered.filter(u => u.id !== user?.id && u.active).map(u => u.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
@@ -94,7 +115,14 @@ function UsuariosTab() {
             </TableHeader>
             <TableBody>
               {filtered.map(u => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} className={selectedUsers.includes(u.id) ? 'bg-primary/5' : ''}>
+                  <TableCell>
+                    {u.id !== user?.id && u.active ? (
+                      <input type="checkbox" checked={selectedUsers.includes(u.id)}
+                        onChange={e => setSelectedUsers(e.target.checked ? [...selectedUsers, u.id] : selectedUsers.filter(x => x !== u.id))}
+                        className="h-3.5 w-3.5 rounded border-border" />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="font-dm text-sm">{u.full_name}</TableCell>
                   <TableCell><RoleBadge role={u.role as UserRole} /></TableCell>
                   <TableCell>
@@ -127,6 +155,7 @@ function UsuariosTab() {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {/* Create User Modal */}
@@ -153,6 +182,35 @@ function UsuariosTab() {
               toast.success('Usuario desactivado');
               setDeactivateTarget(null);
             }}>Desactivar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeactivate} onOpenChange={setShowBulkDeactivate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">🔒 ¿Desactivar {selectedUsers.length} usuario{selectedUsers.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Perderán acceso al sistema. Esta acción se puede revertir activándolos individualmente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeactivating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeactivating}
+              onClick={async (e) => {
+                e.preventDefault();
+                setBulkDeactivating(true);
+                try {
+                  await supabase.from('users').update({ active: false }).eq('tenant_id', user!.tenant_id).in('id', selectedUsers);
+                  await log('configuracion', 'desactivar_usuarios_batch', 'user', undefined, `${selectedUsers.length} usuarios`);
+                  qc.invalidateQueries({ queryKey: ['config-users'] });
+                  toast.success(`${selectedUsers.length} usuario(s) desactivado(s)`);
+                  setSelectedUsers([]);
+                  setShowBulkDeactivate(false);
+                } catch { toast.error('Error al desactivar usuarios'); }
+                finally { setBulkDeactivating(false); }
+              }}>
+              {bulkDeactivating ? 'Desactivando...' : `Desactivar ${selectedUsers.length}`}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

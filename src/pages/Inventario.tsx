@@ -1355,6 +1355,24 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
   const [showDetail, setShowDetail] = useState<any>(null);
   const [showSend, setShowSend] = useState<any>(null);
   const [showReceive, setShowReceive] = useState<any>(null);
+  const [selectedKits, setSelectedKits] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteKits = useMutation({
+    mutationFn: async (ids: string[]) => {
+      // Delete kit items first
+      await supabase.from('inventory_kit_items').delete().in('kit_id', ids);
+      const { error } = await supabase.from('inventory_kits').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-kits'] });
+      toast.success(`${selectedKits.length} kit(s) eliminado(s)`);
+      setSelectedKits([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar kits.'),
+  });
 
   const statusOptions = [
     { label: 'Todos', value: 'todos' }, { label: 'En bodega', value: 'en_bodega' },
@@ -1387,6 +1405,18 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
         </ActionBarRight>
       </ActionBar>
 
+      {selectedKits.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30 mb-3">
+          <span className="text-sm font-dm font-medium">{selectedKits.length} kit{selectedKits.length !== 1 ? 's' : ''} seleccionado{selectedKits.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedKits([])}>Cancelar</Button>
+            <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedKits.length})
+            </Button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-xl" />)}
@@ -1405,15 +1435,20 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
             const consumableItems = items.filter((i: any) => i.item_type === 'consumible').length;
 
             return (
-              <div key={k.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div key={k.id} className={`rounded-xl border bg-card p-4 space-y-3 ${selectedKits.includes(k.id) ? 'border-primary/50 bg-primary/5' : 'border-border'}`}>
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-barlow font-semibold text-[15px] text-foreground">🧰 {k.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.bg} ${st.text}`}>{st.label}</span>
-                      {k.machines && (
-                        <span className="text-[11px] text-muted-foreground font-dm">{k.machines.name} [{k.machines.internal_code}]</span>
-                      )}
+                  <div className="flex items-start gap-2">
+                    <input type="checkbox" checked={selectedKits.includes(k.id)}
+                      onChange={e => setSelectedKits(e.target.checked ? [...selectedKits, k.id] : selectedKits.filter(x => x !== k.id))}
+                      className="h-3.5 w-3.5 rounded border-border mt-1" />
+                    <div>
+                      <p className="font-barlow font-semibold text-[15px] text-foreground">🧰 {k.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.bg} ${st.text}`}>{st.label}</span>
+                        {k.machines && (
+                          <span className="text-[11px] text-muted-foreground font-dm">{k.machines.name} [{k.machines.internal_code}]</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1464,6 +1499,23 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
       {showReceive && (
         <ReceiveKitModal open={!!showReceive} onClose={() => setShowReceive(null)} kit={showReceive} tenantId={tenantId} userId={userId} log={log} qc={qc} />
       )}
+
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedKits.length} kit{selectedKits.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Esta acción es permanente. Los kits en campo pueden tener herramientas asociadas.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteKits.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteKits.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteKits.mutate(selectedKits); }}>
+              {bulkDeleteKits.isPending ? 'Eliminando...' : `Eliminar ${selectedKits.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
