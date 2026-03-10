@@ -8,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { MachinePhotoUpload, uploadMachinePhoto } from './MachinePhotoUpload';
 import { MachineAlertConfig, type MaintenanceAlert } from './MachineAlertConfig';
+import { SafeDeleteDialog } from '@/components/ui/SafeDeleteDialog';
+import { checkDeleteMachine } from '@/lib/delete-guards';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { Trash2 } from 'lucide-react';
 
 const MACHINE_TYPES = [
   { value: 'telehandler', label: 'Telehandler' },
