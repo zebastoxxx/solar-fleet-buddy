@@ -1449,6 +1449,7 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
                       )}
                     </div>
                   </div>
+                  </div>
                 </div>
 
                 <div>
