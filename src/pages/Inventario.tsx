@@ -897,8 +897,7 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
 
   const bulkDeleteTools = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('inventory_tools').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteTools(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-tools'] });
