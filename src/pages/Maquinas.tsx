@@ -83,8 +83,7 @@ export default function Maquinas() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('machines').delete().eq('tenant_id', tenantId!).in('id', ids);
-      if (error) throw error;
+      await deleteMachines(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['all-machines', tenantId] });
