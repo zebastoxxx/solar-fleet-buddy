@@ -179,7 +179,7 @@ export default function Clientes() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('clients').delete().in('id', ids);
+      const { error } = await supabase.from('clients').delete().eq('tenant_id', tenantId!).in('id', ids);
       if (error) throw error;
     },
     onSuccess: () => {
