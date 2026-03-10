@@ -84,6 +84,7 @@ function UsuariosTab() {
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}</div>
       ) : (
+        <>
         {selectedUsers.length > 0 && (
           <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30 mb-3">
             <span className="text-sm font-dm font-medium">{selectedUsers.length} seleccionado{selectedUsers.length !== 1 ? 's' : ''}</span>
