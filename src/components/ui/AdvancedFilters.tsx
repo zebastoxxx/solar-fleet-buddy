@@ -179,5 +179,6 @@ export function AdvancedFilters({
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </div>
   );
 }
