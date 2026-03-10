@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 export default function Preoperacionales() {
   usePageTitle('Preoperacionales');
   const user = useAuthStore((s) => s.user);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [projectFilter, setProjectFilter] = useState('todos');
@@ -29,6 +30,8 @@ export default function Preoperacionales() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['preop-records-supervisor', user?.tenant_id],
