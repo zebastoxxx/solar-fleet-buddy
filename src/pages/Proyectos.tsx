@@ -66,6 +66,8 @@ export default function Proyectos() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [clientFilter, setClientFilter] = useState('all');
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', tenantId],
