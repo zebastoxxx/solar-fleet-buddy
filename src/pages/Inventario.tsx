@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,8 +12,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   Package, Wrench, BriefcaseMedical, Plus, Download, Upload,
-  Search, ArrowRightLeft, X, Check, AlertTriangle, Mic
+  Search, ArrowRightLeft, X, Check, AlertTriangle, Mic, Trash2
 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '@/components/ui/stat-card';
 import { SearchInput } from '@/components/ui/search-input';
@@ -239,6 +240,22 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
   const [showExit, setShowExit] = useState<any>(null);
   const [showEntry, setShowEntry] = useState(false);
   const [showHistory, setShowHistory] = useState<any>(null);
+  const [selectedConsumables, setSelectedConsumables] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteConsumables = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('inventory_consumables').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-consumables'] });
+      toast.success(`${selectedConsumables.length} consumible(s) eliminado(s)`);
+      setSelectedConsumables([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar. Algunos pueden tener movimientos asociados.'),
+  });
 
   const catOptions = [
     { label: 'Todos', value: 'todos' }, { label: 'Combustible', value: 'combustible' },
@@ -297,9 +314,26 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
+          {selectedConsumables.length > 0 && (
+            <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-primary/30">
+              <span className="text-sm font-dm font-medium">{selectedConsumables.length} seleccionado{selectedConsumables.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedConsumables([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedConsumables.length})
+                </Button>
+              </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedConsumables.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedConsumables(e.target.checked ? filtered.map((c: any) => c.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead className="font-dm text-xs">Nombre</TableHead>
                 <TableHead className="font-dm text-xs">Categoría</TableHead>
                 <TableHead className="font-dm text-xs">Stock</TableHead>
@@ -315,8 +349,13 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
                 const isCritical = (c.stock_current ?? 0) <= (c.stock_minimum ?? 0) && (c.stock_minimum ?? 0) > 0;
                 const isWarning = !isCritical && (c.stock_current ?? 0) <= (c.stock_minimum ?? 0) * 1.5 && (c.stock_minimum ?? 0) > 0;
                 const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.otros;
-                return (
-                  <TableRow key={c.id} className={isCritical ? 'bg-danger-bg/40' : isWarning ? 'bg-warning-bg/40' : ''}>
+                  return (
+                    <TableRow key={c.id} className={isCritical ? 'bg-danger-bg/40' : isWarning ? 'bg-warning-bg/40' : selectedConsumables.includes(c.id) ? 'bg-primary/5' : ''}>
+                      <TableCell>
+                        <input type="checkbox" checked={selectedConsumables.includes(c.id)}
+                          onChange={e => setSelectedConsumables(e.target.checked ? [...selectedConsumables, c.id] : selectedConsumables.filter(x => x !== c.id))}
+                          className="h-3.5 w-3.5 rounded border-border" />
+                      </TableCell>
                     <TableCell>
                       <button className="text-sm font-medium font-dm text-foreground hover:text-gold transition-colors text-left" onClick={() => setShowHistory(c)}>
                         {c.name}
@@ -395,6 +434,21 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
           consumable={showHistory}
         />
       )}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedConsumables.length} consumible{selectedConsumables.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Esta acción es permanente. Consumibles con movimientos asociados pueden fallar.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteConsumables.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" disabled={bulkDeleteConsumables.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteConsumables.mutate(selectedConsumables); }}>
+              {bulkDeleteConsumables.isPending ? 'Eliminando...' : `Eliminar ${selectedConsumables.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -838,6 +892,22 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
   const [editing, setEditing] = useState<any>(null);
   const [showAssign, setShowAssign] = useState<any>(null);
   const [showReturn, setShowReturn] = useState<any>(null);
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const bulkDeleteTools = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('inventory_tools').delete().eq('tenant_id', tenantId).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory-tools'] });
+      toast.success(`${selectedTools.length} herramienta(s) eliminada(s)`);
+      setSelectedTools([]);
+      setShowBulkDelete(false);
+    },
+    onError: () => toast.error('Error al eliminar. Herramientas asignadas a OTs activas no se pueden eliminar.'),
+  });
 
   const statusOptions = [
     { label: 'Todas', value: 'todos' }, { label: 'Disponible', value: 'disponible' },
@@ -874,9 +944,26 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
+          {selectedTools.length > 0 && (
+            <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-primary/30">
+              <span className="text-sm font-dm font-medium">{selectedTools.length} seleccionado{selectedTools.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedTools([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedTools.length})
+                </Button>
+              </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedTools.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedTools(e.target.checked ? filtered.map((t: any) => t.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead className="font-dm text-xs">Código</TableHead>
                 <TableHead className="font-dm text-xs">Nombre</TableHead>
                 <TableHead className="font-dm text-xs">Categoría</TableHead>
@@ -890,7 +977,12 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
               {filtered.map((t: any) => {
                 const st = TOOL_STATUS_STYLES[t.status] || TOOL_STATUS_STYLES.disponible;
                 return (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} className={selectedTools.includes(t.id) ? 'bg-primary/5' : ''}>
+                    <TableCell>
+                      <input type="checkbox" checked={selectedTools.includes(t.id)}
+                        onChange={e => setSelectedTools(e.target.checked ? [...selectedTools, t.id] : selectedTools.filter(x => x !== t.id))}
+                        className="h-3.5 w-3.5 rounded border-border" />
+                    </TableCell>
                     <TableCell className="text-xs font-barlow text-gold">{t.internal_code || '—'}</TableCell>
                     <TableCell className="text-sm font-dm font-medium">{t.name}</TableCell>
                     <TableCell className="text-xs text-muted-foreground font-dm capitalize">{t.category || '—'}</TableCell>
@@ -936,6 +1028,21 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
       {showReturn && (
         <ReturnToolModal open={!!showReturn} onClose={() => setShowReturn(null)} tool={showReturn} tenantId={tenantId} userId={userId} log={log} qc={qc} />
       )}
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedTools.length} herramienta{selectedTools.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Herramientas asignadas a OTs activas pueden no eliminarse.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteTools.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" disabled={bulkDeleteTools.isPending}
+              onClick={e => { e.preventDefault(); bulkDeleteTools.mutate(selectedTools); }}>
+              {bulkDeleteTools.isPending ? 'Eliminando...' : `Eliminar ${selectedTools.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -110,7 +111,7 @@ export default function Financiero() {
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<PeriodKey>('6m');
   const dateRange = useMemo(() => getDateRange(period), [period]);
-  const [activeTab, setActiveTab] = useState('resumen');
+  const [activeTab, setActiveTab] = useState('movimientos');
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editEntry, setEditEntry] = useState<FinancialEntry | null>(null);
@@ -120,6 +121,10 @@ export default function Financiero() {
   const [filterCategoryId, setFilterCategoryId] = useState<string>('all');
   const [filterMachineId, setFilterMachineId] = useState<string>('all');
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
+  const [selectedMovements, setSelectedMovements] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [movDateFrom, setMovDateFrom] = useState('');
+  const [movDateTo, setMovDateTo] = useState('');
 
   // ─── Queries ───
   const { data: categories = [] } = useQuery({
@@ -213,6 +218,8 @@ export default function Financiero() {
     if (filterCategoryId !== 'all') result = result.filter(e => e.category_id === filterCategoryId);
     if (filterMachineId !== 'all') result = result.filter(e => e.machine_id === filterMachineId);
     if (filterProjectId !== 'all') result = result.filter(e => e.project_id === filterProjectId);
+    if (movDateFrom) result = result.filter(e => e.cost_date >= movDateFrom);
+    if (movDateTo) result = result.filter(e => e.cost_date <= movDateTo);
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(e =>
@@ -222,7 +229,7 @@ export default function Financiero() {
       );
     }
     return result;
-  }, [entries, filterType, filterCategoryId, filterMachineId, filterProjectId, search]);
+  }, [entries, filterType, filterCategoryId, filterMachineId, filterProjectId, search, movDateFrom, movDateTo]);
 
   const totals = useMemo(() => {
     const totalIncome = filteredEntries.filter(e => e.entry_type === 'ingreso').reduce((s, e) => s + Number(e.amount), 0);
@@ -299,13 +306,28 @@ export default function Financiero() {
   // ─── Delete mutation ───
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('cost_entries').delete().eq('id', id);
+      const { error } = await supabase.from('cost_entries').delete().eq('tenant_id', user!.tenant_id).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financials'] });
       toast({ title: 'Registro eliminado' });
     },
+  });
+
+  // ─── Bulk delete mutation ───
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('cost_entries').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+      toast({ title: `${selectedMovements.length} registro(s) eliminado(s)` });
+      setSelectedMovements([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast({ title: 'Error al eliminar', variant: 'destructive' }),
   });
 
   // ─── CSV Export ───
@@ -508,21 +530,21 @@ export default function Financiero() {
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar descripción, factura..." className="w-64" />
             <div className="flex gap-1">
               {(['all', 'ingreso', 'gasto'] as const).map(t => (
-                <button key={t} onClick={() => setFilterType(t)}
+                <button key={t} onClick={() => { setFilterType(t); setSelectedMovements([]); }}
                   className={cn('px-3 py-1.5 rounded-full text-xs font-dm font-medium transition-colors',
                     filterType === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
                   {t === 'all' ? 'Todos' : t === 'ingreso' ? '💰 Ingresos' : '📤 Gastos'}
                 </button>
               ))}
             </div>
-            <Select value={filterMachineId} onValueChange={setFilterMachineId}>
+            <Select value={filterMachineId} onValueChange={v => { setFilterMachineId(v); setSelectedMovements([]); }}>
               <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Máquina" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las máquinas</SelectItem>
                 {machines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={filterProjectId} onValueChange={setFilterProjectId}>
+            <Select value={filterProjectId} onValueChange={v => { setFilterProjectId(v); setSelectedMovements([]); }}>
               <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Proyecto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los proyectos</SelectItem>
@@ -541,6 +563,51 @@ export default function Financiero() {
             </Button>
           </div>
 
+          {/* Date range filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs font-dm text-muted-foreground">Desde</label>
+            <input type="date" value={movDateFrom} onChange={e => { setMovDateFrom(e.target.value); setSelectedMovements([]); }}
+              className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-dm text-foreground" />
+            <label className="text-xs font-dm text-muted-foreground">Hasta</label>
+            <input type="date" value={movDateTo} onChange={e => { setMovDateTo(e.target.value); setSelectedMovements([]); }}
+              className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-dm text-foreground" />
+            <div className="flex gap-1">
+              {[
+                { label: 'Hoy', fn: () => { const d = format(new Date(), 'yyyy-MM-dd'); setMovDateFrom(d); setMovDateTo(d); } },
+                { label: 'Esta semana', fn: () => { const now = new Date(); const d = new Date(now); d.setDate(d.getDate() - d.getDay()); setMovDateFrom(format(d, 'yyyy-MM-dd')); setMovDateTo(format(now, 'yyyy-MM-dd')); } },
+                { label: 'Este mes', fn: () => { setMovDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: 'Último trim.', fn: () => { setMovDateFrom(format(subMonths(new Date(), 3), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: 'Este año', fn: () => { setMovDateFrom(format(startOfYear(new Date()), 'yyyy-MM-dd')); setMovDateTo(format(new Date(), 'yyyy-MM-dd')); } },
+              ].map(b => (
+                <button key={b.label} onClick={() => { b.fn(); setSelectedMovements([]); }}
+                  className="px-2 py-1 rounded-md text-[10px] font-dm font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
+                  {b.label}
+                </button>
+              ))}
+              {(movDateFrom || movDateTo) && (
+                <button onClick={() => { setMovDateFrom(''); setMovDateTo(''); setSelectedMovements([]); }}
+                  className="px-2 py-1 rounded-md text-[10px] font-dm font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                  ✕ Limpiar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bulk action bar */}
+          {selectedMovements.length > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-2">
+              <span className="text-sm font-dm font-medium">
+                {selectedMovements.length} seleccionado{selectedMovements.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedMovements([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeleteConfirm(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedMovements.length})
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           {entriesLoading ? (
             <div className="rounded-xl border border-border bg-card">
@@ -555,6 +622,12 @@ export default function Financiero() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
+                      <th className="px-2 py-2.5 text-left">
+                        <input type="checkbox"
+                          checked={selectedMovements.length === filteredEntries.length && filteredEntries.length > 0}
+                          onChange={e => setSelectedMovements(e.target.checked ? filteredEntries.map(x => x.id) : [])}
+                          className="h-3.5 w-3.5 rounded border-border" />
+                      </th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Fecha</th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Tipo</th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Categoría</th>
@@ -571,8 +644,14 @@ export default function Financiero() {
                       const cat = categories.find(c => c.id === e.category_id);
                       const machine = machines.find(m => m.id === e.machine_id);
                       const project = projects.find(p => p.id === e.project_id);
+                      const isSelected = selectedMovements.includes(e.id);
                       return (
-                        <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" style={{ borderLeftWidth: 3, borderLeftColor: cat?.color ?? 'transparent' }}>
+                        <tr key={e.id} className={cn('border-b border-border/50 hover:bg-muted/30 transition-colors', isSelected && 'bg-primary/5')} style={{ borderLeftWidth: 3, borderLeftColor: cat?.color ?? 'transparent' }}>
+                          <td className="px-2 py-2">
+                            <input type="checkbox" checked={isSelected}
+                              onChange={ev => setSelectedMovements(ev.target.checked ? [...selectedMovements, e.id] : selectedMovements.filter(x => x !== e.id))}
+                              className="h-3.5 w-3.5 rounded border-border" />
+                          </td>
                           <td className="px-3 py-2 font-dm text-xs whitespace-nowrap">{formatDate(e.cost_date)}</td>
                           <td className="px-3 py-2">
                             <Badge variant="outline" className={cn('text-[10px]', e.entry_type === 'ingreso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200')}>
@@ -676,6 +755,26 @@ export default function Financiero() {
         confirmLabel="Eliminar"
         isLoading={deleteMut.isPending}
       />
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedMovements.length} registro{selectedMovements.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">
+              Esta acción es permanente. Los registros financieros seleccionados serán eliminados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteMut.isPending}
+              onClick={(e) => { e.preventDefault(); bulkDeleteMut.mutate(selectedMovements); }}>
+              {bulkDeleteMut.isPending ? 'Eliminando...' : `Eliminar ${selectedMovements.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
