@@ -155,15 +155,16 @@ export default function Proveedores() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleDelete = async (hardDelete: boolean) => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (hardDelete) {
-      await supabase.from('suppliers').delete().eq('id', deleteTarget.id);
-    } else {
-      await supabase.from('suppliers').update({ status: 'inactivo' }).eq('id', deleteTarget.id);
+    try {
+      await deleteSuppliers([deleteTarget.id]);
+      qc.invalidateQueries({ queryKey: ['suppliers'] });
+      toast.success('Proveedor eliminado');
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + e.message);
     }
-    qc.invalidateQueries({ queryKey: ['suppliers'] });
-    toast.success(hardDelete ? 'Proveedor eliminado' : 'Proveedor desactivado');
   };
 
   const reactivate = async (s: SupplierRow) => {
