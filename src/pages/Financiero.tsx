@@ -217,6 +217,8 @@ export default function Financiero() {
     if (filterCategoryId !== 'all') result = result.filter(e => e.category_id === filterCategoryId);
     if (filterMachineId !== 'all') result = result.filter(e => e.machine_id === filterMachineId);
     if (filterProjectId !== 'all') result = result.filter(e => e.project_id === filterProjectId);
+    if (movDateFrom) result = result.filter(e => e.cost_date >= movDateFrom);
+    if (movDateTo) result = result.filter(e => e.cost_date <= movDateTo);
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(e =>
@@ -226,7 +228,7 @@ export default function Financiero() {
       );
     }
     return result;
-  }, [entries, filterType, filterCategoryId, filterMachineId, filterProjectId, search]);
+  }, [entries, filterType, filterCategoryId, filterMachineId, filterProjectId, search, movDateFrom, movDateTo]);
 
   const totals = useMemo(() => {
     const totalIncome = filteredEntries.filter(e => e.entry_type === 'ingreso').reduce((s, e) => s + Number(e.amount), 0);
