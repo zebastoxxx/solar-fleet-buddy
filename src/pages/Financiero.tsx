@@ -754,6 +754,26 @@ export default function Financiero() {
         confirmLabel="Eliminar"
         isLoading={deleteMut.isPending}
       />
+
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedMovements.length} registro{selectedMovements.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">
+              Esta acción es permanente. Los registros financieros seleccionados serán eliminados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-dm" disabled={bulkDeleteMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+              disabled={bulkDeleteMut.isPending}
+              onClick={(e) => { e.preventDefault(); bulkDeleteMut.mutate(selectedMovements); }}>
+              {bulkDeleteMut.isPending ? 'Eliminando...' : `Eliminar ${selectedMovements.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
