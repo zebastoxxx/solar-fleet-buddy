@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { deletePreoperacionales } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -107,8 +108,7 @@ export default function Preoperacionales() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('preop_records').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
-      if (error) throw error;
+      await deletePreoperacionales(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['preop-records-supervisor', user?.tenant_id] });

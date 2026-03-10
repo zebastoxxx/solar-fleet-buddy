@@ -3,6 +3,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteProjects } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -151,41 +152,13 @@ export default function Proyectos() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const cascadeDeleteProjects = async (ids: string[]) => {
-    // 1. Get related work orders
-    const { data: relatedOTs } = await supabase
-      .from('work_orders').select('id').in('project_id', ids);
-    const otIds = (relatedOTs ?? []).map((o: any) => o.id);
-
-    if (otIds.length > 0) {
-      // 2. Clean up OT dependencies
-      await supabase.from('work_order_technicians').delete().in('work_order_id', otIds);
-      await supabase.from('work_order_parts').delete().in('work_order_id', otIds);
-      await supabase.from('work_order_photos').delete().in('work_order_id', otIds);
-      await supabase.from('work_order_tools').delete().in('work_order_id', otIds);
-      await supabase.from('work_order_timers').delete().in('work_order_id', otIds);
-    }
-
-    // 3. Delete work orders
-    await supabase.from('work_orders').delete().in('project_id', ids);
-    // 4. Delete project machines
-    await supabase.from('project_machines').delete().in('project_id', ids);
-    // 5. Delete project personnel
-    await supabase.from('project_personnel').delete().in('project_id', ids);
-    // 6. Delete cost entries
-    await supabase.from('cost_entries').delete().in('project_id', ids);
-    // 7. Delete preop records
-    await supabase.from('preop_records').delete().in('project_id', ids);
-    // 8. Finally delete projects
-    const { error } = await supabase.from('projects').delete().in('id', ids);
-    if (error) throw error;
-  };
-
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => cascadeDeleteProjects(ids),
+    mutationFn: async (ids: string[]) => {
+      await deleteProjects(ids);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects', tenantId] });
-      toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
+      toast.success(`${selectedRows.length} proyecto(s) eliminado(s)`);
       setSelectedRows([]);
       setShowBulkDeleteConfirm(false);
     },

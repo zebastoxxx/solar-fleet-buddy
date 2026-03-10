@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteConsumables, deleteTools, deleteKits } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { toast } from 'sonner';
@@ -245,8 +246,7 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
 
   const bulkDeleteConsumables = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('inventory_consumables').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteConsumables(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-consumables'] });
@@ -897,8 +897,7 @@ function ToolsTab({ tools, loading, search, setSearch, tenantId, userId, userNam
 
   const bulkDeleteTools = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('inventory_tools').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteTools(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-tools'] });
@@ -1360,10 +1359,7 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
 
   const bulkDeleteKits = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Delete kit items first
-      await supabase.from('inventory_kit_items').delete().in('kit_id', ids);
-      const { error } = await supabase.from('inventory_kits').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteKits(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-kits'] });

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteClients } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -12,8 +13,6 @@ import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { SafeDeleteDialog } from '@/components/ui/SafeDeleteDialog';
-import { checkDeleteClient } from '@/lib/delete-guards';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -157,16 +156,17 @@ export default function Clientes() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleDelete = async (hardDelete: boolean) => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (hardDelete) {
-      await supabase.from('clients').delete().eq('id', deleteTarget.id);
-    } else {
-      await supabase.from('clients').update({ status: 'inactivo' }).eq('id', deleteTarget.id);
+    try {
+      await deleteClients([deleteTarget.id]);
+      await log('clientes', 'eliminar_cliente', 'client', deleteTarget.id, deleteTarget.name);
+      qc.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Cliente eliminado');
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + e.message);
     }
-    await log('clientes', 'desactivar_cliente', 'client', deleteTarget.id, deleteTarget.name);
-    qc.invalidateQueries({ queryKey: ['clients'] });
-    toast.success(hardDelete ? 'Cliente eliminado' : 'Cliente desactivado');
   };
 
   const reactivate = async (c: ClientRow) => {
@@ -179,8 +179,7 @@ export default function Clientes() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('clients').delete().eq('tenant_id', tenantId!).in('id', ids);
-      if (error) throw error;
+      await deleteClients(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients', tenantId] });
@@ -370,15 +369,24 @@ export default function Clientes() {
         onDelete={canManage ? (c) => { setDetailClient(null); setDeleteTarget(c); } : undefined}
       />
 
-      {/* Safe Delete */}
+      {/* Delete Confirm */}
       {deleteTarget && (
-        <SafeDeleteDialog
-          open={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          entityName={deleteTarget.name}
-          checkFn={() => checkDeleteClient(deleteTarget.id)}
-          onConfirm={handleDelete}
-        />
+        <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-barlow">¿Eliminar "{deleteTarget.name}"?</AlertDialogTitle>
+              <AlertDialogDescription className="font-dm">
+                Esta acción eliminará el cliente y todos sus datos asociados (proyectos, costos). No se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-dm">Cancelar</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" onClick={(e) => { e.preventDefault(); handleDelete(); }}>
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>

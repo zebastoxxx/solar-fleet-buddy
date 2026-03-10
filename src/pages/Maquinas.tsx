@@ -17,6 +17,7 @@ import { useAllMachines, useAllMachineFinancials } from '@/hooks/useDashboardDat
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteMachines } from '@/lib/cascade-delete';
 import { CreateMachineModal } from '@/components/machines/CreateMachineModal';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -83,8 +84,7 @@ export default function Maquinas() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('machines').delete().eq('tenant_id', tenantId!).in('id', ids);
-      if (error) throw error;
+      await deleteMachines(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['all-machines', tenantId] });
