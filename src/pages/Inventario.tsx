@@ -349,8 +349,13 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
                 const isCritical = (c.stock_current ?? 0) <= (c.stock_minimum ?? 0) && (c.stock_minimum ?? 0) > 0;
                 const isWarning = !isCritical && (c.stock_current ?? 0) <= (c.stock_minimum ?? 0) * 1.5 && (c.stock_minimum ?? 0) > 0;
                 const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.otros;
-                return (
-                  <TableRow key={c.id} className={isCritical ? 'bg-danger-bg/40' : isWarning ? 'bg-warning-bg/40' : ''}>
+                  return (
+                    <TableRow key={c.id} className={isCritical ? 'bg-danger-bg/40' : isWarning ? 'bg-warning-bg/40' : selectedConsumables.includes(c.id) ? 'bg-primary/5' : ''}>
+                      <TableCell>
+                        <input type="checkbox" checked={selectedConsumables.includes(c.id)}
+                          onChange={e => setSelectedConsumables(e.target.checked ? [...selectedConsumables, c.id] : selectedConsumables.filter(x => x !== c.id))}
+                          className="h-3.5 w-3.5 rounded border-border" />
+                      </TableCell>
                     <TableCell>
                       <button className="text-sm font-medium font-dm text-foreground hover:text-gold transition-colors text-left" onClick={() => setShowHistory(c)}>
                         {c.name}
