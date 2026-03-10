@@ -621,6 +621,12 @@ export default function Financiero() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
+                      <th className="px-2 py-2.5 text-left">
+                        <input type="checkbox"
+                          checked={selectedMovements.length === filteredEntries.length && filteredEntries.length > 0}
+                          onChange={e => setSelectedMovements(e.target.checked ? filteredEntries.map(x => x.id) : [])}
+                          className="h-3.5 w-3.5 rounded border-border" />
+                      </th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Fecha</th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Tipo</th>
                       <th className="px-3 py-2.5 text-left font-dm font-medium text-muted-foreground text-xs">Categoría</th>
@@ -637,8 +643,14 @@ export default function Financiero() {
                       const cat = categories.find(c => c.id === e.category_id);
                       const machine = machines.find(m => m.id === e.machine_id);
                       const project = projects.find(p => p.id === e.project_id);
+                      const isSelected = selectedMovements.includes(e.id);
                       return (
-                        <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" style={{ borderLeftWidth: 3, borderLeftColor: cat?.color ?? 'transparent' }}>
+                        <tr key={e.id} className={cn('border-b border-border/50 hover:bg-muted/30 transition-colors', isSelected && 'bg-primary/5')} style={{ borderLeftWidth: 3, borderLeftColor: cat?.color ?? 'transparent' }}>
+                          <td className="px-2 py-2">
+                            <input type="checkbox" checked={isSelected}
+                              onChange={ev => setSelectedMovements(ev.target.checked ? [...selectedMovements, e.id] : selectedMovements.filter(x => x !== e.id))}
+                              className="h-3.5 w-3.5 rounded border-border" />
+                          </td>
                           <td className="px-3 py-2 font-dm text-xs whitespace-nowrap">{formatDate(e.cost_date)}</td>
                           <td className="px-3 py-2">
                             <Badge variant="outline" className={cn('text-[10px]', e.entry_type === 'ingreso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200')}>
