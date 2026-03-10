@@ -156,16 +156,17 @@ export default function Clientes() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleDelete = async (hardDelete: boolean) => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (hardDelete) {
-      await supabase.from('clients').delete().eq('id', deleteTarget.id);
-    } else {
-      await supabase.from('clients').update({ status: 'inactivo' }).eq('id', deleteTarget.id);
+    try {
+      await deleteClients([deleteTarget.id]);
+      await log('clientes', 'eliminar_cliente', 'client', deleteTarget.id, deleteTarget.name);
+      qc.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Cliente eliminado');
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast.error('Error al eliminar: ' + e.message);
     }
-    await log('clientes', 'desactivar_cliente', 'client', deleteTarget.id, deleteTarget.name);
-    qc.invalidateQueries({ queryKey: ['clients'] });
-    toast.success(hardDelete ? 'Cliente eliminado' : 'Cliente desactivado');
   };
 
   const reactivate = async (c: ClientRow) => {
