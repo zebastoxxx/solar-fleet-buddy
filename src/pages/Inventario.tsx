@@ -1441,14 +1441,15 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
                     <input type="checkbox" checked={selectedKits.includes(k.id)}
                       onChange={e => setSelectedKits(e.target.checked ? [...selectedKits, k.id] : selectedKits.filter(x => x !== k.id))}
                       className="h-3.5 w-3.5 rounded border-border mt-1" />
-                    <p className="font-barlow font-semibold text-[15px] text-foreground">🧰 {k.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.bg} ${st.text}`}>{st.label}</span>
-                      {k.machines && (
-                        <span className="text-[11px] text-muted-foreground font-dm">{k.machines.name} [{k.machines.internal_code}]</span>
-                      )}
+                    <div>
+                      <p className="font-barlow font-semibold text-[15px] text-foreground">🧰 {k.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${st.bg} ${st.text}`}>{st.label}</span>
+                        {k.machines && (
+                          <span className="text-[11px] text-muted-foreground font-dm">{k.machines.name} [{k.machines.internal_code}]</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   </div>
                 </div>
 
