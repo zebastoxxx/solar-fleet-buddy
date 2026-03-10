@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { format } from 'date-fns';
@@ -14,8 +14,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Preoperacionales() {
   usePageTitle('Preoperacionales');
