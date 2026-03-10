@@ -346,9 +346,9 @@ export default function Proyectos() {
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar {selectedRows.length} registro{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar {selectedRows.length} proyecto{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Los registros seleccionados serán eliminados permanentemente.
+              Se eliminarán también todas las órdenes de trabajo, asignaciones de máquinas, personal y registros financieros asociados. Esta acción es irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
