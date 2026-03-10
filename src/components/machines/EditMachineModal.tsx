@@ -234,22 +234,36 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
       </DialogContent>
     </Dialog>
 
-    <SafeDeleteDialog
-      open={showDelete}
-      onClose={() => setShowDelete(false)}
-      entityName={machine?.name || ''}
-      checkFn={() => checkDeleteMachine(machine.id)}
-      onConfirm={async (hardDelete) => {
-        if (hardDelete) {
-          await supabase.from('machines').delete().eq('id', machine.id);
-        } else {
-          await supabase.from('machines').update({ active: false, status: 'fuera_de_servicio' as any }).eq('id', machine.id);
-        }
-        qc.invalidateQueries({ queryKey: ['machines'] });
-        qc.invalidateQueries({ queryKey: ['machine'] });
-        onClose();
-      }}
-    />
+    <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-barlow">¿Eliminar "{machine?.name}"?</AlertDialogTitle>
+          <AlertDialogDescription className="font-dm">
+            Esta acción eliminará la máquina y todos sus datos asociados (OTs, preoperacionales, costos, alertas). No se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="font-dm">Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+            onClick={async (e) => {
+              e.preventDefault();
+              try {
+                await deleteMachines([machine.id]);
+                qc.invalidateQueries({ queryKey: ['machines'] });
+                qc.invalidateQueries({ queryKey: ['machine'] });
+                toast({ title: '✓ Máquina eliminada' });
+                setShowDelete(false);
+                onClose();
+              } catch (err: any) {
+                toast({ title: 'Error al eliminar', description: err.message, variant: 'destructive' });
+              }
+            }}>
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

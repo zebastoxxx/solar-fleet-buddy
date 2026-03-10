@@ -1359,10 +1359,7 @@ function KitsTab({ kits, loading, search, setSearch, tenantId, userId, userName,
 
   const bulkDeleteKits = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Delete kit items first
-      await supabase.from('inventory_kit_items').delete().in('kit_id', ids);
-      const { error } = await supabase.from('inventory_kits').delete().eq('tenant_id', tenantId).in('id', ids);
-      if (error) throw error;
+      await deleteKits(ids);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory-kits'] });
