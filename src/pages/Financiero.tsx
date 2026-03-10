@@ -305,13 +305,28 @@ export default function Financiero() {
   // ─── Delete mutation ───
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('cost_entries').delete().eq('id', id);
+      const { error } = await supabase.from('cost_entries').delete().eq('tenant_id', user!.tenant_id).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financials'] });
       toast({ title: 'Registro eliminado' });
     },
+  });
+
+  // ─── Bulk delete mutation ───
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('cost_entries').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+      toast({ title: `${selectedMovements.length} registro(s) eliminado(s)` });
+      setSelectedMovements([]);
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: () => toast({ title: 'Error al eliminar', variant: 'destructive' }),
   });
 
   // ─── CSV Export ───
