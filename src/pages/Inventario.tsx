@@ -314,9 +314,26 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
+          {selectedConsumables.length > 0 && (
+            <div className="flex items-center justify-between bg-primary/5 px-4 py-2 border-b border-primary/30">
+              <span className="text-sm font-dm font-medium">{selectedConsumables.length} seleccionado{selectedConsumables.length !== 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedConsumables([])}>Cancelar</Button>
+                <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Eliminar ({selectedConsumables.length})
+                </Button>
+              </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox"
+                    checked={selectedConsumables.length === filtered.length && filtered.length > 0}
+                    onChange={e => setSelectedConsumables(e.target.checked ? filtered.map((c: any) => c.id) : [])}
+                    className="h-3.5 w-3.5 rounded border-border" />
+                </TableHead>
                 <TableHead className="font-dm text-xs">Nombre</TableHead>
                 <TableHead className="font-dm text-xs">Categoría</TableHead>
                 <TableHead className="font-dm text-xs">Stock</TableHead>
