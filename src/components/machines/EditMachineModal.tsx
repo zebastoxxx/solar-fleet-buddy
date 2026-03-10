@@ -38,6 +38,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
   const user = useAuthStore((s) => s.user);
   const [saving, setSaving] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
 
   const [form, setForm] = useState({
     name: '', internal_code: '', type: '', brand: '', model: '', year: '',
