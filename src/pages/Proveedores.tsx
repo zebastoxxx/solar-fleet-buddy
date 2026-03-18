@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,12 +12,14 @@ import { FilterPills } from '@/components/ui/filter-pills';
 import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -25,13 +27,15 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Trash2, Star, RotateCcw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Star, RotateCcw, Upload, Download, FileText, AlertCircle, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const supplierSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
   type: z.string().min(1, 'Seleccione un tipo'),
+  entity_type: z.enum(['empresa', 'persona']).default('empresa'),
+  legal_representative: z.string().optional(),
   tax_id: z.string().optional(),
   contact_name: z.string().optional(),
   contact_phone: z.string().optional(),
@@ -66,6 +70,33 @@ const TYPE_BADGE: Record<string, string> = {
   consumibles: 'bg-[hsl(45_100%_90%)] text-[hsl(37_91%_40%)]',
   multiples: 'bg-secondary text-muted-foreground',
 };
+
+const contactSchema = z.object({
+  full_name: z.string().min(2, 'Mínimo 2 caracteres'),
+  role: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  is_primary: z.boolean().default(false),
+});
+type ContactForm = z.infer<typeof contactSchema>;
+
+const SUPPLIER_DOC_TYPES = [
+  { value: 'rut', label: 'RUT' },
+  { value: 'camara_comercio', label: 'Cámara de Comercio' },
+  { value: 'certificado_bancario', label: 'Certificado Bancario' },
+  { value: 'contrato', label: 'Contrato' },
+  { value: 'otro', label: 'Otro' },
+];
+
+const SUPPLIER_DOC_BADGE: Record<string, string> = {
+  rut: 'bg-[hsl(217_91%_93%)] text-[hsl(217_91%_40%)]',
+  camara_comercio: 'bg-[hsl(142_76%_90%)] text-[hsl(142_76%_35%)]',
+  certificado_bancario: 'bg-[hsl(45_100%_90%)] text-[hsl(37_91%_40%)]',
+  contrato: 'bg-secondary text-muted-foreground',
+  otro: 'bg-secondary text-muted-foreground',
+};
+
+const REQUIRED_DOCS = ['rut', 'camara_comercio', 'certificado_bancario'];
 
 function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
   return (
@@ -120,14 +151,20 @@ export default function Proveedores() {
 
   const form = useForm<SupplierForm>({
     resolver: zodResolver(supplierSchema),
-    defaultValues: { type: '', country: 'Colombia', status: 'activo', rating: null },
+    defaultValues: { type: '', entity_type: 'empresa', country: 'Colombia', status: 'activo', rating: null },
   });
 
-  const openCreate = () => { setEditing(null); form.reset({ name: '', type: '', country: 'Colombia', status: 'activo', rating: null, tax_id: '', contact_name: '', contact_phone: '', contact_email: '', city: '', specialty: '', notes: '' }); setModalOpen(true); };
+  const watchEntityType = form.watch('entity_type');
+
+  const openCreate = () => {
+    setEditing(null);
+    form.reset({ name: '', type: '', entity_type: 'empresa', country: 'Colombia', status: 'activo', rating: null, tax_id: '', contact_name: '', contact_phone: '', contact_email: '', city: '', specialty: '', notes: '', legal_representative: '' });
+    setModalOpen(true);
+  };
 
   const openEdit = (s: SupplierRow) => {
     setEditing(s);
-    form.reset({ name: s.name, type: s.type || '', tax_id: s.tax_id || '', contact_name: s.contact_name || '', contact_phone: s.contact_phone || '', contact_email: s.contact_email || '', city: s.city || '', country: s.country || 'Colombia', specialty: s.specialty || '', rating: s.rating, notes: s.notes || '', status: s.status || 'activo' });
+    form.reset({ name: s.name, type: s.type || '', entity_type: 'empresa', tax_id: s.tax_id || '', contact_name: s.contact_name || '', contact_phone: s.contact_phone || '', contact_email: s.contact_email || '', city: s.city || '', country: s.country || 'Colombia', specialty: s.specialty || '', rating: s.rating, notes: s.notes || '', status: s.status || 'activo', legal_representative: '' });
     setModalOpen(true);
   };
 
@@ -176,9 +213,7 @@ export default function Proveedores() {
   const canManage = role === 'superadmin' || role === 'gerente';
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      await deleteSuppliers(ids);
-    },
+    mutationFn: async (ids: string[]) => { await deleteSuppliers(ids); },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['suppliers', tenantId] });
       toast.success(`${selectedRows.length} registro(s) eliminado(s)`);
@@ -213,9 +248,7 @@ export default function Proveedores() {
           <SearchInput value={search} onChange={setSearch} placeholder="Buscar proveedor..." />
           <FilterPills options={TYPE_FILTERS} value={typeFilter} onChange={setTypeFilter} />
           <AdvancedFilters
-            customFilters={[
-              { key: 'rating', label: 'Rating mínimo', type: 'select', options: [{ value: 'all', label: 'Todos' }, { value: '3', label: '≥ 3 ⭐' }, { value: '4', label: '≥ 4 ⭐' }, { value: '5', label: '5 ⭐' }] },
-            ]}
+            customFilters={[{ key: 'rating', label: 'Rating mínimo', type: 'select', options: [{ value: 'all', label: 'Todos' }, { value: '3', label: '≥ 3 ⭐' }, { value: '4', label: '≥ 4 ⭐' }, { value: '5', label: '5 ⭐' }] }]}
             filterValues={{ rating: ratingFilter }}
             onFilterChange={(k, v) => { if (k === 'rating') setRatingFilter(v); }}
             onClear={() => setRatingFilter('all')}
@@ -234,31 +267,22 @@ export default function Proveedores() {
 
       {selectedRows.length > 0 && (
         <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-2">
-          <span className="text-sm font-dm font-medium">
-            {selectedRows.length} seleccionado{selectedRows.length !== 1 ? 's' : ''}
-          </span>
+          <span className="text-sm font-dm font-medium">{selectedRows.length} seleccionado{selectedRows.length !== 1 ? 's' : ''}</span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedRows([])}>
-              Cancelar
-            </Button>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSelectedRows([])}>Cancelar</Button>
             <Button variant="destructive" size="sm" className="text-xs gap-1" onClick={() => setShowBulkDeleteConfirm(true)}>
-              <Trash2 className="h-3.5 w-3.5" />
-              Eliminar {selectedRows.length}
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar {selectedRows.length}
             </Button>
           </div>
         </div>
       )}
 
       <DataTable
-        data={filtered}
-        columns={columns}
-        isLoading={isLoading}
+        data={filtered} columns={columns} isLoading={isLoading}
         onRowClick={(s) => setDetail(s)}
         defaultSort={{ key: 'name', direction: 'asc' }}
-        rowKey={(s) => s.id}
-        emptyMessage="No hay proveedores registrados"
-        selectable={true}
-        onSelectionChange={setSelectedRows}
+        rowKey={(s) => s.id} emptyMessage="No hay proveedores registrados"
+        selectable={true} onSelectionChange={setSelectedRows}
       />
 
       {/* Create/Edit Modal */}
@@ -276,7 +300,7 @@ export default function Proveedores() {
                 {form.formState.errors.name && <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="font-dm text-xs">Tipo *</Label>
+                <Label className="font-dm text-xs">Tipo de servicio *</Label>
                 <Select value={form.watch('type')} onValueChange={(v) => form.setValue('type', v)}>
                   <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
@@ -288,9 +312,27 @@ export default function Proveedores() {
                 </Select>
               </div>
               <div className="space-y-1.5">
+                <Label className="font-dm text-xs">Tipo de entidad</Label>
+                <div className="flex gap-4 pt-2">
+                  {(['empresa', 'persona'] as const).map(et => (
+                    <label key={et} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="entity_type" value={et} checked={watchEntityType === et}
+                        onChange={() => form.setValue('entity_type', et)} className="accent-[hsl(var(--primary))]" />
+                      <span className="font-dm text-sm capitalize">{et}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="font-dm text-xs">NIT</Label>
                 <Input {...form.register('tax_id')} className="h-10 rounded-lg font-dm" />
               </div>
+              {watchEntityType === 'empresa' && (
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="font-dm text-xs">Representante legal</Label>
+                  <Input {...form.register('legal_representative')} className="h-10 rounded-lg font-dm" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Especialidad</Label>
                 <Input {...form.register('specialty')} placeholder="Ej: Telehandlers JCB" className="h-10 rounded-lg font-dm" />
@@ -342,15 +384,11 @@ export default function Proveedores() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="font-barlow">¿Eliminar "{deleteTarget.name}"?</AlertDialogTitle>
-              <AlertDialogDescription className="font-dm">
-                Esta acción eliminará el proveedor y desvinculará sus referencias. No se puede deshacer.
-              </AlertDialogDescription>
+              <AlertDialogDescription className="font-dm">Esta acción eliminará el proveedor y desvinculará sus referencias. No se puede deshacer.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="font-dm">Cancelar</AlertDialogCancel>
-              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" onClick={(e) => { e.preventDefault(); handleDelete(); }}>
-                Eliminar
-              </AlertDialogAction>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm" onClick={(e) => { e.preventDefault(); handleDelete(); }}>Eliminar</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -360,9 +398,7 @@ export default function Proveedores() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar {selectedRows.length} registro{selectedRows.length !== 1 ? 's' : ''}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Los registros seleccionados serán eliminados permanentemente.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -376,9 +412,28 @@ export default function Proveedores() {
   );
 }
 
+// ─── Supplier Detail Modal ───
 function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
   supplier: SupplierRow | null; onClose: () => void; onEdit: (s: SupplierRow) => void; onDelete?: (s: SupplierRow) => void;
 }) {
+  const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  const qc = useQueryClient();
+
+  // Contacts
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<any>(null);
+  const [deleteContactTarget, setDeleteContactTarget] = useState<any>(null);
+  const contactForm = useForm<ContactForm>({ resolver: zodResolver(contactSchema), defaultValues: { is_primary: false } });
+
+  // Documents
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docName, setDocName] = useState('');
+  const [docType, setDocType] = useState('otro');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const { data: ots = [] } = useQuery({
     queryKey: ['supplier-ots', supplier?.id],
     queryFn: async () => {
@@ -399,122 +454,419 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
     enabled: !!supplier,
   });
 
+  const { data: contacts = [], refetch: refetchContacts } = useQuery({
+    queryKey: ['supplier-contacts', supplier?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('supplier_contacts').select('*').eq('supplier_id', supplier!.id).order('is_primary', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!supplier,
+  });
+
+  const { data: documents = [], refetch: refetchDocs } = useQuery({
+    queryKey: ['supplier-documents', supplier?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('supplier_documents').select('*').eq('supplier_id', supplier!.id).order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!supplier,
+  });
+
+  const saveContact = async (values: ContactForm) => {
+    if (!supplier || !tenantId) return;
+    try {
+      if (values.is_primary) {
+        await supabase.from('supplier_contacts').update({ is_primary: false }).eq('supplier_id', supplier.id).eq('is_primary', true);
+      }
+      if (editingContact) {
+        await supabase.from('supplier_contacts').update({ ...values }).eq('id', editingContact.id);
+      } else {
+        await supabase.from('supplier_contacts').insert([{ ...values, supplier_id: supplier.id, tenant_id: tenantId }]);
+      }
+      toast.success('Contacto guardado');
+      refetchContacts();
+      setContactModalOpen(false);
+      setEditingContact(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const handleDeleteContact = async () => {
+    if (!deleteContactTarget) return;
+    await supabase.from('supplier_contacts').delete().eq('id', deleteContactTarget.id);
+    toast.success('Contacto eliminado');
+    refetchContacts();
+    setDeleteContactTarget(null);
+  };
+
+  const handleUploadDoc = async () => {
+    if (!docFile || !docName || !supplier || !tenantId) return;
+    setUploading(true);
+    try {
+      const path = `suppliers/${supplier.id}/${Date.now()}_${docFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from('documents').upload(path, docFile);
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+      await supabase.from('supplier_documents').insert([{
+        supplier_id: supplier.id, name: docName, doc_type: docType,
+        file_url: urlData.publicUrl, file_name: docFile.name, tenant_id: tenantId,
+      }]);
+      toast.success('Documento subido');
+      refetchDocs();
+      setDocModalOpen(false);
+      setDocName(''); setDocType('otro'); setDocFile(null);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!deleteDocTarget) return;
+    if (deleteDocTarget.file_url) {
+      const path = deleteDocTarget.file_url.split('/documents/')[1];
+      if (path) await supabase.storage.from('documents').remove([path]);
+    }
+    await supabase.from('supplier_documents').delete().eq('id', deleteDocTarget.id);
+    toast.success('Documento eliminado');
+    refetchDocs();
+    setDeleteDocTarget(null);
+  };
+
   if (!supplier) return null;
 
   const totalOTCost = ots.reduce((s: number, o: any) => s + Number(o.total_cost || 0), 0);
   const activeOTs = ots.filter((o: any) => !['cerrada', 'firmada'].includes(o.status));
   const totalPaid = costEntries.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+  const existingDocTypes = documents.map((d: any) => d.doc_type);
 
   return (
-    <Dialog open={!!supplier} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] rounded-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-barlow text-lg flex items-center gap-2">
-            {supplier.name}
-            {supplier.type && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[supplier.type] || ''}`}>{supplier.type.replace(/_/g, ' ')}</span>}
-          </DialogTitle>
-          <div className="font-dm text-sm text-muted-foreground flex items-center gap-2">
-            {supplier.city || ''}{supplier.specialty ? ` · ${supplier.specialty}` : ''} <StarRating value={supplier.rating || 0} />
-          </div>
-        </DialogHeader>
-        <Tabs defaultValue="info">
-          <TabsList className="font-dm">
-            <TabsTrigger value="info">📋 Información</TabsTrigger>
-            <TabsTrigger value="ots">🔧 OT ({ots.length})</TabsTrigger>
-            <TabsTrigger value="invoices">💰 Facturas</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="info">
-            <div className="grid grid-cols-2 gap-4 py-2">
-              {[
-                ['Especialidad', supplier.specialty],
-                ['NIT', supplier.tax_id],
-                ['Contacto', supplier.contact_name],
-                ['Teléfono', supplier.contact_phone ? <a href={`tel:${supplier.contact_phone}`} className="text-primary hover:underline">{supplier.contact_phone}</a> : null],
-                ['Email', supplier.contact_email ? <a href={`mailto:${supplier.contact_email}`} className="text-primary hover:underline">{supplier.contact_email}</a> : null],
-                ['Ciudad', supplier.city],
-              ].map(([l, v]) => (
-                <div key={l as string}><p className="text-[11px] uppercase text-muted-foreground font-dm">{l as string}</p><p className="text-sm font-dm">{v || '—'}</p></div>
-              ))}
-              {supplier.notes && <div className="col-span-2"><p className="text-[11px] uppercase text-muted-foreground font-dm">Notas</p><p className="text-sm font-dm whitespace-pre-wrap">{supplier.notes}</p></div>}
+    <>
+      <Dialog open={!!supplier} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[720px] rounded-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-barlow text-lg flex items-center gap-2">
+              {supplier.name}
+              {supplier.type && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${TYPE_BADGE[supplier.type] || ''}`}>{supplier.type.replace(/_/g, ' ')}</span>}
+            </DialogTitle>
+            <div className="font-dm text-sm text-muted-foreground flex items-center gap-2">
+              {supplier.city || ''}{supplier.specialty ? ` · ${supplier.specialty}` : ''} <StarRating value={supplier.rating || 0} />
             </div>
-          </TabsContent>
+          </DialogHeader>
+          <Tabs defaultValue="info">
+            <TabsList className="font-dm">
+              <TabsTrigger value="info">📋 Información</TabsTrigger>
+              <TabsTrigger value="contacts">👥 Contactos ({contacts.length})</TabsTrigger>
+              <TabsTrigger value="documents">📎 Documentos ({documents.length})</TabsTrigger>
+              <TabsTrigger value="ots">🔧 OT ({ots.length})</TabsTrigger>
+              <TabsTrigger value="invoices">💰 Facturas</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="ots">
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              <div className="bg-secondary rounded-lg p-2.5 text-center">
-                <p className="text-[11px] uppercase text-muted-foreground font-dm">Total OT</p>
-                <p className="text-lg font-barlow font-semibold">{ots.length}</p>
+            <TabsContent value="info">
+              <div className="grid grid-cols-2 gap-4 py-2">
+                {[
+                  ['Especialidad', supplier.specialty],
+                  ['NIT', supplier.tax_id],
+                  ['Contacto', supplier.contact_name],
+                  ['Teléfono', supplier.contact_phone ? <a href={`tel:${supplier.contact_phone}`} className="text-primary hover:underline">{supplier.contact_phone}</a> : null],
+                  ['Email', supplier.contact_email ? <a href={`mailto:${supplier.contact_email}`} className="text-primary hover:underline">{supplier.contact_email}</a> : null],
+                  ['Ciudad', supplier.city],
+                ].map(([l, v]) => (
+                  <div key={l as string}><p className="text-[11px] uppercase text-muted-foreground font-dm">{l as string}</p><p className="text-sm font-dm">{v || '—'}</p></div>
+                ))}
+                {supplier.notes && <div className="col-span-2"><p className="text-[11px] uppercase text-muted-foreground font-dm">Notas</p><p className="text-sm font-dm whitespace-pre-wrap">{supplier.notes}</p></div>}
               </div>
-              <div className="bg-secondary rounded-lg p-2.5 text-center">
-                <p className="text-[11px] uppercase text-muted-foreground font-dm">En curso</p>
-                <p className="text-lg font-barlow font-semibold">{activeOTs.length}</p>
-              </div>
-              <div className="bg-secondary rounded-lg p-2.5 text-center">
-                <p className="text-[11px] uppercase text-muted-foreground font-dm">Costo total</p>
-                <p className="text-lg font-barlow font-semibold">${totalOTCost.toLocaleString()}</p>
-              </div>
-            </div>
-            {ots.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin órdenes de trabajo</p>
-            ) : (
-              <Table>
-                <TableHeader><TableRow className="bg-secondary">
-                  {['Código', 'Máquina', 'Tipo', 'Costo', 'Estado'].map((h) => <TableHead key={h} className="text-[11px] uppercase font-dm">{h}</TableHead>)}
-                </TableRow></TableHeader>
-                <TableBody>
-                  {ots.map((ot: any) => (
-                    <TableRow key={ot.id} className="h-[44px]">
-                      <TableCell className="font-dm text-sm font-medium text-[hsl(var(--gold))]">{ot.code}</TableCell>
-                      <TableCell className="font-dm text-sm">{ot.machines?.name || '—'}</TableCell>
-                      <TableCell><StatusBadge status={ot.type} /></TableCell>
-                      <TableCell className="font-dm text-sm">${Number(ot.total_cost || 0).toLocaleString()}</TableCell>
-                      <TableCell><StatusBadge status={ot.status || 'creada'} /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="invoices">
-            <div className="bg-secondary rounded-lg p-3 mb-3 text-center">
-              <p className="text-[11px] uppercase text-muted-foreground font-dm">Total pagado</p>
-              <p className="text-xl font-barlow font-semibold">${totalPaid.toLocaleString()}</p>
-            </div>
-            {costEntries.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin movimientos financieros</p>
-            ) : (
-              <Table>
-                <TableHeader><TableRow className="bg-secondary">
-                  {['Fecha', 'Factura #', 'Descripción', 'Monto'].map((h) => <TableHead key={h} className="text-[11px] uppercase font-dm">{h}</TableHead>)}
-                </TableRow></TableHeader>
-                <TableBody>
-                  {costEntries.map((e: any) => (
-                    <TableRow key={e.id} className="h-[44px]">
-                      <TableCell className="font-dm text-sm text-muted-foreground">{format(new Date(e.cost_date), 'dd MMM yyyy', { locale: es })}</TableCell>
-                      <TableCell className="font-dm text-sm">{e.invoice_number || '—'}</TableCell>
-                      <TableCell className="font-dm text-sm">{e.description || '—'}</TableCell>
-                      <TableCell className="font-dm text-sm font-medium">${Number(e.amount).toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </TabsContent>
-        </Tabs>
+            {/* Contacts Tab */}
+            <TabsContent value="contacts">
+              <div className="space-y-3 py-2">
+                <div className="flex justify-end">
+                  <Button size="sm" className="gap-1.5" onClick={() => { setEditingContact(null); contactForm.reset({ full_name: '', role: '', phone: '', email: '', is_primary: false }); setContactModalOpen(true); }}>
+                    <Plus className="h-4 w-4" /> Agregar contacto
+                  </Button>
+                </div>
+                {contacts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6 font-dm">Sin contactos registrados</p>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow className="bg-secondary">
+                      <TableHead className="text-[11px] uppercase font-dm">Nombre</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm">Cargo</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm">Teléfono</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm">Email</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm w-[80px]"></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {contacts.map((ct: any) => (
+                        <TableRow key={ct.id} className="h-[44px]">
+                          <TableCell className="font-dm text-sm font-medium">
+                            {ct.full_name}
+                            {ct.is_primary && <Badge variant="default" className="ml-2 text-[10px]">Principal</Badge>}
+                          </TableCell>
+                          <TableCell className="font-dm text-sm text-muted-foreground">{ct.role || '—'}</TableCell>
+                          <TableCell className="font-dm text-sm">{ct.phone ? <a href={`tel:${ct.phone}`} className="text-primary hover:underline">{ct.phone}</a> : '—'}</TableCell>
+                          <TableCell className="font-dm text-sm">{ct.email ? <a href={`mailto:${ct.email}`} className="text-primary hover:underline">{ct.email}</a> : '—'}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                setEditingContact(ct);
+                                contactForm.reset({ full_name: ct.full_name, role: ct.role || '', phone: ct.phone || '', email: ct.email || '', is_primary: ct.is_primary || false });
+                                setContactModalOpen(true);
+                              }}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteContactTarget(ct)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </TabsContent>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-          <Button variant="ghost" size="sm" className="gap-1.5 font-dm" onClick={() => onEdit(supplier)}>
-            <Pencil className="h-3.5 w-3.5" /> Editar
-          </Button>
-          {onDelete && supplier.status !== 'inactivo' && (
-            <Button variant="ghost" size="sm" className="gap-1.5 font-dm text-destructive" onClick={() => onDelete(supplier)}>
-              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+            {/* Documents Tab */}
+            <TabsContent value="documents">
+              <div className="space-y-3 py-2">
+                {/* Required docs checklist */}
+                <div className="rounded-lg border border-[hsl(var(--gold)/0.3)] bg-[hsl(var(--gold)/0.05)] p-3">
+                  <div className="flex items-start gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4 text-[hsl(var(--gold))] mt-0.5 shrink-0" />
+                    <p className="text-xs font-dm text-muted-foreground">Para aprobar pagos se requieren: RUT, Cámara de Comercio y Certificado Bancario</p>
+                  </div>
+                  <div className="flex gap-4">
+                    {REQUIRED_DOCS.map(docKey => {
+                      const has = existingDocTypes.includes(docKey);
+                      const label = SUPPLIER_DOC_TYPES.find(d => d.value === docKey)?.label || docKey;
+                      return (
+                        <div key={docKey} className="flex items-center gap-1.5">
+                          {has ? <Check className="h-4 w-4 text-[hsl(var(--success))]" /> : <X className="h-4 w-4 text-destructive" />}
+                          <span className={`text-xs font-dm ${has ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button size="sm" className="gap-1.5" onClick={() => { setDocName(''); setDocType('otro'); setDocFile(null); setDocModalOpen(true); }}>
+                    <Upload className="h-4 w-4" /> Subir documento
+                  </Button>
+                </div>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6 font-dm">Sin documentos</p>
+                ) : (
+                  <Table>
+                    <TableHeader><TableRow className="bg-secondary">
+                      <TableHead className="text-[11px] uppercase font-dm">Nombre</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm">Tipo</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm">Fecha</TableHead>
+                      <TableHead className="text-[11px] uppercase font-dm w-[80px]"></TableHead>
+                    </TableRow></TableHeader>
+                    <TableBody>
+                      {documents.map((doc: any) => (
+                        <TableRow key={doc.id} className="h-[44px]">
+                          <TableCell className="font-dm text-sm font-medium flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" /> {doc.name}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${SUPPLIER_DOC_BADGE[doc.doc_type] || SUPPLIER_DOC_BADGE.otro}`}>
+                              {SUPPLIER_DOC_TYPES.find(d => d.value === doc.doc_type)?.label || doc.doc_type}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-dm text-sm text-muted-foreground">
+                            {doc.uploaded_at ? format(new Date(doc.uploaded_at), 'dd MMM yyyy', { locale: es }) : '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {doc.file_url && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDocTarget(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="ots">
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {[['Total OT', ots.length], ['En curso', activeOTs.length], ['Costo total', `$${totalOTCost.toLocaleString()}`]].map(([l, v]) => (
+                  <div key={l as string} className="bg-secondary rounded-lg p-2.5 text-center">
+                    <p className="text-[11px] uppercase text-muted-foreground font-dm">{l as string}</p>
+                    <p className="text-lg font-barlow font-semibold">{v as any}</p>
+                  </div>
+                ))}
+              </div>
+              {ots.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin órdenes de trabajo</p>
+              ) : (
+                <Table>
+                  <TableHeader><TableRow className="bg-secondary">
+                    {['Código', 'Máquina', 'Tipo', 'Costo', 'Estado'].map((h) => <TableHead key={h} className="text-[11px] uppercase font-dm">{h}</TableHead>)}
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {ots.map((ot: any) => (
+                      <TableRow key={ot.id} className="h-[44px]">
+                        <TableCell className="font-dm text-sm font-medium text-[hsl(var(--gold))]">{ot.code}</TableCell>
+                        <TableCell className="font-dm text-sm">{ot.machines?.name || '—'}</TableCell>
+                        <TableCell><StatusBadge status={ot.type} /></TableCell>
+                        <TableCell className="font-dm text-sm">${Number(ot.total_cost || 0).toLocaleString()}</TableCell>
+                        <TableCell><StatusBadge status={ot.status || 'creada'} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="invoices">
+              <div className="bg-secondary rounded-lg p-3 mb-3 text-center">
+                <p className="text-[11px] uppercase text-muted-foreground font-dm">Total pagado</p>
+                <p className="text-xl font-barlow font-semibold">${totalPaid.toLocaleString()}</p>
+              </div>
+              {costEntries.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center font-dm">Sin movimientos financieros</p>
+              ) : (
+                <Table>
+                  <TableHeader><TableRow className="bg-secondary">
+                    {['Fecha', 'Factura #', 'Descripción', 'Monto'].map((h) => <TableHead key={h} className="text-[11px] uppercase font-dm">{h}</TableHead>)}
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {costEntries.map((e: any) => (
+                      <TableRow key={e.id} className="h-[44px]">
+                        <TableCell className="font-dm text-sm text-muted-foreground">{format(new Date(e.cost_date), 'dd MMM yyyy', { locale: es })}</TableCell>
+                        <TableCell className="font-dm text-sm">{e.invoice_number || '—'}</TableCell>
+                        <TableCell className="font-dm text-sm">{e.description || '—'}</TableCell>
+                        <TableCell className="font-dm text-sm font-medium">${Number(e.amount).toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <Button variant="ghost" size="sm" className="gap-1.5 font-dm" onClick={() => onEdit(supplier)}>
+              <Pencil className="h-3.5 w-3.5" /> Editar
             </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+            {onDelete && supplier.status !== 'inactivo' && (
+              <Button variant="ghost" size="sm" className="gap-1.5 font-dm text-destructive" onClick={() => onDelete(supplier)}>
+                <Trash2 className="h-3.5 w-3.5" /> Eliminar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Modal */}
+      <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-barlow text-lg">{editingContact ? 'Editar Contacto' : 'Nuevo Contacto'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={contactForm.handleSubmit(saveContact)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Nombre *</Label>
+              <Input {...contactForm.register('full_name')} className="h-10 rounded-lg font-dm" />
+              {contactForm.formState.errors.full_name && <p className="text-xs text-destructive">{contactForm.formState.errors.full_name.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Cargo</Label>
+              <Input {...contactForm.register('role')} placeholder="Ej: Gerente de Compras" className="h-10 rounded-lg font-dm" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="font-dm text-xs">Teléfono</Label>
+                <Input {...contactForm.register('phone')} className="h-10 rounded-lg font-dm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-dm text-xs">Email</Label>
+                <Input {...contactForm.register('email')} type="email" className="h-10 rounded-lg font-dm" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={contactForm.watch('is_primary')} onCheckedChange={(v) => contactForm.setValue('is_primary', !!v)} />
+              <Label className="font-dm text-xs cursor-pointer">Marcar como contacto principal</Label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setContactModalOpen(false)}>Cancelar</Button>
+              <Button type="submit">Guardar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Upload Modal */}
+      <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-barlow text-lg">Subir Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Nombre del documento *</Label>
+              <Input value={docName} onChange={(e) => setDocName(e.target.value)} className="h-10 rounded-lg font-dm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Tipo</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SUPPLIER_DOC_TYPES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Archivo</Label>
+              <Input type="file" ref={fileRef} onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="h-10 rounded-lg font-dm" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDocModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUploadDoc} disabled={uploading || !docFile || !docName}>{uploading ? 'Subiendo...' : 'Subir'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Contact Confirm */}
+      <AlertDialog open={!!deleteContactTarget} onOpenChange={(v) => !v && setDeleteContactTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar contacto?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); handleDeleteContact(); }}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Doc Confirm */}
+      <AlertDialog open={!!deleteDocTarget} onOpenChange={(v) => !v && setDeleteDocTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Se eliminará el archivo del almacenamiento. Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); handleDeleteDoc(); }}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
