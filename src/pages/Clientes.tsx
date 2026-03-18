@@ -505,10 +505,11 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
       if (values.is_primary) {
         await supabase.from('client_contacts').update({ is_primary: false }).eq('client_id', client.id).eq('is_primary', true);
       }
+      const row = { full_name: values.full_name, role: values.role || null, phone: values.phone || null, email: values.email || null, is_primary: values.is_primary };
       if (editingContact) {
-        await supabase.from('client_contacts').update({ ...values }).eq('id', editingContact.id);
+        await supabase.from('client_contacts').update(row).eq('id', editingContact.id);
       } else {
-        await supabase.from('client_contacts').insert([{ ...values, client_id: client.id, tenant_id: tenantId }]);
+        await supabase.from('client_contacts').insert([{ ...row, client_id: client.id, tenant_id: tenantId }]);
       }
       toast.success('Contacto guardado');
       refetchContacts();

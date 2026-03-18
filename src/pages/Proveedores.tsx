@@ -480,10 +480,11 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
       if (values.is_primary) {
         await supabase.from('supplier_contacts').update({ is_primary: false }).eq('supplier_id', supplier.id).eq('is_primary', true);
       }
+      const row = { full_name: values.full_name, role: values.role || null, phone: values.phone || null, email: values.email || null, is_primary: values.is_primary };
       if (editingContact) {
-        await supabase.from('supplier_contacts').update({ ...values }).eq('id', editingContact.id);
+        await supabase.from('supplier_contacts').update(row).eq('id', editingContact.id);
       } else {
-        await supabase.from('supplier_contacts').insert([{ ...values, supplier_id: supplier.id, tenant_id: tenantId }]);
+        await supabase.from('supplier_contacts').insert([{ ...row, supplier_id: supplier.id, tenant_id: tenantId }]);
       }
       toast.success('Contacto guardado');
       refetchContacts();
