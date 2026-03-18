@@ -72,6 +72,105 @@ export type Database = {
           },
         ]
       }
+      client_contacts: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_primary: boolean | null
+          phone: string | null
+          role: string | null
+          tenant_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          tenant_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_documents: {
+        Row: {
+          client_id: string
+          doc_type: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          name: string
+          tenant_id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          client_id: string
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name: string
+          tenant_id: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -83,12 +182,14 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          legal_representative: string | null
           name: string
           notes: string | null
           status: string | null
           tax_id: string | null
           tenant_id: string
           type: string | null
+          website: string | null
         }
         Insert: {
           address?: string | null
@@ -100,12 +201,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          legal_representative?: string | null
           name: string
           notes?: string | null
           status?: string | null
           tax_id?: string | null
           tenant_id: string
           type?: string | null
+          website?: string | null
         }
         Update: {
           address?: string | null
@@ -117,12 +220,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          legal_representative?: string | null
           name?: string
           notes?: string | null
           status?: string | null
           tax_id?: string | null
           tenant_id?: string
           type?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -1404,6 +1509,105 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contacts: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_primary: boolean | null
+          phone: string | null
+          role: string | null
+          supplier_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          supplier_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_primary?: boolean | null
+          phone?: string | null
+          role?: string | null
+          supplier_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contacts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_documents: {
+        Row: {
+          doc_type: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          name: string
+          supplier_id: string
+          tenant_id: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name: string
+          supplier_id: string
+          tenant_id: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string
+          supplier_id?: string
+          tenant_id?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
