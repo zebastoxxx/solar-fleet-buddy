@@ -1030,7 +1030,6 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
             <div className="flex justify-between"><span className="text-muted-foreground">Tiempo trabajado:</span><span className="font-barlow font-semibold">{chrono}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Horas calculadas:</span><span>{actualHours}h</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Repuestos:</span><span>{usedParts.length} ítems · {formatCost(partsCost)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Mano de obra:</span><span>{formatCost(laborCost)}</span></div>
             <div className="border-t border-border pt-2 flex justify-between font-semibold">
               <span>COSTO TOTAL:</span>
               <span className="font-barlow text-lg text-[hsl(var(--gold-bright))]">{formatCost(totalCost)}</span>
