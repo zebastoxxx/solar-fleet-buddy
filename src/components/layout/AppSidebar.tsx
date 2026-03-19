@@ -7,7 +7,7 @@ import { useAlertsStore } from '@/stores/alertsStore';
 import { RoleBadge } from '@/components/ui/role-badge';
 import {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
-  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign
+  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign, ShoppingCart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImg from '@/assets/logo.png';
