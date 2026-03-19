@@ -1271,21 +1271,54 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
           })}
         </div>
 
-        {/* Tasks checklist */}
-        {tasks.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-barlow text-sm uppercase text-muted-foreground">Tareas ({completedTasks}/{tasks.length})</h3>
-            <Progress value={taskPct} className="h-2" />
-            <div className="space-y-1 max-h-40 overflow-y-auto">
-              {tasks.map((t: any) => (
-                <div key={t.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-dm", t.is_completed && "opacity-60")}>
-                  <span className={cn("flex-1", t.is_completed && "line-through")}>{t.is_completed ? '✅' : '⬜'} {t.name}</span>
-                  {t.completed_at && <span className="text-[10px] text-muted-foreground">{format(new Date(t.completed_at), 'dd/MM HH:mm')}</span>}
-                </div>
-              ))}
-            </div>
+        {/* Tasks checklist + add tasks */}
+        <div className="space-y-2">
+          <h3 className="font-barlow text-sm uppercase text-muted-foreground">
+            Tareas {tasks.length > 0 ? `(${completedTasks}/${tasks.length})` : ''}
+          </h3>
+          {tasks.length > 0 && <Progress value={taskPct} className="h-2 [&>div]:bg-[hsl(var(--gold))]" />}
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {tasks.map((t: any) => (
+              <div key={t.id} className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-dm",
+                t.is_completed ? "bg-[hsl(var(--success-bg))] opacity-70" : "bg-muted/30"
+              )}>
+                <span className={cn("flex-1", t.is_completed && "line-through text-muted-foreground")}>
+                  {t.is_completed ? '✅' : '⬜'} {t.name}
+                </span>
+                {t.completed_at && <span className="text-[10px] text-muted-foreground">{format(new Date(t.completed_at), 'dd/MM HH:mm')}</span>}
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Supervisor: add tasks */}
+          {ot.status !== 'firmada' && (
+            <div className="space-y-2 pt-2 border-t border-border">
+              <p className="text-[11px] font-barlow uppercase text-muted-foreground">Agregar tarea</p>
+              <div className="relative">
+                <Input placeholder="Buscar plantilla o escribir tarea..." value={taskTemplateSearch || newTaskName}
+                  onChange={e => { setTaskTemplateSearch(e.target.value); setNewTaskName(e.target.value); }}
+                  className="h-9 text-sm"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomTask(); } }} />
+              </div>
+              {taskTemplateSearch && filteredDetailTemplates.length > 0 && (
+                <div className="max-h-28 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5">
+                  {filteredDetailTemplates.map((t: any) => (
+                    <button key={t.id}
+                      onClick={() => { handleAddTaskToOT(t.name, t.id); setTaskTemplateSearch(''); setNewTaskName(''); }}
+                      className="w-full text-left px-3 py-1.5 rounded-md text-xs font-dm hover:bg-muted flex items-center justify-between">
+                      <span>{t.name}</span>
+                      {t.estimated_minutes && <span className="text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" size="sm" className="h-8 text-xs w-full" onClick={handleAddCustomTask} disabled={!newTaskName.trim()}>
+                + Agregar tarea personalizada
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Assignment */}
         <div className="space-y-3">
