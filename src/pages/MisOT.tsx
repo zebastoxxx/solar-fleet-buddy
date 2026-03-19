@@ -980,8 +980,8 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
   const elapsedMs = timerStore.getElapsedMs();
   const actualHours = parseFloat((elapsedMs / 3600000).toFixed(2));
   const partsCost = usedParts.reduce((s: number, p: any) => s + (p.quantity * (p.unit_cost || 0)), 0);
-  const laborCost = actualHours * hourlyRate;
-  const totalCost = partsCost + laborCost + (ot.external_cost || 0);
+  const laborCost = 0; // Mano de obra deshabilitada por ahora
+  const totalCost = partsCost + (ot.external_cost || 0);
 
   const handleClose = async () => {
     if (finalNotes.length < 20) { toast.error('Las notas deben tener al menos 20 caracteres'); return; }
