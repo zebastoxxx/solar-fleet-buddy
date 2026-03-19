@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,10 +6,10 @@ import { deleteWorkOrders } from '@/lib/cascade-delete';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { useChrono, useOTTimerStore } from '@/stores/otTimerStore';
-import { format } from 'date-fns';
+import { format, differenceInSeconds } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Plus, Search, Wrench, Eye, UserPlus, Download, Trash2 } from 'lucide-react';
+import { Plus, Search, Wrench, Eye, UserPlus, Download, Trash2, Edit, ChevronDown, ChevronUp, ArrowUpDown, Calendar, X, Settings } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 // ─── PROBLEM CHECKBOXES ───
@@ -57,11 +60,19 @@ const LOCATION_BADGES: Record<string, { icon: string; label: string }> = {
 
 const TIMELINE_STEPS = ['creada', 'asignada', 'en_curso', 'cerrada', 'firmada'];
 
+const PHASE_LABELS: Record<string, string> = { antes: 'Antes', durante: 'Durante', despues: 'Después' };
+
 function formatCost(n: number) {
   if (!n) return '—';
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
+}
+
+function formatElapsed(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
 }
 
 // ─── CHRONO PILL ───
@@ -80,6 +91,13 @@ function ChronoPill({ otId }: { otId: string }) {
   );
 }
 
+// ─── COMPLETION PILL ───
+function CompletionPill({ percentage }: { percentage: number }) {
+  const color = percentage >= 80 ? 'bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]' :
+    percentage >= 40 ? 'bg-[#FEF3C7] text-[#D97706]' : 'bg-[#FDDEDE] text-[#C0392B]';
+  return <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-barlow font-semibold', color)}>{percentage}%</span>;
+}
+
 // ─── MAIN ───
 export default function OrdenesTrabajo() {
   usePageTitle('Órdenes de Trabajo');
@@ -92,15 +110,18 @@ export default function OrdenesTrabajo() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortCol, setSortCol] = useState<string>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [createOpen, setCreateOpen] = useState(false);
   const [detailOT, setDetailOT] = useState<any>(null);
   const [selectedOTs, setSelectedOTs] = useState<string[]>([]);
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const bulkDeleteOTs = useMutation({
-    mutationFn: async (ids: string[]) => {
-      await deleteWorkOrders(ids);
-    },
+    mutationFn: async (ids: string[]) => { await deleteWorkOrders(ids); },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['work-orders'] });
       toast.success(`${selectedOTs.length} OT(s) eliminada(s)`);
@@ -113,18 +134,12 @@ export default function OrdenesTrabajo() {
     },
   });
 
-  // Fetch work orders
   const { data: workOrders = [], isLoading } = useQuery({
     queryKey: ['work-orders', tenantId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('work_orders')
-        .select(`
-          *,
-          machines!work_orders_machine_id_fkey(name, internal_code, status, type),
-          projects!work_orders_project_id_fkey(name),
-          suppliers!work_orders_supplier_id_fkey(name)
-        `)
+        .select(`*, machines!work_orders_machine_id_fkey(name, internal_code, status, type), projects!work_orders_project_id_fkey(name), suppliers!work_orders_supplier_id_fkey(name)`)
         .eq('tenant_id', tenantId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -133,7 +148,6 @@ export default function OrdenesTrabajo() {
     enabled: !!tenantId,
   });
 
-  // Fetch technicians for each OT
   const { data: otTechnicians = {} } = useQuery({
     queryKey: ['work-order-technicians', tenantId],
     queryFn: async () => {
@@ -151,28 +165,46 @@ export default function OrdenesTrabajo() {
     enabled: !!tenantId,
   });
 
-  // Sort by priority then date
-  const sorted = [...workOrders].sort((a: any, b: any) => {
-    const pOrder: Record<string, number> = { critica: 1, urgente: 2, normal: 3 };
-    const pa = pOrder[a.priority] || 3;
-    const pb = pOrder[b.priority] || 3;
-    if (pa !== pb) return pa - pb;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  };
 
-  // Filters
-  const filtered = sorted.filter((ot: any) => {
-    if (statusFilter !== 'all' && ot.status !== statusFilter) return false;
-    if (typeFilter !== 'all' && ot.type !== typeFilter) return false;
-    if (priorityFilter !== 'all' && ot.priority !== priorityFilter) return false;
+  const filtered = useMemo(() => {
+    let result = [...workOrders];
+    // Filters
+    if (statusFilter !== 'all') result = result.filter((ot: any) => ot.status === statusFilter);
+    if (typeFilter !== 'all') result = result.filter((ot: any) => ot.type === typeFilter);
+    if (priorityFilter !== 'all') result = result.filter((ot: any) => ot.priority === priorityFilter);
+    if (dateFrom) result = result.filter((ot: any) => ot.created_at >= dateFrom);
+    if (dateTo) result = result.filter((ot: any) => ot.created_at <= dateTo + 'T23:59:59');
     if (search) {
       const s = search.toLowerCase();
-      const mn = ot.machines?.name?.toLowerCase() || '';
-      const pn = ot.projects?.name?.toLowerCase() || '';
-      if (!ot.code.toLowerCase().includes(s) && !mn.includes(s) && !pn.includes(s)) return false;
+      result = result.filter((ot: any) => {
+        const mn = ot.machines?.name?.toLowerCase() || '';
+        const pn = ot.projects?.name?.toLowerCase() || '';
+        return ot.code.toLowerCase().includes(s) || mn.includes(s) || pn.includes(s);
+      });
     }
-    return true;
-  });
+    // Sort
+    result.sort((a: any, b: any) => {
+      let va: any, vb: any;
+      switch (sortCol) {
+        case 'code': va = a.code; vb = b.code; break;
+        case 'machine': va = a.machines?.name || ''; vb = b.machines?.name || ''; break;
+        case 'type': va = a.type; vb = b.type; break;
+        case 'priority': { const o: Record<string, number> = { critica: 1, urgente: 2, normal: 3 }; va = o[a.priority] || 3; vb = o[b.priority] || 3; break; }
+        case 'status': va = TIMELINE_STEPS.indexOf(a.status); vb = TIMELINE_STEPS.indexOf(b.status); break;
+        case 'hours': va = a.actual_hours || 0; vb = b.actual_hours || 0; break;
+        case 'cost': va = a.total_cost || 0; vb = b.total_cost || 0; break;
+        default: va = a.created_at; vb = b.created_at;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [workOrders, statusFilter, typeFilter, priorityFilter, dateFrom, dateTo, search, sortCol, sortDir]);
 
   const handleExport = () => {
     const rows = filtered.map((ot: any) => [
@@ -185,6 +217,12 @@ export default function OrdenesTrabajo() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'ordenes-trabajo.csv'; a.click();
   };
+
+  const SortableHead = ({ col, children, className }: { col: string; children: React.ReactNode; className?: string }) => (
+    <TableHead className={cn("cursor-pointer select-none", className)} onClick={() => toggleSort(col)}>
+      <span className="inline-flex items-center gap-1">{children} <ArrowUpDown className="h-3 w-3 text-muted-foreground" /></span>
+    </TableHead>
+  );
 
   return (
     <div className="space-y-4">
@@ -208,7 +246,15 @@ export default function OrdenesTrabajo() {
             <SelectItem value="critica">Crítica</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 w-32 text-xs" placeholder="Desde" />
+          <span className="text-xs text-muted-foreground">—</span>
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 w-32 text-xs" placeholder="Hasta" />
+          {(dateFrom || dateTo) && <Button variant="ghost" size="sm" className="h-7 px-1" onClick={() => { setDateFrom(''); setDateTo(''); }}><X className="h-3.5 w-3.5" /></Button>}
+        </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} title="Gestionar plantillas de tareas"><Settings className="h-4 w-4" /></Button>
           <Button variant="ghost" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1" />Exportar</Button>
           <Button size="sm" className="bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase text-xs" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Nueva OT</span>
@@ -216,7 +262,7 @@ export default function OrdenesTrabajo() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Bulk selection bar */}
       {selectedOTs.length > 0 && (
         <div className="flex items-center justify-between bg-primary/5 px-4 py-2 rounded-lg border border-primary/30">
           <span className="text-sm font-dm font-medium">{selectedOTs.length} seleccionada{selectedOTs.length !== 1 ? 's' : ''}</span>
@@ -229,6 +275,7 @@ export default function OrdenesTrabajo() {
         </div>
       )}
 
+      {/* Table */}
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
         {isLoading ? (
           <div className="p-6 space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
@@ -247,16 +294,16 @@ export default function OrdenesTrabajo() {
                     onChange={e => setSelectedOTs(e.target.checked ? filtered.map((o: any) => o.id) : [])}
                     className="h-3.5 w-3.5 rounded border-border" />
                 </TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Máquina</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Prioridad</TableHead>
+                <SortableHead col="code">Código</SortableHead>
+                <SortableHead col="machine">Máquina</SortableHead>
+                <SortableHead col="type">Tipo</SortableHead>
+                <SortableHead col="priority">Prioridad</SortableHead>
                 <TableHead>Asignado a</TableHead>
                 <TableHead className="hidden md:table-cell">Ubicación</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="hidden md:table-cell">Horas</TableHead>
-                <TableHead className="hidden md:table-cell">Costo</TableHead>
-                <TableHead className="hidden md:table-cell">Fecha</TableHead>
+                <SortableHead col="status">Estado</SortableHead>
+                <SortableHead col="hours" className="hidden md:table-cell">Horas</SortableHead>
+                <SortableHead col="cost" className="hidden md:table-cell">Costo</SortableHead>
+                <SortableHead col="created_at" className="hidden md:table-cell">Fecha</SortableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -284,10 +331,14 @@ export default function OrdenesTrabajo() {
                     <TableCell className="hidden md:table-cell">
                       <span className="inline-flex items-center gap-1 text-[11px] font-dm text-muted-foreground">{loc.icon} {loc.label}</span>
                     </TableCell>
-                    <TableCell><StatusBadge status={ot.status} /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <StatusBadge status={ot.status} />
+                        {(ot.completion_percentage ?? 0) > 0 && <CompletionPill percentage={ot.completion_percentage} />}
+                      </div>
+                    </TableCell>
                     <TableCell className="hidden md:table-cell text-xs font-dm">
-                      {ot.status === 'en_curso' ? <ChronoPill otId={ot.id} /> :
-                        ot.actual_hours ? `${ot.actual_hours}h` : '—'}
+                      {ot.status === 'en_curso' ? <ChronoPill otId={ot.id} /> : ot.actual_hours ? `${ot.actual_hours}h` : '—'}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs font-dm">{formatCost(ot.total_cost)}</TableCell>
                     <TableCell className="hidden md:table-cell text-xs font-dm text-muted-foreground">
@@ -306,19 +357,15 @@ export default function OrdenesTrabajo() {
         )}
       </div>
 
-      {/* Create OT Modal */}
       <CreateOTModal open={createOpen} onClose={() => setCreateOpen(false)} tenantId={tenantId!} userId={user?.id!} />
-
-      {/* Detail OT Modal */}
-      {detailOT && (
-        <DetailOTModal ot={detailOT} onClose={() => setDetailOT(null)} tenantId={tenantId!} userId={user?.id!} />
-      )}
+      {detailOT && <DetailOTModal ot={detailOT} onClose={() => { setDetailOT(null); qc.invalidateQueries({ queryKey: ['work-orders'] }); }} tenantId={tenantId!} userId={user?.id!} />}
+      {showTemplates && <TaskTemplatesModal open={showTemplates} onClose={() => setShowTemplates(false)} tenantId={tenantId!} />}
 
       <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {selectedOTs.length} OT{selectedOTs.length !== 1 ? 's' : ''}?</AlertDialogTitle>
-            <AlertDialogDescription className="font-dm">Las OTs en estado abierta o en proceso pueden tener técnicos y costos asociados. Esta acción es irreversible.</AlertDialogDescription>
+            <AlertDialogDescription className="font-dm">Esta acción es irreversible y eliminará técnicos, tareas, fotos y costos asociados.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="font-dm" disabled={bulkDeleteOTs.isPending}>Cancelar</AlertDialogCancel>
@@ -352,24 +399,18 @@ function TypeBadge({ type }: { type: string }) {
 // ─── PRIORITY BADGE ───
 function PriorityBadge({ priority }: { priority: string }) {
   if (priority === 'critica') return (
-    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-[#FDDEDE] text-[#C0392B] animate-pulse-dot">
-      🚨 Crítica
-    </span>
+    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-[#FDDEDE] text-[#C0392B] animate-pulse-dot">🚨 Crítica</span>
   );
   if (priority === 'urgente') return (
-    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-[#FFEDD5] text-[#EA580C]">
-      ⚡ Urgente
-    </span>
+    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-[#FFEDD5] text-[#EA580C]">⚡ Urgente</span>
   );
   return (
-    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-muted text-muted-foreground">
-      Normal
-    </span>
+    <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-muted text-muted-foreground">Normal</span>
   );
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━
-// CREATE OT MODAL
+// CREATE OT MODAL (5 steps now)
 // ━━━━━━━━━━━━━━━━━━━━━━━━
 function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onClose: () => void; tenantId: string; userId: string }) {
   const { log } = useLog();
@@ -395,7 +436,12 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const [additionalDesc, setAdditionalDesc] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
 
-  // Step 4
+  // Step 4: Tasks
+  const [selectedTasks, setSelectedTasks] = useState<{ name: string; description?: string; template_id?: string }[]>([]);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [customTaskName, setCustomTaskName] = useState('');
+
+  // Step 5: Tools
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
 
   // Queries
@@ -441,7 +487,21 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
       const { data } = await supabase.from('inventory_tools').select('*').eq('tenant_id', tenantId).eq('status', 'disponible').order('name');
       return data || [];
     },
+    enabled: open && step === 5 && !!tenantId,
+  });
+
+  const { data: taskTemplates = [] } = useQuery({
+    queryKey: ['task-templates', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_templates').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+      return data || [];
+    },
     enabled: open && step === 4 && !!tenantId,
+  });
+
+  const filteredTemplates = taskTemplates.filter((t: any) => {
+    if (!taskSearch) return true;
+    return t.name.toLowerCase().includes(taskSearch.toLowerCase());
   });
 
   const selectedMachine = machines.find((m: any) => m.id === machineId);
@@ -454,13 +514,24 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const resetForm = () => {
     setStep(1); setMachineId(''); setMachineSearch(''); setOTType(''); setPriority('normal');
     setLocationType(''); setSelectedTechnicians([]); setProjectId(''); setSupplierId(''); setExternalCost('');
-    setSelectedProblems([]); setAdditionalDesc(''); setEstimatedHours(''); setSelectedTools([]);
+    setSelectedProblems([]); setAdditionalDesc(''); setEstimatedHours(''); setSelectedTasks([]); setTaskSearch('');
+    setCustomTaskName(''); setSelectedTools([]);
+  };
+
+  const addCustomTask = async () => {
+    if (!customTaskName.trim()) return;
+    // Create template if not exists
+    const existing = taskTemplates.find((t: any) => t.name.toLowerCase() === customTaskName.trim().toLowerCase());
+    if (!existing) {
+      await supabase.from('task_templates').insert([{ tenant_id: tenantId, name: customTaskName.trim(), ot_type: otType || null }]);
+    }
+    setSelectedTasks(prev => [...prev, { name: customTaskName.trim(), template_id: existing?.id }]);
+    setCustomTaskName('');
   };
 
   const handleCreate = async () => {
     setSaving(true);
     try {
-      // Generate sequential code
       const { count } = await supabase.from('work_orders').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId);
       const code = `OT-${String((count || 0) + 1).padStart(3, '0')}`;
 
@@ -481,6 +552,17 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
           selectedTechnicians.map(pid => ({ work_order_id: ot.id, personnel_id: pid }))
         );
         await supabase.from('work_orders').update({ status: 'asignada' as any }).eq('id', ot.id);
+      }
+
+      // Assign tasks
+      if (selectedTasks.length > 0 && ot) {
+        await supabase.from('work_order_tasks').insert(
+          selectedTasks.map((t, i) => ({
+            work_order_id: ot.id, tenant_id: tenantId, name: t.name,
+            description: t.description || null, template_id: t.template_id || null,
+            sort_order: i,
+          }))
+        );
       }
 
       // Assign tools
@@ -505,17 +587,19 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
     }
   };
 
+  const TOTAL_STEPS = 5;
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose(); } }}>
       <DialogContent className="max-w-[680px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-barlow text-lg">Nueva Orden de Trabajo</DialogTitle>
-          <DialogDescription>Paso {step} de 4</DialogDescription>
+          <DialogDescription>Paso {step} de {TOTAL_STEPS}</DialogDescription>
         </DialogHeader>
 
         {/* Stepper */}
         <div className="flex items-center justify-center gap-2 mb-4">
-          {[1, 2, 3, 4].map((s) => (
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={cn(
                 'h-8 w-8 rounded-full flex items-center justify-center text-xs font-barlow font-semibold border-2 transition-colors',
@@ -525,7 +609,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
               )}>
                 {s < step ? '✓' : s}
               </div>
-              {s < 4 && <div className={cn('w-8 h-0.5', s < step ? 'bg-[hsl(var(--gold))]' : 'bg-border')} />}
+              {s < TOTAL_STEPS && <div className={cn('w-6 h-0.5', s < step ? 'bg-[hsl(var(--gold))]' : 'bg-border')} />}
             </div>
           ))}
         </div>
@@ -555,7 +639,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 </div>
               )}
             </div>
-
             <div>
               <Label className="font-barlow uppercase text-xs mb-2 block">Tipo de OT</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -570,7 +653,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 ))}
               </div>
             </div>
-
             <div>
               <Label className="font-barlow uppercase text-xs mb-2 block">Prioridad</Label>
               <div className="flex gap-2">
@@ -583,7 +665,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 ))}
               </div>
             </div>
-
             <Button className="w-full h-11 bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase"
               disabled={!machineId || !otType} onClick={() => setStep(2)}>
               Siguiente →
@@ -605,7 +686,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 </button>
               ))}
             </div>
-
             {(locationType === 'bodega_propia' || locationType === 'campo_directo') && (
               <div>
                 <Label className="font-barlow uppercase text-xs mb-2 block">Técnicos asignados</Label>
@@ -621,7 +701,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 </div>
               </div>
             )}
-
             {locationType === 'campo_directo' && (
               <div>
                 <Label className="font-barlow uppercase text-xs mb-2 block">Proyecto vinculado</Label>
@@ -633,7 +712,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 </Select>
               </div>
             )}
-
             {locationType === 'taller_tercero' && (
               <>
                 <div>
@@ -651,7 +729,6 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
                 </div>
               </>
             )}
-
             <div className="flex gap-2">
               <Button variant="ghost" className="flex-1 h-11" onClick={() => setStep(1)}>← Atrás</Button>
               <Button className="flex-1 h-11 bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase"
@@ -692,8 +769,56 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
           </div>
         )}
 
-        {/* Step 4: Tools & Confirm */}
+        {/* Step 4: Tasks */}
         {step === 4 && (
+          <div className="space-y-4">
+            <Label className="font-barlow uppercase text-xs block">Tareas a realizar</Label>
+            <div>
+              <Input placeholder="Buscar plantilla de tarea..." value={taskSearch} onChange={e => setTaskSearch(e.target.value)} className="h-9 text-sm mb-2" />
+              {taskSearch && filteredTemplates.length > 0 && (
+                <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-lg p-2 mb-2">
+                  {filteredTemplates.map((t: any) => (
+                    <button key={t.id} onClick={() => {
+                      if (!selectedTasks.find(st => st.template_id === t.id))
+                        setSelectedTasks(prev => [...prev, { name: t.name, description: t.description, template_id: t.id }]);
+                      setTaskSearch('');
+                    }}
+                      className="w-full text-left px-3 py-2 rounded-md text-sm font-dm hover:bg-muted flex items-center justify-between">
+                      <span>{t.name}</span>
+                      {t.estimated_minutes && <span className="text-[10px] text-muted-foreground">{t.estimated_minutes} min</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Input placeholder="Tarea personalizada..." value={customTaskName} onChange={e => setCustomTaskName(e.target.value)} className="h-9 text-sm flex-1"
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTask(); } }} />
+              <Button variant="outline" size="sm" className="h-9 text-xs" onClick={addCustomTask} disabled={!customTaskName.trim()}>+ Agregar</Button>
+            </div>
+
+            {selectedTasks.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-barlow uppercase text-muted-foreground">Tareas seleccionadas ({selectedTasks.length})</p>
+                {selectedTasks.map((t, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/50 border border-border text-sm font-dm">
+                    <span>{t.name}</span>
+                    <button onClick={() => setSelectedTasks(prev => prev.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive"><X className="h-3.5 w-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="ghost" className="flex-1 h-11" onClick={() => setStep(3)}>← Atrás</Button>
+              <Button className="flex-1 h-11 bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase" onClick={() => setStep(5)}>Siguiente →</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Tools & Confirm */}
+        {step === 5 && (
           <div className="space-y-4">
             <div>
               <Label className="font-barlow uppercase text-xs mb-2 block">Herramientas requeridas (opcional)</Label>
@@ -716,13 +841,14 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
               <p><span className="text-muted-foreground">Tipo:</span> {TYPE_LABELS[otType]} · <span className="text-muted-foreground">Prioridad:</span> {priority}</p>
               <p><span className="text-muted-foreground">Ubicación:</span> {LOCATION_BADGES[locationType]?.label}</p>
               {selectedTechnicians.length > 0 && <p><span className="text-muted-foreground">Técnicos:</span> {technicians.filter((t: any) => selectedTechnicians.includes(t.id)).map((t: any) => t.full_name).join(', ')}</p>}
-              {selectedProblems.length > 0 && <p><span className="text-muted-foreground">Tareas:</span> {selectedProblems.join(', ')}</p>}
+              {selectedProblems.length > 0 && <p><span className="text-muted-foreground">Problemas:</span> {selectedProblems.join(', ')}</p>}
+              {selectedTasks.length > 0 && <p><span className="text-muted-foreground">Tareas:</span> {selectedTasks.map(t => t.name).join(', ')}</p>}
               {estimatedHours && <p><span className="text-muted-foreground">Horas estimadas:</span> {estimatedHours}h</p>}
               {selectedTools.length > 0 && <p><span className="text-muted-foreground">Herramientas:</span> {selectedTools.length} seleccionadas</p>}
             </div>
 
             <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1 h-11" onClick={() => setStep(3)}>← Atrás</Button>
+              <Button variant="ghost" className="flex-1 h-11" onClick={() => setStep(4)}>← Atrás</Button>
               <Button className="flex-1 h-12 bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase text-sm"
                 disabled={saving} onClick={handleCreate}>
                 {saving ? 'Creando...' : 'Crear Orden de Trabajo'}
@@ -736,17 +862,39 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━
-// DETAIL OT MODAL
+// DETAIL OT MODAL (enhanced with realtime, notes, tasks, photos tabs, edit, delete)
 // ━━━━━━━━━━━━━━━━━━━━━━━━
-function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: () => void; tenantId: string; userId: string }) {
+function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; onClose: () => void; tenantId: string; userId: string }) {
   const { log } = useLog();
   const qc = useQueryClient();
-  const [supervisorNotes, setSupervisorNotes] = useState(ot.supervisor_notes || '');
+  const [supervisorNotes, setSupervisorNotes] = useState(initialOT.supervisor_notes || '');
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editPriority, setEditPriority] = useState(initialOT.priority);
+  const [editEstHours, setEditEstHours] = useState(initialOT.estimated_hours?.toString() || '');
+  const [editDesc, setEditDesc] = useState(initialOT.problem_description || '');
+  const [editSupervisorNotes, setEditSupervisorNotes] = useState(initialOT.supervisor_notes || '');
+  const [photoTab, setPhotoTab] = useState('antes');
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasSig, setHasSig] = useState(false);
   const isDrawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
+
+  // Live OT data
+  const { data: liveOT, refetch: refetchOT } = useQuery({
+    queryKey: ['ot-live', initialOT.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_orders')
+        .select(`*, machines!work_orders_machine_id_fkey(name, internal_code, status, type), projects!work_orders_project_id_fkey(name), suppliers!work_orders_supplier_id_fkey(name)`)
+        .eq('id', initialOT.id).single();
+      return data;
+    },
+    initialData: initialOT,
+  });
+  const ot = liveOT || initialOT;
+
   // Fetch parts
   const { data: parts = [] } = useQuery({
     queryKey: ['ot-parts', ot.id],
@@ -766,10 +914,28 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
   });
 
   // Fetch photos
-  const { data: photos = [] } = useQuery({
-    queryKey: ['ot-photos', ot.id],
+  const { data: photos = [], refetch: refetchPhotos } = useQuery({
+    queryKey: ['ot-photos-detail', ot.id],
     queryFn: async () => {
       const { data } = await supabase.from('work_order_photos').select('*').eq('work_order_id', ot.id).order('uploaded_at');
+      return data || [];
+    },
+  });
+
+  // Fetch notes
+  const { data: allNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ['ot-notes-detail', ot.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_notes').select('*').eq('work_order_id', ot.id).order('created_at');
+      return data || [];
+    },
+  });
+
+  // Fetch tasks
+  const { data: tasks = [], refetch: refetchTasks } = useQuery({
+    queryKey: ['ot-tasks-detail', ot.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_tasks').select('*').eq('work_order_id', ot.id).order('sort_order');
       return data || [];
     },
   });
@@ -783,10 +949,53 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
     },
   });
 
+  // Realtime subscriptions
+  useEffect(() => {
+    const channel = supabase.channel(`ot-detail-${ot.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_order_notes', filter: `work_order_id=eq.${ot.id}` }, () => { refetchNotes(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_order_photos', filter: `work_order_id=eq.${ot.id}` }, () => { refetchPhotos(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_order_tasks', filter: `work_order_id=eq.${ot.id}` }, () => { refetchTasks(); })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'work_orders', filter: `id=eq.${ot.id}` }, () => { refetchOT(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [ot.id]);
+
+  // Notes grouped by phase
+  const notesByPhase = useMemo(() => {
+    const map: Record<string, any[]> = { antes: [], durante: [], despues: [] };
+    allNotes.forEach((n: any) => { if (map[n.phase]) map[n.phase].push(n); });
+    return map;
+  }, [allNotes]);
+
+  // Photos grouped by phase
+  const photosByPhase = useMemo(() => {
+    const map: Record<string, any[]> = { antes: [], durante: [], despues: [] };
+    photos.forEach((p: any) => { if (map[p.photo_type]) map[p.photo_type].push(p); else map.durante.push(p); });
+    return map;
+  }, [photos]);
+
+  // Tasks completion
+  const completedTasks = tasks.filter((t: any) => t.is_completed).length;
+  const taskPct = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
+  // Elapsed time calculation
+  const elapsedSeconds = useMemo(() => {
+    if (!ot.started_at) return 0;
+    const endTime = ot.closed_at ? new Date(ot.closed_at) : new Date();
+    let total = differenceInSeconds(endTime, new Date(ot.started_at));
+    // Subtract pauses
+    const pauses = Array.isArray(ot.pause_history) ? ot.pause_history : [];
+    pauses.forEach((p: any) => {
+      if (p.start && p.end) {
+        total -= differenceInSeconds(new Date(p.end), new Date(p.start));
+      }
+    });
+    return Math.max(0, total);
+  }, [ot.started_at, ot.closed_at, ot.pause_history]);
+
   // Timeline
   const statusOrder = TIMELINE_STEPS;
   const currentIdx = statusOrder.indexOf(ot.status);
-  const pausedIdx = ot.status === 'pausada' ? 2 : -1; // show pausada at en_curso position
 
   // Canvas signature setup
   useEffect(() => {
@@ -830,9 +1039,7 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
   const getPos = (e: React.TouchEvent | React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
+    if ('touches' in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
     return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
   };
   const clearSig = () => {
@@ -847,7 +1054,7 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
       await log('ordenes-trabajo', 'iniciar_ot', 'work_order', ot.id, ot.code);
       toast.success(`${ot.code} marcada como en curso`);
       qc.invalidateQueries({ queryKey: ['work-orders'] });
-      onClose();
+      refetchOT();
     } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
   };
 
@@ -860,14 +1067,10 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
       const totalCost = (ot.labor_cost || 0) + partsCost + (ot.external_cost || 0);
 
       await supabase.from('work_orders').update({
-        status: 'firmada' as any,
-        signed_at: new Date().toISOString(),
-        supervisor_signature_url: sigUrl,
-        supervisor_notes: supervisorNotes,
-        total_cost: totalCost,
+        status: 'firmada' as any, signed_at: new Date().toISOString(),
+        supervisor_signature_url: sigUrl, supervisor_notes: supervisorNotes, total_cost: totalCost,
       }).eq('id', ot.id);
 
-      // Create cost entry
       await supabase.from('cost_entries').insert([{
         tenant_id: tenantId, machine_id: ot.machine_id, project_id: ot.project_id,
         source: 'ot', source_id: ot.id, amount: totalCost,
@@ -891,22 +1094,102 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const handleDelete = async () => {
+    setSaving(true);
+    try {
+      await deleteWorkOrders([ot.id]);
+      await log('ordenes-trabajo', 'eliminar_ot', 'work_order', ot.id, ot.code);
+      toast.success(`${ot.code} eliminada`);
+      qc.invalidateQueries({ queryKey: ['work-orders'] });
+      onClose();
+    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
+  };
+
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    try {
+      await supabase.from('work_orders').update({
+        priority: editPriority,
+        estimated_hours: editEstHours ? parseFloat(editEstHours) : null,
+        problem_description: editDesc,
+        supervisor_notes: editSupervisorNotes,
+      }).eq('id', ot.id);
+      toast.success('OT actualizada');
+      setEditMode(false);
+      refetchOT();
+      qc.invalidateQueries({ queryKey: ['work-orders'] });
+    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
+  };
+
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-[780px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-barlow text-xl text-[hsl(var(--gold-bright))]">{ot.code}</DialogTitle>
+          <DialogTitle className="font-barlow text-xl text-[hsl(var(--gold-bright))] flex items-center gap-2">
+            {ot.code}
+            {tasks.length > 0 && <CompletionPill percentage={taskPct} />}
+          </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-2">
             <TypeBadge type={ot.type} />
             <PriorityBadge priority={ot.priority} />
             <StatusBadge status={ot.status} />
             {ot.machines && <span className="text-xs font-dm">· {ot.machines.name} [{ot.machines.internal_code}]</span>}
             {ot.projects && <span className="text-xs font-dm text-muted-foreground">· {ot.projects.name}</span>}
+            {ot.horometer_start != null && <span className="text-xs font-dm text-muted-foreground">· ⏱ Horómetro: {ot.horometer_start}</span>}
+            {ot.started_at && <span className="text-xs font-dm text-muted-foreground">· ⏳ {formatElapsed(elapsedSeconds)}</span>}
           </DialogDescription>
         </DialogHeader>
 
+        {/* Edit/Delete actions */}
+        <div className="flex items-center gap-2 -mt-2">
+          {!editMode && ot.status !== 'firmada' && (
+            <>
+              <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={() => setEditMode(true)}><Edit className="h-3.5 w-3.5" /> Editar</Button>
+              <Button variant="ghost" size="sm" className="text-xs gap-1 text-destructive hover:text-destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="h-3.5 w-3.5" /> Eliminar</Button>
+            </>
+          )}
+        </div>
+
+        {/* Edit mode */}
+        {editMode && (
+          <div className="space-y-3 p-3 rounded-lg border border-[hsl(var(--gold)/0.3)] bg-[hsl(var(--gold)/0.03)]">
+            <p className="font-barlow uppercase text-xs text-[hsl(var(--gold-bright))]">✏️ Editar OT</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Prioridad</Label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="urgente">Urgente</SelectItem>
+                    <SelectItem value="critica">Crítica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Horas estimadas</Label>
+                <Input type="number" step="0.5" value={editEstHours} onChange={e => setEditEstHours(e.target.value)} className="h-9 text-sm" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Descripción</Label>
+              <Textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3} />
+            </div>
+            <div>
+              <Label className="text-xs">Notas del supervisor</Label>
+              <Textarea value={editSupervisorNotes} onChange={e => setEditSupervisorNotes(e.target.value)} rows={2} />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setEditMode(false)}>Cancelar</Button>
+              <Button size="sm" className="bg-[hsl(var(--gold))] text-white text-xs" disabled={saving} onClick={handleSaveEdit}>
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Timeline */}
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/50 rounded-lg mb-4">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/50 rounded-lg">
           {statusOrder.map((s, i) => {
             const effectiveIdx = ot.status === 'pausada' ? 2 : currentIdx;
             const completed = i < effectiveIdx;
@@ -923,6 +1206,22 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
             );
           })}
         </div>
+
+        {/* Tasks checklist */}
+        {tasks.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-barlow text-sm uppercase text-muted-foreground">Tareas ({completedTasks}/{tasks.length})</h3>
+            <Progress value={taskPct} className="h-2" />
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {tasks.map((t: any) => (
+                <div key={t.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-dm", t.is_completed && "opacity-60")}>
+                  <span className={cn("flex-1", t.is_completed && "line-through")}>{t.is_completed ? '✅' : '⬜'} {t.name}</span>
+                  {t.completed_at && <span className="text-[10px] text-muted-foreground">{format(new Date(t.completed_at), 'dd/MM HH:mm')}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Assignment */}
         <div className="space-y-3">
@@ -949,24 +1248,67 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
           </div>
         )}
 
-        {ot.technician_notes && (
+        {/* Notes by phase */}
+        {allNotes.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-barlow text-sm uppercase text-muted-foreground">Notas del técnico por etapa</h3>
+            {(['antes', 'durante', 'despues'] as const).map(phase => {
+              const phaseNotes = notesByPhase[phase];
+              if (phaseNotes.length === 0) return null;
+              return (
+                <Collapsible key={phase} defaultOpen>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full text-left text-xs font-barlow uppercase font-semibold text-muted-foreground hover:text-foreground py-1">
+                    <ChevronDown className="h-3.5 w-3.5" /> {PHASE_LABELS[phase]} ({phaseNotes.length})
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 pl-5">
+                    {phaseNotes.map((n: any) => (
+                      <div key={n.id} className="text-sm font-dm p-2 rounded-lg bg-muted/50">
+                        <span className="text-[10px] text-muted-foreground">{format(new Date(n.created_at), 'dd/MM HH:mm')}</span>
+                        <p className="mt-0.5">{n.content}</p>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </div>
+        )}
+
+        {ot.technician_notes && allNotes.length === 0 && (
           <div className="space-y-1">
             <h3 className="font-barlow text-sm uppercase text-muted-foreground">Notas del técnico</h3>
             <p className="text-sm font-dm whitespace-pre-line">{ot.technician_notes}</p>
           </div>
         )}
 
-        {/* Photos */}
+        {/* Photos by phase tabs */}
         {photos.length > 0 && (
           <div className="space-y-2">
             <h3 className="font-barlow text-sm uppercase text-muted-foreground">Fotos</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((p: any) => (
-                <div key={p.id} className="aspect-square rounded-lg overflow-hidden border border-border">
-                  <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
-                </div>
+            <Tabs value={photoTab} onValueChange={setPhotoTab}>
+              <TabsList className="h-8">
+                {(['antes', 'durante', 'despues'] as const).map(p => (
+                  <TabsTrigger key={p} value={p} className="text-xs px-3 py-1">
+                    {PHASE_LABELS[p]} ({photosByPhase[p].length})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {(['antes', 'durante', 'despues'] as const).map(p => (
+                <TabsContent key={p} value={p}>
+                  {photosByPhase[p].length === 0 ? (
+                    <p className="text-xs text-muted-foreground font-dm py-4 text-center">Sin fotos en esta etapa</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {photosByPhase[p].map((ph: any) => (
+                        <div key={ph.id} className="aspect-square rounded-lg overflow-hidden border border-border">
+                          <img src={ph.photo_url} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
               ))}
-            </div>
+            </Tabs>
           </div>
         )}
 
@@ -1075,6 +1417,145 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
           )}
 
           <Button variant="ghost" onClick={onClose}>Cerrar</Button>
+        </div>
+
+        {/* Delete confirmation */}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-barlow">⚠️ ¿Eliminar {ot.code}?</AlertDialogTitle>
+              <AlertDialogDescription className="font-dm">Se eliminarán técnicos, tareas, fotos, notas y costos asociados. Esta acción es irreversible.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="font-dm" disabled={saving}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-dm"
+                disabled={saving} onClick={e => { e.preventDefault(); handleDelete(); }}>
+                {saving ? 'Eliminando...' : 'Eliminar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━
+// TASK TEMPLATES MODAL
+// ━━━━━━━━━━━━━━━━━━━━━━━━
+function TaskTemplatesModal({ open, onClose, tenantId }: { open: boolean; onClose: () => void; tenantId: string }) {
+  const qc = useQueryClient();
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('');
+  const [newMinutes, setNewMinutes] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState('');
+  const [editMinutes, setEditMinutes] = useState('');
+
+  const { data: templates = [], refetch } = useQuery({
+    queryKey: ['task-templates-all', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_templates').select('*').eq('tenant_id', tenantId).order('name');
+      return data || [];
+    },
+    enabled: open && !!tenantId,
+  });
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    await supabase.from('task_templates').insert([{
+      tenant_id: tenantId, name: newName.trim(),
+      ot_type: newType || null, estimated_minutes: newMinutes ? parseInt(newMinutes) : null,
+    }]);
+    setNewName(''); setNewType(''); setNewMinutes('');
+    refetch();
+    toast.success('Plantilla creada');
+  };
+
+  const handleToggleActive = async (t: any) => {
+    await supabase.from('task_templates').update({ active: !t.active }).eq('id', t.id).eq('tenant_id', tenantId);
+    refetch();
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    await supabase.from('task_templates').update({
+      name: editName.trim(), ot_type: editType || null,
+      estimated_minutes: editMinutes ? parseInt(editMinutes) : null,
+    }).eq('id', editingId).eq('tenant_id', tenantId);
+    setEditingId(null);
+    refetch();
+    toast.success('Plantilla actualizada');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-barlow">Plantillas de tareas</DialogTitle>
+          <DialogDescription className="font-dm text-xs">Gestiona las plantillas de tareas reutilizables para las OTs.</DialogDescription>
+        </DialogHeader>
+
+        {/* Create new */}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <Label className="text-xs">Nombre</Label>
+            <Input value={newName} onChange={e => setNewName(e.target.value)} className="h-9 text-sm" placeholder="Nombre de la tarea..."
+              onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }} />
+          </div>
+          <div className="w-28">
+            <Label className="text-xs">Tipo OT</Label>
+            <Select value={newType} onValueChange={setNewType}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Cualquiera" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all_types">Cualquiera</SelectItem>
+                {Object.entries(TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-20">
+            <Label className="text-xs">Min.</Label>
+            <Input type="number" value={newMinutes} onChange={e => setNewMinutes(e.target.value)} className="h-9 text-sm" placeholder="30" />
+          </div>
+          <Button size="sm" className="h-9 bg-[hsl(var(--gold))] text-white text-xs" onClick={handleCreate} disabled={!newName.trim()}>+ Crear</Button>
+        </div>
+
+        {/* List */}
+        <div className="space-y-1 mt-4">
+          {templates.map((t: any) => (
+            <div key={t.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-dm", !t.active && "opacity-50")}>
+              {editingId === t.id ? (
+                <>
+                  <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-7 text-sm flex-1" />
+                  <Select value={editType} onValueChange={setEditType}>
+                    <SelectTrigger className="h-7 w-24 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_types">Cualquiera</SelectItem>
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input type="number" value={editMinutes} onChange={e => setEditMinutes(e.target.value)} className="h-7 w-16 text-sm" />
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleSaveEdit}>✓</Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingId(null)}>✕</Button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1">{t.name}</span>
+                  {t.ot_type && <span className="text-[10px] text-muted-foreground">{TYPE_LABELS[t.ot_type] || t.ot_type}</span>}
+                  {t.estimated_minutes && <span className="text-[10px] text-muted-foreground">{t.estimated_minutes} min</span>}
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+                    setEditingId(t.id); setEditName(t.name); setEditType(t.ot_type || 'all_types'); setEditMinutes(t.estimated_minutes?.toString() || '');
+                  }}>✏️</Button>
+                  <Button variant="ghost" size="sm" className={cn("h-6 text-xs", t.active ? "text-[hsl(var(--success))]" : "text-muted-foreground")}
+                    onClick={() => handleToggleActive(t)}>
+                    {t.active ? '✅ Activa' : '⬜ Inactiva'}
+                  </Button>
+                </>
+              )}
+            </div>
+          ))}
+          {templates.length === 0 && <p className="text-sm text-muted-foreground font-dm text-center py-4">No hay plantillas de tareas</p>}
         </div>
       </DialogContent>
     </Dialog>
