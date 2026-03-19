@@ -876,6 +876,8 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const [editDesc, setEditDesc] = useState(initialOT.problem_description || '');
   const [editSupervisorNotes, setEditSupervisorNotes] = useState(initialOT.supervisor_notes || '');
   const [photoTab, setPhotoTab] = useState('antes');
+  const [newTaskName, setNewTaskName] = useState('');
+  const [taskTemplateSearch, setTaskTemplateSearch] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasSig, setHasSig] = useState(false);
