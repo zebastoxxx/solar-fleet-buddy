@@ -1019,6 +1019,15 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     setTimeout(setupCanvas, 150);
   }, [ot.status]);
 
+  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
   const startDraw = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -1033,8 +1042,6 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
-      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
@@ -1044,15 +1051,15 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     setHasSig(true);
   };
   const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    if ('touches' in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
   const clearSig = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && canvasRef.current) { ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); setHasSig(false); }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      setHasSig(false);
+    }
   };
 
   const handleMarkStarted = async () => {
