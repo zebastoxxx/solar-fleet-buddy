@@ -29,6 +29,7 @@ const MisOT = lazy(() => import('./pages/MisOT'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const Financiero = lazy(() => import('./pages/Financiero'));
+const Compras = lazy(() => import('./pages/Compras'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
