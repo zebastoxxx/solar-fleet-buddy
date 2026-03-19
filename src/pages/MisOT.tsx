@@ -611,6 +611,42 @@ function OTActiveView({ otId }: { otId: string }) {
           </div>
         )}
 
+        {/* ─── TASKS CHECKLIST ─── */}
+        {tasks.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <p className="font-barlow text-xs uppercase text-muted-foreground">Tareas asignadas</p>
+            <div className="space-y-1">
+              <Progress value={taskPct} className="h-2 [&>div]:bg-[hsl(var(--gold))]" />
+              <p className="text-[11px] text-muted-foreground font-dm">
+                {completedTasks} de {tasks.length} tareas completadas ({taskPct}%)
+              </p>
+            </div>
+            <div className="space-y-1">
+              {tasks.map((task: any) => (
+                <button
+                  key={task.id}
+                  onClick={() => handleToggleTask(task)}
+                  className={cn(
+                    'w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left transition-colors hover:bg-muted/50',
+                    task.is_completed && 'opacity-60'
+                  )}
+                >
+                  <div className={cn(
+                    'mt-0.5 h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center',
+                    task.is_completed ? 'bg-[hsl(var(--gold))] border-[hsl(var(--gold))]' : 'border-border'
+                  )}>
+                    {task.is_completed && <CheckCircle2 className="h-3 w-3 text-white" />}
+                  </div>
+                  <div>
+                    <p className={cn('text-sm font-dm', task.is_completed && 'line-through')}>{task.name}</p>
+                    {task.description && <p className="text-[11px] text-muted-foreground font-dm">{task.description}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Chrono */}
         {timerStore.activeOTId === otId && (
           <div className="text-center">
