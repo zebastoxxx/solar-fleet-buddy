@@ -382,22 +382,57 @@ function OTActiveView({ otId }: { otId: string }) {
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    for (const file of files) {
+      try {
+        const compressed = await compressImage(file);
+        const path = `${user!.tenant_id}/${otId}/${photoTab}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+        const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
+        await supabase.from('work_order_photos').insert([{
+          work_order_id: otId, photo_url: urlData.publicUrl, photo_type: photoTab, uploaded_by: user!.id,
+        }]);
+      } catch (err: any) {
+        toast.error(`Error: ${err.message || 'Error al subir foto'}`);
+      }
+    }
+    toast.success(`${files.length} foto(s) subida(s)`);
+    refetchPhotos();
+    e.target.value = '';
+  };
+
+  const handleDeletePhoto = async (photo: any) => {
     try {
-      const compressed = await compressImage(file);
-      const path = `${user!.tenant_id}/${otId}/${photoTab}/${Date.now()}.jpg`;
-      const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
-      if (uploadErr) throw uploadErr;
-      const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
-      await supabase.from('work_order_photos').insert([{
-        work_order_id: otId, photo_url: urlData.publicUrl, photo_type: photoTab, uploaded_by: user!.id,
-      }]);
-      toast.success('Foto subida');
+      // Extract storage path from public URL
+      const url = new URL(photo.photo_url);
+      const pathMatch = url.pathname.match(/\/object\/public\/ot-photos\/(.+)/);
+      if (pathMatch) {
+        await supabase.storage.from('ot-photos').remove([decodeURIComponent(pathMatch[1])]);
+      }
+      await supabase.from('work_order_photos').delete().eq('id', photo.id);
+      toast.success('Foto eliminada');
       refetchPhotos();
     } catch (err: any) {
-      toast.error(err.message || 'Error al subir foto');
+      toast.error('Error al eliminar foto');
     }
+  };
+
+  const handleToggleTask = async (task: any) => {
+    const newCompleted = !task.is_completed;
+    await supabase.from('work_order_tasks').update({
+      is_completed: newCompleted,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+      completed_by: newCompleted ? user!.id : null,
+    }).eq('id', task.id);
+    refetchTasks();
+    // Update completion_percentage on work_orders
+    const updatedTasks = tasks.map((t: any) => t.id === task.id ? { ...t, is_completed: newCompleted } : t);
+    const completed = updatedTasks.filter((t: any) => t.is_completed).length;
+    const pct = updatedTasks.length > 0 ? Math.round((completed / updatedTasks.length) * 100) : 0;
+    await supabase.from('work_orders').update({ completion_percentage: pct }).eq('id', otId);
+    qc.invalidateQueries({ queryKey: ['ot-detail', otId] });
   };
 
   const handleAddPart = async () => {
