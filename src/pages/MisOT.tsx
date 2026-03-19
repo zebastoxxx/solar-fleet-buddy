@@ -8,7 +8,8 @@ import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock, Send } from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock, Send, X } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -294,6 +295,17 @@ function OTActiveView({ otId }: { otId: string }) {
     enabled: !!otId,
   });
 
+  // Tasks query
+  const { data: tasks = [], refetch: refetchTasks } = useQuery({
+    queryKey: ['ot-tasks', otId],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_tasks')
+        .select('*').eq('work_order_id', otId).order('sort_order');
+      return data || [];
+    },
+    enabled: !!otId,
+  });
+
   // Consumables search
   const { data: consumables = [] } = useQuery({
     queryKey: ['consumables-search', partsSearch, user?.tenant_id],
@@ -370,22 +382,57 @@ function OTActiveView({ otId }: { otId: string }) {
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    for (const file of files) {
+      try {
+        const compressed = await compressImage(file);
+        const path = `${user!.tenant_id}/${otId}/${photoTab}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`;
+        const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
+        await supabase.from('work_order_photos').insert([{
+          work_order_id: otId, photo_url: urlData.publicUrl, photo_type: photoTab, uploaded_by: user!.id,
+        }]);
+      } catch (err: any) {
+        toast.error(`Error: ${err.message || 'Error al subir foto'}`);
+      }
+    }
+    toast.success(`${files.length} foto(s) subida(s)`);
+    refetchPhotos();
+    e.target.value = '';
+  };
+
+  const handleDeletePhoto = async (photo: any) => {
     try {
-      const compressed = await compressImage(file);
-      const path = `${user!.tenant_id}/${otId}/${photoTab}/${Date.now()}.jpg`;
-      const { error: uploadErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
-      if (uploadErr) throw uploadErr;
-      const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
-      await supabase.from('work_order_photos').insert([{
-        work_order_id: otId, photo_url: urlData.publicUrl, photo_type: photoTab, uploaded_by: user!.id,
-      }]);
-      toast.success('Foto subida');
+      // Extract storage path from public URL
+      const url = new URL(photo.photo_url);
+      const pathMatch = url.pathname.match(/\/object\/public\/ot-photos\/(.+)/);
+      if (pathMatch) {
+        await supabase.storage.from('ot-photos').remove([decodeURIComponent(pathMatch[1])]);
+      }
+      await supabase.from('work_order_photos').delete().eq('id', photo.id);
+      toast.success('Foto eliminada');
       refetchPhotos();
     } catch (err: any) {
-      toast.error(err.message || 'Error al subir foto');
+      toast.error('Error al eliminar foto');
     }
+  };
+
+  const handleToggleTask = async (task: any) => {
+    const newCompleted = !task.is_completed;
+    await supabase.from('work_order_tasks').update({
+      is_completed: newCompleted,
+      completed_at: newCompleted ? new Date().toISOString() : null,
+      completed_by: newCompleted ? user!.id : null,
+    }).eq('id', task.id);
+    refetchTasks();
+    // Update completion_percentage on work_orders
+    const updatedTasks = tasks.map((t: any) => t.id === task.id ? { ...t, is_completed: newCompleted } : t);
+    const completed = updatedTasks.filter((t: any) => t.is_completed).length;
+    const pct = updatedTasks.length > 0 ? Math.round((completed / updatedTasks.length) * 100) : 0;
+    await supabase.from('work_orders').update({ completion_percentage: pct }).eq('id', otId);
+    qc.invalidateQueries({ queryKey: ['ot-detail', otId] });
   };
 
   const handleAddPart = async () => {
@@ -459,6 +506,9 @@ function OTActiveView({ otId }: { otId: string }) {
 
   const hasSpeech = typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   const filteredPhotos = photos.filter((p: any) => p.photo_type === photoTab);
+  const completedTasks = tasks.filter((t: any) => t.is_completed).length;
+  const taskPct = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+  const pctColor = taskPct >= 80 ? 'bg-[hsl(var(--success))] text-white' : taskPct >= 40 ? 'bg-[hsl(var(--warning))] text-white' : 'bg-[hsl(var(--danger))] text-white';
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -467,7 +517,14 @@ function OTActiveView({ otId }: { otId: string }) {
         <button onClick={() => navigate('/mis-ot')} className="flex items-center gap-1 text-sm text-muted-foreground font-dm">
           <ChevronLeft className="h-4 w-4" /> Mis OT
         </button>
-        <span className="font-barlow font-semibold text-[hsl(var(--gold-bright))]">{ot.code}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-barlow font-semibold text-[hsl(var(--gold-bright))]">{ot.code}</span>
+          {tasks.length > 0 && (
+            <span className={cn('inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold font-barlow min-w-[28px]', pctColor)}>
+              {taskPct}%
+            </span>
+          )}
+        </div>
         {ot.priority === 'critica' && <Badge className="bg-[#FDDEDE] text-[#C0392B] text-[10px]">🚨 Crítica</Badge>}
         {ot.priority === 'urgente' && <Badge className="bg-[#FFEDD5] text-[#EA580C] text-[10px]">⚡ Urgente</Badge>}
       </div>
@@ -554,6 +611,42 @@ function OTActiveView({ otId }: { otId: string }) {
           </div>
         )}
 
+        {/* ─── TASKS CHECKLIST ─── */}
+        {tasks.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <p className="font-barlow text-xs uppercase text-muted-foreground">Tareas asignadas</p>
+            <div className="space-y-1">
+              <Progress value={taskPct} className="h-2 [&>div]:bg-[hsl(var(--gold))]" />
+              <p className="text-[11px] text-muted-foreground font-dm">
+                {completedTasks} de {tasks.length} tareas completadas ({taskPct}%)
+              </p>
+            </div>
+            <div className="space-y-1">
+              {tasks.map((task: any) => (
+                <button
+                  key={task.id}
+                  onClick={() => handleToggleTask(task)}
+                  className={cn(
+                    'w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left transition-colors hover:bg-muted/50',
+                    task.is_completed && 'opacity-60'
+                  )}
+                >
+                  <div className={cn(
+                    'mt-0.5 h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center',
+                    task.is_completed ? 'bg-[hsl(var(--gold))] border-[hsl(var(--gold))]' : 'border-border'
+                  )}>
+                    {task.is_completed && <CheckCircle2 className="h-3 w-3 text-white" />}
+                  </div>
+                  <div>
+                    <p className={cn('text-sm font-dm', task.is_completed && 'line-through')}>{task.name}</p>
+                    {task.description && <p className="text-[11px] text-muted-foreground font-dm">{task.description}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Chrono */}
         {timerStore.activeOTId === otId && (
           <div className="text-center">
@@ -581,19 +674,25 @@ function OTActiveView({ otId }: { otId: string }) {
           </div>
           <div className="grid grid-cols-3 gap-2">
             {filteredPhotos.map((p: any) => (
-              <div key={p.id} className="aspect-square rounded-lg overflow-hidden border border-border">
+              <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
                 <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => handleDeletePhoto(p)}
+                  className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))}
             <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
               <Camera className="h-5 w-5 text-muted-foreground mb-1" />
               <span className="text-[10px] text-muted-foreground font-dm">Cámara</span>
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePhotoUpload} />
             </label>
             <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
               <ImageIcon className="h-5 w-5 text-muted-foreground mb-1" />
               <span className="text-[10px] text-muted-foreground font-dm">Galería</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
             </label>
           </div>
         </div>
