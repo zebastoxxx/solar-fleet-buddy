@@ -594,7 +594,7 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasSignature, setHasSignature] = useState(false);
   const isDrawing = useRef(false);
-
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const buenos = allItems.filter((i) => results[i.id] === 'bueno').length;
   const malos = allItems.filter((i) => results[i.id] === 'malo').length;
   const nas = allItems.filter((i) => results[i.id] === 'na').length;
