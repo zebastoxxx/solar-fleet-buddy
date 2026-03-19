@@ -14,7 +14,7 @@ import logoImg from '@/assets/logo.png';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
-  FolderOpen, ClipboardList, Wrench, Package, Settings, DollarSign,
+  FolderOpen, ClipboardList, Wrench, Package, Settings, DollarSign, ShoppingCart,
 };
 
 // Map nav permission keys to usePermissions keys
