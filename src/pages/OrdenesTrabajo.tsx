@@ -983,6 +983,7 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
       await supabase.from('task_templates').insert([{ tenant_id: tenantId, name: newTaskName.trim() }]);
     }
     await handleAddTaskToOT(newTaskName.trim(), existing?.id);
+  };
 
   // Fetch technicians
   const { data: techs = [] } = useQuery({
