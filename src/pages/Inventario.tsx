@@ -379,6 +379,15 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
                     <TableCell className="text-xs text-muted-foreground font-dm">{c.suppliers?.name || '—'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {isCritical && (
+                          <Button variant="ghost" size="sm" className="h-7 text-[11px] text-primary font-dm gap-0.5" onClick={() => {
+                            const qty = Math.max(1, (c.stock_minimum ?? 0) - (c.stock_current ?? 0));
+                            const prefill = encodeURIComponent(JSON.stringify({ title: `Restock: ${c.name}`, category: 'inventario', items: [{ description: c.name, quantity: qty, unit: c.unit || 'unidad', unit_price: c.unit_cost || 0 }] }));
+                            window.location.href = `/compras?prefill=${prefill}`;
+                          }}>
+                            <ShoppingCart className="h-3 w-3" /> OC
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" className="h-7 text-[11px] text-orange-600 font-dm" onClick={() => setShowExit(c)}>
                           📤 Salida
                         </Button>
