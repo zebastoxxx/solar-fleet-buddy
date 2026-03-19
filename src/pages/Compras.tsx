@@ -81,7 +81,7 @@ export default function Compras() {
   const { user } = useAuthStore();
   const tenantId = user?.tenant_id || '';
   const userId = user?.id || '';
-  const log = useLog();
+  const { log } = useLog();
   const qc = useQueryClient();
 
   // Filters
