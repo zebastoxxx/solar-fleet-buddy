@@ -1000,12 +1000,15 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
         work_order_id: otId, personnel_id: personnelId, event_type: 'cierre',
       }]);
 
-      await supabase.from('cost_entries').insert([{
-        tenant_id: user!.tenant_id, machine_id: ot.machine_id, project_id: ot.project_id,
-        source: 'ot', source_id: otId, amount: totalCost,
-        cost_type: 'mano_obra', description: `OT ${ot.code} — ${ot.machines?.name}`,
-        cost_date: new Date().toISOString().split('T')[0], created_by: user!.id,
-      }]);
+      // Cost entry solo si hay costo de materiales
+      if (partsCost > 0) {
+        await supabase.from('cost_entries').insert([{
+          tenant_id: user!.tenant_id, machine_id: ot.machine_id, project_id: ot.project_id,
+          source: 'ot', source_id: otId, amount: partsCost,
+          cost_type: 'materiales', description: `OT ${ot.code} — materiales`,
+          cost_date: new Date().toISOString().split('T')[0], created_by: user!.id,
+        }]);
+      }
 
       timerStore.stopTimer();
       await log('ordenes-trabajo', 'cerrar_ot', 'work_order', otId, ot.code);
