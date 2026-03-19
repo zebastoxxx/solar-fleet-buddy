@@ -1455,11 +1455,10 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
 
         {/* Cost Summary */}
         <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1 text-sm font-dm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Mano de obra:</span><span>${(ot.labor_cost || 0).toLocaleString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Materiales:</span><span>${(ot.parts_cost || 0).toLocaleString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Costo externo:</span><span>${(ot.external_cost || 0).toLocaleString()}</span></div>
           <div className="border-t border-border pt-1 flex justify-between font-semibold">
-            <span>TOTAL:</span><span className="text-[hsl(var(--gold-bright))]">${(ot.total_cost || 0).toLocaleString()}</span>
+            <span>TOTAL:</span><span className="text-[hsl(var(--gold-bright))]">${((ot.parts_cost || 0) + (ot.external_cost || 0)).toLocaleString()}</span>
           </div>
         </div>
 
