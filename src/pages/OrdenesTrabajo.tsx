@@ -997,18 +997,26 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const statusOrder = TIMELINE_STEPS;
   const currentIdx = statusOrder.indexOf(ot.status);
 
-  // Canvas signature setup
+  // Canvas signature setup with proper DPR scaling
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = 160;
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.shadowBlur = 0;
+    const setupCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 160 * dpr;
+      canvas.style.height = '160px';
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    };
+    setTimeout(setupCanvas, 150);
   }, [ot.status]);
 
   const startDraw = (x: number, y: number) => {
