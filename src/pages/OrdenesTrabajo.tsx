@@ -1064,19 +1064,23 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     try {
       const sigUrl = canvasRef.current?.toDataURL('image/png') || '';
       const partsCost = parts.reduce((sum: number, p: any) => sum + (p.quantity * (p.unit_cost || 0)), 0);
-      const totalCost = (ot.labor_cost || 0) + partsCost + (ot.external_cost || 0);
+      const totalCost = partsCost + (ot.external_cost || 0); // labor_cost = 0 por ahora
 
       await supabase.from('work_orders').update({
         status: 'firmada' as any, signed_at: new Date().toISOString(),
         supervisor_signature_url: sigUrl, supervisor_notes: supervisorNotes, total_cost: totalCost,
+        labor_cost: 0,
       }).eq('id', ot.id);
 
-      await supabase.from('cost_entries').insert([{
-        tenant_id: tenantId, machine_id: ot.machine_id, project_id: ot.project_id,
-        source: 'ot', source_id: ot.id, amount: totalCost,
-        cost_type: 'mano_obra', description: `OT ${ot.code}`,
-        cost_date: new Date().toISOString().split('T')[0], created_by: userId,
-      }]);
+      // Cost entry solo si hay materiales
+      if (partsCost > 0) {
+        await supabase.from('cost_entries').insert([{
+          tenant_id: tenantId, machine_id: ot.machine_id, project_id: ot.project_id,
+          source: 'ot', source_id: ot.id, amount: partsCost,
+          cost_type: 'materiales', description: `OT ${ot.code} — materiales`,
+          cost_date: new Date().toISOString().split('T')[0], created_by: userId,
+        }]);
+      }
 
       await log('ordenes-trabajo', 'firmar_ot', 'work_order', ot.id, ot.code);
       toast.success(`${ot.code} firmada correctamente`);
