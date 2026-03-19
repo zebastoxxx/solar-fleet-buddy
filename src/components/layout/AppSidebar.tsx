@@ -29,6 +29,7 @@ const PERM_MAP: Record<string, string> = {
   preop_view: 'preop_view',
   ot_view: 'ot_view',
   inventario: 'inventario',
+  compras: 'compras',
   financiero: 'financiero',
   configuracion: 'configuracion',
 };
