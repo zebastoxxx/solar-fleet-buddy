@@ -29,6 +29,7 @@ const MisOT = lazy(() => import('./pages/MisOT'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Configuracion = lazy(() => import('./pages/Configuracion'));
 const Financiero = lazy(() => import('./pages/Financiero'));
+const Compras = lazy(() => import('./pages/Compras'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -81,6 +82,7 @@ const App = () => {
                       <Route path="/preoperacionales" element={<ErrorBoundary moduleName="Preoperacionales"><Preoperacionales /></ErrorBoundary>} />
                       <Route path="/ordenes-trabajo" element={<ErrorBoundary moduleName="Órdenes de Trabajo"><OrdenesTrabajo /></ErrorBoundary>} />
                       <Route path="/inventario" element={<ErrorBoundary moduleName="Inventario"><Inventario /></ErrorBoundary>} />
+                      <Route path="/compras" element={<ErrorBoundary moduleName="Compras"><Compras /></ErrorBoundary>} />
                     </Route>
                     <Route element={<ProtectedRoute allowedRoles={['superadmin', 'gerente']} />}>
                       <Route path="/analytics" element={<ErrorBoundary moduleName="Analytics"><Analytics /></ErrorBoundary>} />

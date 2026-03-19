@@ -197,6 +197,8 @@ export const PERMISSIONS: Record<string, UserRole[]> = {
   ot_view: ['superadmin', 'gerente', 'supervisor'],
   ot_own: ['tecnico'],
   inventario: ['superadmin', 'gerente', 'supervisor'],
+  compras: ['superadmin', 'gerente', 'supervisor'],
+  financiero: ['superadmin', 'gerente'],
   configuracion: ['superadmin', 'gerente'],
   logs: ['superadmin', 'gerente'],
 };
@@ -219,6 +221,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Preoperacionales', path: '/preoperacionales', icon: 'ClipboardList', permission: 'preop_view' },
   { label: 'Órdenes de Trabajo', path: '/ordenes-trabajo', icon: 'Wrench', permission: 'ot_view' },
   { label: 'Inventario', path: '/inventario', icon: 'Package', permission: 'inventario' },
+  { label: 'Compras', path: '/compras', icon: 'ShoppingCart', permission: 'compras' },
   { label: 'Financiero', path: '/financiero', icon: 'DollarSign', permission: 'financiero' },
   { label: 'Configuración', path: '/configuracion', icon: 'Settings', permission: 'configuracion' },
 ];
