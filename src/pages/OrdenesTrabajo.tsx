@@ -942,6 +942,48 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     },
   });
 
+  // Task templates for supervisor to add tasks
+  const { data: detailTaskTemplates = [] } = useQuery({
+    queryKey: ['task-templates-detail', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_templates').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const filteredDetailTemplates = detailTaskTemplates.filter((t: any) => {
+    if (!taskTemplateSearch) return true;
+    return t.name.toLowerCase().includes(taskTemplateSearch.toLowerCase());
+  });
+
+  const handleAddTaskToOT = async (name: string, templateId?: string) => {
+    try {
+      await supabase.from('work_order_tasks').insert([{
+        work_order_id: ot.id, tenant_id: tenantId, name,
+        template_id: templateId || null, sort_order: tasks.length,
+      }]);
+      // Update completion percentage
+      const newTotal = tasks.length + 1;
+      const completed = tasks.filter((t: any) => t.is_completed).length;
+      const pct = Math.round((completed / newTotal) * 100);
+      await supabase.from('work_orders').update({ completion_percentage: pct }).eq('id', ot.id);
+      toast.success('Tarea agregada');
+      refetchTasks();
+      setNewTaskName('');
+      setTaskTemplateSearch('');
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleAddCustomTask = async () => {
+    if (!newTaskName.trim()) return;
+    // Also create template if not exists
+    const existing = detailTaskTemplates.find((t: any) => t.name.toLowerCase() === newTaskName.trim().toLowerCase());
+    if (!existing) {
+      await supabase.from('task_templates').insert([{ tenant_id: tenantId, name: newTaskName.trim() }]);
+    }
+    await handleAddTaskToOT(newTaskName.trim(), existing?.id);
+
   // Fetch technicians
   const { data: techs = [] } = useQuery({
     queryKey: ['ot-technicians-detail', ot.id],
