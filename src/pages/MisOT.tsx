@@ -916,14 +916,33 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !open) return;
-    setTimeout(() => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = 180;
+    const setupCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 180 * dpr;
+      canvas.style.height = '180px';
       const ctx = canvas.getContext('2d');
-      if (ctx) { ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0; }
-    }, 100);
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    };
+    setTimeout(setupCanvas, 150);
   }, [open]);
 
+  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
   const startDraw = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -938,8 +957,6 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
-      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
@@ -949,22 +966,22 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     setHasSig(true);
   };
   const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    if ('touches' in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
   const clearSig = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && canvasRef.current) { ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); setHasSig(false); }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      setHasSig(false);
+    }
   };
 
   const elapsedMs = timerStore.getElapsedMs();
   const actualHours = parseFloat((elapsedMs / 3600000).toFixed(2));
   const partsCost = usedParts.reduce((s: number, p: any) => s + (p.quantity * (p.unit_cost || 0)), 0);
-  const laborCost = actualHours * hourlyRate;
-  const totalCost = partsCost + laborCost + (ot.external_cost || 0);
+  const laborCost = 0; // Mano de obra deshabilitada por ahora
+  const totalCost = partsCost + (ot.external_cost || 0);
 
   const handleClose = async () => {
     if (finalNotes.length < 20) { toast.error('Las notas deben tener al menos 20 caracteres'); return; }
@@ -983,12 +1000,15 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
         work_order_id: otId, personnel_id: personnelId, event_type: 'cierre',
       }]);
 
-      await supabase.from('cost_entries').insert([{
-        tenant_id: user!.tenant_id, machine_id: ot.machine_id, project_id: ot.project_id,
-        source: 'ot', source_id: otId, amount: totalCost,
-        cost_type: 'mano_obra', description: `OT ${ot.code} — ${ot.machines?.name}`,
-        cost_date: new Date().toISOString().split('T')[0], created_by: user!.id,
-      }]);
+      // Cost entry solo si hay costo de materiales
+      if (partsCost > 0) {
+        await supabase.from('cost_entries').insert([{
+          tenant_id: user!.tenant_id, machine_id: ot.machine_id, project_id: ot.project_id,
+          source: 'ot', source_id: otId, amount: partsCost,
+          cost_type: 'materiales', description: `OT ${ot.code} — materiales`,
+          cost_date: new Date().toISOString().split('T')[0], created_by: user!.id,
+        }]);
+      }
 
       timerStore.stopTimer();
       await log('ordenes-trabajo', 'cerrar_ot', 'work_order', otId, ot.code);
@@ -1010,7 +1030,6 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
             <div className="flex justify-between"><span className="text-muted-foreground">Tiempo trabajado:</span><span className="font-barlow font-semibold">{chrono}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Horas calculadas:</span><span>{actualHours}h</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Repuestos:</span><span>{usedParts.length} ítems · {formatCost(partsCost)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Mano de obra:</span><span>{formatCost(laborCost)}</span></div>
             <div className="border-t border-border pt-2 flex justify-between font-semibold">
               <span>COSTO TOTAL:</span>
               <span className="font-barlow text-lg text-[hsl(var(--gold-bright))]">{formatCost(totalCost)}</span>

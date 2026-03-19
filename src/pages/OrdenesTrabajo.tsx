@@ -876,6 +876,8 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const [editDesc, setEditDesc] = useState(initialOT.problem_description || '');
   const [editSupervisorNotes, setEditSupervisorNotes] = useState(initialOT.supervisor_notes || '');
   const [photoTab, setPhotoTab] = useState('antes');
+  const [newTaskName, setNewTaskName] = useState('');
+  const [taskTemplateSearch, setTaskTemplateSearch] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasSig, setHasSig] = useState(false);
@@ -940,6 +942,49 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     },
   });
 
+  // Task templates for supervisor to add tasks
+  const { data: detailTaskTemplates = [] } = useQuery({
+    queryKey: ['task-templates-detail', tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from('task_templates').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const filteredDetailTemplates = detailTaskTemplates.filter((t: any) => {
+    if (!taskTemplateSearch) return true;
+    return t.name.toLowerCase().includes(taskTemplateSearch.toLowerCase());
+  });
+
+  const handleAddTaskToOT = async (name: string, templateId?: string) => {
+    try {
+      await supabase.from('work_order_tasks').insert([{
+        work_order_id: ot.id, tenant_id: tenantId, name,
+        template_id: templateId || null, sort_order: tasks.length,
+      }]);
+      // Update completion percentage
+      const newTotal = tasks.length + 1;
+      const completed = tasks.filter((t: any) => t.is_completed).length;
+      const pct = Math.round((completed / newTotal) * 100);
+      await supabase.from('work_orders').update({ completion_percentage: pct }).eq('id', ot.id);
+      toast.success('Tarea agregada');
+      refetchTasks();
+      setNewTaskName('');
+      setTaskTemplateSearch('');
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleAddCustomTask = async () => {
+    if (!newTaskName.trim()) return;
+    // Also create template if not exists
+    const existing = detailTaskTemplates.find((t: any) => t.name.toLowerCase() === newTaskName.trim().toLowerCase());
+    if (!existing) {
+      await supabase.from('task_templates').insert([{ tenant_id: tenantId, name: newTaskName.trim() }]);
+    }
+    await handleAddTaskToOT(newTaskName.trim(), existing?.id);
+  };
+
   // Fetch technicians
   const { data: techs = [] } = useQuery({
     queryKey: ['ot-technicians-detail', ot.id],
@@ -997,20 +1042,37 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const statusOrder = TIMELINE_STEPS;
   const currentIdx = statusOrder.indexOf(ot.status);
 
-  // Canvas signature setup
+  // Canvas signature setup with proper DPR scaling
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = 160;
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.shadowBlur = 0;
+    const setupCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 160 * dpr;
+      canvas.style.height = '160px';
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    };
+    setTimeout(setupCanvas, 150);
   }, [ot.status]);
 
+  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
   const startDraw = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -1025,8 +1087,6 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
-      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
@@ -1036,15 +1096,15 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     setHasSig(true);
   };
   const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    if ('touches' in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
   const clearSig = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && canvasRef.current) { ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); setHasSig(false); }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      setHasSig(false);
+    }
   };
 
   const handleMarkStarted = async () => {
@@ -1064,19 +1124,23 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     try {
       const sigUrl = canvasRef.current?.toDataURL('image/png') || '';
       const partsCost = parts.reduce((sum: number, p: any) => sum + (p.quantity * (p.unit_cost || 0)), 0);
-      const totalCost = (ot.labor_cost || 0) + partsCost + (ot.external_cost || 0);
+      const totalCost = partsCost + (ot.external_cost || 0); // labor_cost = 0 por ahora
 
       await supabase.from('work_orders').update({
         status: 'firmada' as any, signed_at: new Date().toISOString(),
         supervisor_signature_url: sigUrl, supervisor_notes: supervisorNotes, total_cost: totalCost,
+        labor_cost: 0,
       }).eq('id', ot.id);
 
-      await supabase.from('cost_entries').insert([{
-        tenant_id: tenantId, machine_id: ot.machine_id, project_id: ot.project_id,
-        source: 'ot', source_id: ot.id, amount: totalCost,
-        cost_type: 'mano_obra', description: `OT ${ot.code}`,
-        cost_date: new Date().toISOString().split('T')[0], created_by: userId,
-      }]);
+      // Cost entry solo si hay materiales
+      if (partsCost > 0) {
+        await supabase.from('cost_entries').insert([{
+          tenant_id: tenantId, machine_id: ot.machine_id, project_id: ot.project_id,
+          source: 'ot', source_id: ot.id, amount: partsCost,
+          cost_type: 'materiales', description: `OT ${ot.code} — materiales`,
+          cost_date: new Date().toISOString().split('T')[0], created_by: userId,
+        }]);
+      }
 
       await log('ordenes-trabajo', 'firmar_ot', 'work_order', ot.id, ot.code);
       toast.success(`${ot.code} firmada correctamente`);
@@ -1207,21 +1271,54 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
           })}
         </div>
 
-        {/* Tasks checklist */}
-        {tasks.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-barlow text-sm uppercase text-muted-foreground">Tareas ({completedTasks}/{tasks.length})</h3>
-            <Progress value={taskPct} className="h-2" />
-            <div className="space-y-1 max-h-40 overflow-y-auto">
-              {tasks.map((t: any) => (
-                <div key={t.id} className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-dm", t.is_completed && "opacity-60")}>
-                  <span className={cn("flex-1", t.is_completed && "line-through")}>{t.is_completed ? '✅' : '⬜'} {t.name}</span>
-                  {t.completed_at && <span className="text-[10px] text-muted-foreground">{format(new Date(t.completed_at), 'dd/MM HH:mm')}</span>}
-                </div>
-              ))}
-            </div>
+        {/* Tasks checklist + add tasks */}
+        <div className="space-y-2">
+          <h3 className="font-barlow text-sm uppercase text-muted-foreground">
+            Tareas {tasks.length > 0 ? `(${completedTasks}/${tasks.length})` : ''}
+          </h3>
+          {tasks.length > 0 && <Progress value={taskPct} className="h-2 [&>div]:bg-[hsl(var(--gold))]" />}
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {tasks.map((t: any) => (
+              <div key={t.id} className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-dm",
+                t.is_completed ? "bg-[hsl(var(--success-bg))] opacity-70" : "bg-muted/30"
+              )}>
+                <span className={cn("flex-1", t.is_completed && "line-through text-muted-foreground")}>
+                  {t.is_completed ? '✅' : '⬜'} {t.name}
+                </span>
+                {t.completed_at && <span className="text-[10px] text-muted-foreground">{format(new Date(t.completed_at), 'dd/MM HH:mm')}</span>}
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Supervisor: add tasks */}
+          {ot.status !== 'firmada' && (
+            <div className="space-y-2 pt-2 border-t border-border">
+              <p className="text-[11px] font-barlow uppercase text-muted-foreground">Agregar tarea</p>
+              <div className="relative">
+                <Input placeholder="Buscar plantilla o escribir tarea..." value={taskTemplateSearch || newTaskName}
+                  onChange={e => { setTaskTemplateSearch(e.target.value); setNewTaskName(e.target.value); }}
+                  className="h-9 text-sm"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomTask(); } }} />
+              </div>
+              {taskTemplateSearch && filteredDetailTemplates.length > 0 && (
+                <div className="max-h-28 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5">
+                  {filteredDetailTemplates.map((t: any) => (
+                    <button key={t.id}
+                      onClick={() => { handleAddTaskToOT(t.name, t.id); setTaskTemplateSearch(''); setNewTaskName(''); }}
+                      className="w-full text-left px-3 py-1.5 rounded-md text-xs font-dm hover:bg-muted flex items-center justify-between">
+                      <span>{t.name}</span>
+                      {t.estimated_minutes && <span className="text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" size="sm" className="h-8 text-xs w-full" onClick={handleAddCustomTask} disabled={!newTaskName.trim()}>
+                + Agregar tarea personalizada
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* Assignment */}
         <div className="space-y-3">
@@ -1358,11 +1455,10 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
 
         {/* Cost Summary */}
         <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-1 text-sm font-dm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Mano de obra:</span><span>${(ot.labor_cost || 0).toLocaleString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Materiales:</span><span>${(ot.parts_cost || 0).toLocaleString()}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Costo externo:</span><span>${(ot.external_cost || 0).toLocaleString()}</span></div>
           <div className="border-t border-border pt-1 flex justify-between font-semibold">
-            <span>TOTAL:</span><span className="text-[hsl(var(--gold-bright))]">${(ot.total_cost || 0).toLocaleString()}</span>
+            <span>TOTAL:</span><span className="text-[hsl(var(--gold-bright))]">${((ot.parts_cost || 0) + (ot.external_cost || 0)).toLocaleString()}</span>
           </div>
         </div>
 
