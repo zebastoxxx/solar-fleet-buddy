@@ -506,6 +506,9 @@ function OTActiveView({ otId }: { otId: string }) {
 
   const hasSpeech = typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   const filteredPhotos = photos.filter((p: any) => p.photo_type === photoTab);
+  const completedTasks = tasks.filter((t: any) => t.is_completed).length;
+  const taskPct = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+  const pctColor = taskPct >= 80 ? 'bg-[hsl(var(--success))] text-white' : taskPct >= 40 ? 'bg-[hsl(var(--warning))] text-white' : 'bg-[hsl(var(--danger))] text-white';
 
   return (
     <div className="min-h-screen bg-background pb-32">
