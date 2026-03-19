@@ -1468,6 +1468,264 @@ export type Database = {
           },
         ]
       }
+      purchase_order_documents: {
+        Row: {
+          doc_type: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          name: string
+          purchase_order_id: string
+          tenant_id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name: string
+          purchase_order_id: string
+          tenant_id: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string
+          purchase_order_id?: string
+          tenant_id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_documents_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          inventory_item_id: string | null
+          purchase_order_id: string
+          quantity: number | null
+          tenant_id: string
+          unit: string | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          inventory_item_id?: string | null
+          purchase_order_id: string
+          quantity?: number | null
+          tenant_id: string
+          unit?: string | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          inventory_item_id?: string | null
+          purchase_order_id?: string
+          quantity?: number | null
+          tenant_id?: string
+          unit?: string | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_consumables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_signature_url: string | null
+          category: string | null
+          created_at: string | null
+          id: string
+          machine_id: string | null
+          notes: string | null
+          order_number: string | null
+          priority: string | null
+          project_id: string | null
+          received_at: string | null
+          rejection_reason: string | null
+          requested_by: string | null
+          status: string
+          supplier_id: string | null
+          tenant_id: string
+          title: string
+          total_approved: number | null
+          total_estimated: number | null
+          updated_at: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_signature_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          machine_id?: string | null
+          notes?: string | null
+          order_number?: string | null
+          priority?: string | null
+          project_id?: string | null
+          received_at?: string | null
+          rejection_reason?: string | null
+          requested_by?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id: string
+          title: string
+          total_approved?: number | null
+          total_estimated?: number | null
+          updated_at?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_signature_url?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          machine_id?: string | null
+          notes?: string | null
+          order_number?: string | null
+          priority?: string | null
+          project_id?: string | null
+          received_at?: string | null
+          rejection_reason?: string | null
+          requested_by?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id?: string
+          title?: string
+          total_approved?: number | null
+          total_estimated?: number | null
+          updated_at?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sam_conversations: {
         Row: {
           created_at: string | null
@@ -1621,6 +1879,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           id: string
+          legal_representative: string | null
           name: string
           notes: string | null
           rating: number | null
@@ -1638,6 +1897,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           id?: string
+          legal_representative?: string | null
           name: string
           notes?: string | null
           rating?: number | null
@@ -1655,6 +1915,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           id?: string
+          legal_representative?: string | null
           name?: string
           notes?: string | null
           rating?: number | null
@@ -1730,6 +1991,47 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_templates: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          description: string | null
+          estimated_minutes: number | null
+          id: string
+          name: string
+          ot_type: string | null
+          tenant_id: string
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          name: string
+          ot_type?: string | null
+          tenant_id: string
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          description?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          name?: string
+          ot_type?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1833,6 +2135,58 @@ export type Database = {
           },
         ]
       }
+      work_order_notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          phase: string
+          tenant_id: string
+          work_order_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          phase: string
+          tenant_id: string
+          work_order_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          phase?: string
+          tenant_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_notes_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_order_parts: {
         Row: {
           consumable_id: string | null
@@ -1887,6 +2241,8 @@ export type Database = {
       }
       work_order_photos: {
         Row: {
+          caption: string | null
+          compressed: boolean | null
           id: string
           photo_type: string | null
           photo_url: string
@@ -1895,6 +2251,8 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
+          caption?: string | null
+          compressed?: boolean | null
           id?: string
           photo_type?: string | null
           photo_url: string
@@ -1903,6 +2261,8 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
+          caption?: string | null
+          compressed?: boolean | null
           id?: string
           photo_type?: string | null
           photo_url?: string
@@ -1920,6 +2280,77 @@ export type Database = {
           },
           {
             foreignKeyName: "work_order_photos_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_order_tasks: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_completed: boolean | null
+          name: string
+          sort_order: number | null
+          template_id: string | null
+          tenant_id: string
+          work_order_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          name: string
+          sort_order?: number | null
+          template_id?: string | null
+          tenant_id: string
+          work_order_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          name?: string
+          sort_order?: number | null
+          template_id?: string | null
+          tenant_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_tasks_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
@@ -2046,15 +2477,20 @@ export type Database = {
           actual_hours: number | null
           closed_at: string | null
           code: string
+          completion_percentage: number | null
           created_at: string | null
           created_by: string | null
           estimated_hours: number | null
           external_cost: number | null
+          horometer_end: number | null
+          horometer_photo_url: string | null
+          horometer_start: number | null
           id: string
           labor_cost: number | null
           location_type: Database["public"]["Enums"]["ot_location"]
           machine_id: string | null
           parts_cost: number | null
+          pause_history: Json | null
           priority: string | null
           problem_description: string | null
           problem_tags: string[] | null
@@ -2075,15 +2511,20 @@ export type Database = {
           actual_hours?: number | null
           closed_at?: string | null
           code: string
+          completion_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
           estimated_hours?: number | null
           external_cost?: number | null
+          horometer_end?: number | null
+          horometer_photo_url?: string | null
+          horometer_start?: number | null
           id?: string
           labor_cost?: number | null
           location_type: Database["public"]["Enums"]["ot_location"]
           machine_id?: string | null
           parts_cost?: number | null
+          pause_history?: Json | null
           priority?: string | null
           problem_description?: string | null
           problem_tags?: string[] | null
@@ -2104,15 +2545,20 @@ export type Database = {
           actual_hours?: number | null
           closed_at?: string | null
           code?: string
+          completion_percentage?: number | null
           created_at?: string | null
           created_by?: string | null
           estimated_hours?: number | null
           external_cost?: number | null
+          horometer_end?: number | null
+          horometer_photo_url?: string | null
+          horometer_start?: number | null
           id?: string
           labor_cost?: number | null
           location_type?: Database["public"]["Enums"]["ot_location"]
           machine_id?: string | null
           parts_cost?: number | null
+          pause_history?: Json | null
           priority?: string | null
           problem_description?: string | null
           problem_tags?: string[] | null

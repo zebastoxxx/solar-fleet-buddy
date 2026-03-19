@@ -8,16 +8,18 @@ import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { LogOut, ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock } from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { SearchInput } from '@/components/ui/search-input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
 
@@ -26,6 +28,7 @@ const TYPE_STYLES: Record<string, string> = {
   preventivo: 'bg-[#DBEAFE] text-[#1D4ED8]', correctivo: 'bg-[#FDDEDE] text-[#C0392B]',
   inspeccion: 'bg-[#D1FAE5] text-[#065F46]', preparacion: 'bg-[#FEF3C7] text-[#D97706]',
 };
+const PHASE_LABELS: Record<string, string> = { antes: 'Antes', durante: 'Durante', despues: 'Después' };
 
 function formatCost(n: number) {
   if (!n) return '$0';
@@ -82,7 +85,6 @@ function MisOTList() {
   const pending = sorted.filter((ot: any) => ['asignada', 'creada'].includes(ot.status));
   const active = sorted.filter((ot: any) => ['en_curso', 'pausada'].includes(ot.status));
 
-  // History
   const { data: history = [] } = useQuery({
     queryKey: ['my-ot-history', personnelId],
     queryFn: async () => {
@@ -99,7 +101,6 @@ function MisOTList() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div>
           <h1 className="font-barlow text-[hsl(var(--gold-bright))] text-lg font-semibold uppercase">Mis Órdenes</h1>
@@ -109,7 +110,6 @@ function MisOTList() {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Active OT card */}
         {timerStore.status !== 'idle' && timerStore.activeOTId && (
           <div className="p-4 rounded-xl border-2 border-[hsl(var(--gold))] bg-gradient-to-br from-[hsl(var(--gold)/0.05)] to-[hsl(var(--gold)/0.15)]">
             <p className="font-barlow text-xs uppercase text-muted-foreground mb-1">OT en curso</p>
@@ -129,12 +129,10 @@ function MisOTList() {
           <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
         ) : (
           <>
-            {/* Active/Paused */}
             {active.map((ot: any) => timerStore.activeOTId !== ot.id && (
               <OTCard key={ot.id} ot={ot} onClick={() => navigate(`/mis-ot/${ot.id}`)} />
             ))}
 
-            {/* Pending */}
             {pending.length > 0 && (
               <>
                 <p className="font-barlow text-xs uppercase text-muted-foreground pt-2">Pendientes ({pending.length})</p>
@@ -150,7 +148,6 @@ function MisOTList() {
               </div>
             )}
 
-            {/* History */}
             {history.length > 0 && (
               <>
                 <p className="font-barlow text-xs uppercase text-muted-foreground pt-4">Historial</p>
@@ -216,13 +213,28 @@ function OTActiveView({ otId }: { otId: string }) {
   const [pauseReason, setPauseReason] = useState('');
   const [customPause, setCustomPause] = useState('');
   const [photoTab, setPhotoTab] = useState<'antes' | 'durante' | 'despues'>('antes');
-  const [notes, setNotes] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<any>(null);
   const [partsSheetOpen, setPartsSheetOpen] = useState(false);
   const [partsSearch, setPartsSearch] = useState('');
   const [selectedConsumable, setSelectedConsumable] = useState<any>(null);
   const [partQty, setPartQty] = useState('1');
+
+  // Horometer state (for pre-start)
+  const [horometerStart, setHorometerStart] = useState('');
+  const [attachHorometerPhoto, setAttachHorometerPhoto] = useState(false);
+  const [horometerPhotoFile, setHorometerPhotoFile] = useState<File | null>(null);
+
+  // Brief collapsible (persisted per OT)
+  const briefKey = `brief-open-${otId}`;
+  const [briefOpen, setBriefOpen] = useState(() => {
+    const saved = localStorage.getItem(briefKey);
+    return saved !== null ? saved === 'true' : true;
+  });
+  useEffect(() => { localStorage.setItem(briefKey, String(briefOpen)); }, [briefOpen, briefKey]);
+
+  // Phase notes
+  const [noteText, setNoteText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   // Get personnel id
   const { data: personnelId } = useQuery({
@@ -268,6 +280,20 @@ function OTActiveView({ otId }: { otId: string }) {
     enabled: !!otId,
   });
 
+  // Phase notes query
+  const { data: phaseNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ['ot-phase-notes', otId, photoTab],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_notes')
+        .select('*')
+        .eq('work_order_id', otId)
+        .eq('phase', photoTab)
+        .order('created_at', { ascending: true });
+      return data || [];
+    },
+    enabled: !!otId,
+  });
+
   // Consumables search
   const { data: consumables = [] } = useQuery({
     queryKey: ['consumables-search', partsSearch, user?.tenant_id],
@@ -280,18 +306,40 @@ function OTActiveView({ otId }: { otId: string }) {
     enabled: partsSheetOpen && !!user?.tenant_id,
   });
 
-  useEffect(() => {
-    if (ot?.technician_notes) setNotes(ot.technician_notes);
-  }, [ot?.technician_notes]);
-
   if (isLoading || !ot) return <div className="p-6"><Skeleton className="h-40 w-full rounded-xl" /></div>;
+
+  const isPreStart = ['asignada', 'creada'].includes(ot.status);
 
   const handleStart = async () => {
     if (timerStore.status !== 'idle' && timerStore.activeOTId !== otId) {
       toast.error('Ya tienes una OT en curso');
       return;
     }
-    await supabase.from('work_orders').update({ status: 'en_curso' as any, started_at: new Date().toISOString() }).eq('id', otId);
+    if (!horometerStart || isNaN(parseFloat(horometerStart))) {
+      toast.error('Ingresa el horómetro actual de la máquina');
+      return;
+    }
+
+    const updates: any = {
+      status: 'en_curso' as any,
+      started_at: new Date().toISOString(),
+      horometer_start: parseFloat(horometerStart),
+    };
+
+    // Upload horometer photo if provided
+    if (attachHorometerPhoto && horometerPhotoFile) {
+      try {
+        const compressed = await compressImage(horometerPhotoFile);
+        const path = `${user!.tenant_id}/${otId}/horometer/${Date.now()}.jpg`;
+        const { error: upErr } = await supabase.storage.from('ot-photos').upload(path, compressed);
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from('ot-photos').getPublicUrl(path);
+          updates.horometer_photo_url = urlData.publicUrl;
+        }
+      } catch {}
+    }
+
+    await supabase.from('work_orders').update(updates).eq('id', otId);
     await supabase.from('work_order_timers').insert([{ work_order_id: otId, personnel_id: personnelId?.id, event_type: 'inicio' }]);
     timerStore.startTimer(otId, ot.code, ot.machines?.name || '');
     await log('ordenes-trabajo', 'iniciar_ot', 'work_order', otId, ot.code);
@@ -348,17 +396,14 @@ function OTActiveView({ otId }: { otId: string }) {
         work_order_id: otId, consumable_id: selectedConsumable.id,
         quantity: qty, unit_cost: selectedConsumable.unit_cost || 0, registered_by: user!.id,
       }]);
-      // Decrease stock
       const newStock = (selectedConsumable.stock_current || 0) - qty;
       await supabase.from('inventory_consumables').update({ stock_current: Math.max(0, newStock) }).eq('id', selectedConsumable.id);
-      // Check minimum
       if (newStock <= (selectedConsumable.stock_minimum || 0)) {
         await supabase.from('alerts').insert([{
           tenant_id: user!.tenant_id, type: 'stock_minimo', severity: 'warning',
           message: `Stock mínimo alcanzado: ${selectedConsumable.name}`,
         }]);
       }
-      // Update parts cost
       const totalPartsCost = usedParts.reduce((s: number, p: any) => s + (p.quantity * (p.unit_cost || 0)), 0) + (qty * (selectedConsumable.unit_cost || 0));
       await supabase.from('work_orders').update({ parts_cost: totalPartsCost }).eq('id', otId);
 
@@ -368,7 +413,26 @@ function OTActiveView({ otId }: { otId: string }) {
     } catch (err: any) { toast.error(err.message); }
   };
 
-  // Speech recognition
+  // Save phase note
+  const handleSaveNote = async () => {
+    if (!noteText.trim()) return;
+    try {
+      await supabase.from('work_order_notes').insert([{
+        work_order_id: otId,
+        phase: photoTab,
+        content: noteText.trim(),
+        created_by: user!.id,
+        tenant_id: user!.tenant_id,
+      }]);
+      setNoteText('');
+      refetchNotes();
+      toast.success('Nota guardada');
+    } catch (err: any) {
+      toast.error('Error al guardar nota');
+    }
+  };
+
+  // Speech recognition for notes
   const toggleSpeech = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
@@ -385,7 +449,7 @@ function OTActiveView({ otId }: { otId: string }) {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         transcript += e.results[i][0].transcript;
       }
-      setNotes(prev => prev + ' ' + transcript);
+      setNoteText(prev => prev + ' ' + transcript);
     };
     recognition.onend = () => setIsRecording(false);
     recognition.start();
@@ -409,12 +473,86 @@ function OTActiveView({ otId }: { otId: string }) {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Machine info */}
+        {/* ─── 1. BRIEF DEL SUPERVISOR ─── */}
+        <Collapsible open={briefOpen} onOpenChange={setBriefOpen}>
+          <div className="rounded-xl border border-[hsl(var(--gold)/0.4)] bg-[hsl(var(--gold)/0.05)] p-4">
+            <CollapsibleTrigger className="flex items-center justify-between w-full">
+              <span className="font-barlow text-sm uppercase text-[hsl(var(--gold-bright))] font-semibold">📋 Briefing del supervisor</span>
+              {briefOpen ? <ChevronUp className="h-4 w-4 text-[hsl(var(--gold-bright))]" /> : <ChevronDown className="h-4 w-4 text-[hsl(var(--gold-bright))]" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-2">
+              {/* Machine + project */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-dm font-semibold">{ot.machines?.name || '—'}</span>
+                <span className="text-xs text-muted-foreground font-dm">[{ot.machines?.internal_code || ''}]</span>
+                {ot.projects?.name && (
+                  <span className="text-xs text-[hsl(var(--gold-bright))] font-dm">· {ot.projects.name}</span>
+                )}
+              </div>
+              {/* Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={cn('inline-flex items-center rounded-[20px] px-2 py-0.5 text-[10px] font-semibold font-dm', TYPE_STYLES[ot.type] || 'bg-muted text-muted-foreground')}>
+                  {TYPE_LABELS[ot.type] || ot.type}
+                </span>
+                <StatusBadge status={ot.priority || 'normal'} />
+                {ot.estimated_hours && (
+                  <span className="text-xs text-muted-foreground font-dm">~{ot.estimated_hours}h estimadas</span>
+                )}
+              </div>
+              {/* Problem description */}
+              {ot.problem_description && (
+                <p className="text-sm font-dm text-foreground/80 whitespace-pre-wrap">{ot.problem_description}</p>
+              )}
+              {/* Supervisor notes */}
+              {ot.supervisor_notes && (
+                <div className="mt-2 p-2 rounded-lg bg-[hsl(var(--gold)/0.08)] border border-[hsl(var(--gold)/0.2)]">
+                  <p className="text-[11px] font-barlow uppercase text-[hsl(var(--gold-bright))] mb-1">Notas del supervisor</p>
+                  <p className="text-sm font-dm text-foreground/80 whitespace-pre-wrap">{ot.supervisor_notes}</p>
+                </div>
+              )}
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+
+        {/* Machine info (compact) */}
         <div className="text-center">
           <p className="font-barlow text-2xl font-semibold">{ot.machines?.name || '—'}</p>
           <p className="text-sm text-muted-foreground font-dm">{ot.machines?.internal_code}</p>
-          {ot.projects?.name && <p className="text-xs text-[hsl(var(--gold-bright))] font-dm mt-1">{ot.projects.name}</p>}
         </div>
+
+        {/* ─── 3. HORÓMETRO PRE-START ─── */}
+        {isPreStart && (
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <Label className="font-barlow uppercase text-xs block">Horómetro actual de la máquina *</Label>
+            <Input
+              type="number"
+              step="0.1"
+              placeholder="Ej: 2450.5"
+              value={horometerStart}
+              onChange={(e) => setHorometerStart(e.target.value)}
+              className="h-11 text-lg font-barlow"
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="attach-horo-photo"
+                checked={attachHorometerPhoto}
+                onCheckedChange={(c) => setAttachHorometerPhoto(!!c)}
+              />
+              <Label htmlFor="attach-horo-photo" className="text-xs font-dm cursor-pointer">
+                Adjuntar foto del horómetro
+              </Label>
+            </div>
+            {attachHorometerPhoto && (
+              <Input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => setHorometerPhotoFile(e.target.files?.[0] || null)}
+                className="text-xs"
+              />
+            )}
+          </div>
+        )}
 
         {/* Chrono */}
         {timerStore.activeOTId === otId && (
@@ -437,7 +575,7 @@ function OTActiveView({ otId }: { otId: string }) {
               <button key={tab} onClick={() => setPhotoTab(tab)}
                 className={cn('flex-1 py-1.5 rounded-lg text-xs font-dm font-semibold capitalize',
                   photoTab === tab ? 'bg-[hsl(var(--gold)/0.1)] text-[hsl(var(--gold-bright))] border border-[hsl(var(--gold))]' : 'bg-muted text-muted-foreground')}>
-                {tab === 'despues' ? 'Después' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {PHASE_LABELS[tab]}
               </button>
             ))}
           </div>
@@ -482,24 +620,56 @@ function OTActiveView({ otId }: { otId: string }) {
           )}
         </div>
 
-        {/* Notes */}
+        {/* ─── 2. PHASE NOTES ─── */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-barlow text-xs uppercase text-muted-foreground">Notas técnicas</p>
-            {hasSpeech && (
-              <Button variant={isRecording ? 'destructive' : 'ghost'} size="sm" className="h-7 text-xs" onClick={toggleSpeech}>
-                {isRecording ? <><MicOff className="h-3.5 w-3.5 mr-1" />Grabando...</> : <><Mic className="h-3.5 w-3.5 mr-1" />Dictar</>}
+          <p className="font-barlow text-xs uppercase text-muted-foreground mb-2">
+            Notas técnicas — {PHASE_LABELS[photoTab]}
+          </p>
+
+          {/* Notes history */}
+          {phaseNotes.length > 0 && (
+            <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+              {phaseNotes.map((note: any) => (
+                <div key={note.id} className="p-2.5 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-[10px] text-muted-foreground font-dm mb-0.5">
+                    {format(new Date(note.created_at), 'dd/MM HH:mm', { locale: es })}
+                  </p>
+                  <p className="text-sm font-dm whitespace-pre-wrap">{note.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* New note input */}
+          <div className="space-y-2">
+            <Textarea
+              placeholder={`Agregar observación para etapa ${PHASE_LABELS[photoTab]}...`}
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={3}
+            />
+            <div className="flex items-center gap-2">
+              {hasSpeech && (
+                <Button variant={isRecording ? 'destructive' : 'ghost'} size="sm" className="h-8 text-xs" onClick={toggleSpeech}>
+                  {isRecording ? <><MicOff className="h-3.5 w-3.5 mr-1" />Grabando...</> : <><Mic className="h-3.5 w-3.5 mr-1" />Dictar</>}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                className="h-8 text-xs ml-auto bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow"
+                disabled={!noteText.trim()}
+                onClick={handleSaveNote}
+              >
+                <Send className="h-3.5 w-3.5 mr-1" /> Guardar nota
               </Button>
-            )}
+            </div>
           </div>
-          <Textarea placeholder="Describe lo que encontraste y lo que hiciste..." value={notes}
-            onChange={(e) => setNotes(e.target.value)} rows={3} />
         </div>
       </div>
 
       {/* Sticky bottom actions */}
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex gap-3 z-40">
-        {ot.status === 'asignada' && (
+        {isPreStart && (
           <Button className="flex-1 h-[52px] bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase" onClick={handleStart}>
             <Play className="h-5 w-5 mr-2" /> Iniciar OT
           </Button>
@@ -562,7 +732,7 @@ function OTActiveView({ otId }: { otId: string }) {
 
       {/* Close OT Sheet */}
       <CloseOTSheet open={closeOpen} onClose={() => setCloseOpen(false)} ot={ot} otId={otId}
-        notes={notes} personnelId={personnelId?.id || ''} hourlyRate={personnelId?.hourly_rate || 0}
+        personnelId={personnelId?.id || ''} hourlyRate={personnelId?.hourly_rate || 0}
         usedParts={usedParts} />
 
       {/* Parts Sheet */}
@@ -605,9 +775,9 @@ function OTActiveView({ otId }: { otId: string }) {
 }
 
 // ─── CLOSE OT SHEET ───
-function CloseOTSheet({ open, onClose, ot, otId, notes, personnelId, hourlyRate, usedParts }: {
+function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedParts }: {
   open: boolean; onClose: () => void; ot: any; otId: string;
-  notes: string; personnelId: string; hourlyRate: number; usedParts: any[];
+  personnelId: string; hourlyRate: number; usedParts: any[];
 }) {
   const { user } = useAuthStore();
   const { log } = useLog();
@@ -615,11 +785,34 @@ function CloseOTSheet({ open, onClose, ot, otId, notes, personnelId, hourlyRate,
   const navigate = useNavigate();
   const timerStore = useOTTimerStore();
   const chrono = useChrono();
-  const [finalNotes, setFinalNotes] = useState(notes);
+  const [finalNotes, setFinalNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasSig, setHasSig] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+
+  // Load all notes to concatenate for technician_notes
+  const { data: allNotes = [] } = useQuery({
+    queryKey: ['ot-all-notes', otId],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_notes')
+        .select('*')
+        .eq('work_order_id', otId)
+        .order('created_at', { ascending: true });
+      return data || [];
+    },
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (allNotes.length > 0 && !finalNotes) {
+      const summary = allNotes
+        .map((n: any) => `[${PHASE_LABELS[n.phase] || n.phase}] ${n.content}`)
+        .join('\n');
+      setFinalNotes(summary);
+    }
+  }, [allNotes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -628,7 +821,7 @@ function CloseOTSheet({ open, onClose, ot, otId, notes, personnelId, hourlyRate,
       canvas.width = canvas.offsetWidth;
       canvas.height = 180;
       const ctx = canvas.getContext('2d');
-      if (ctx) { ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; }
+      if (ctx) { ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0; }
     }, 100);
   }, [open]);
 
@@ -636,16 +829,27 @@ function CloseOTSheet({ open, onClose, ot, otId, notes, personnelId, hourlyRate,
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
     isDrawing.current = true;
-    ctx.beginPath(); ctx.moveTo(x, y);
+    lastPoint.current = { x, y };
+    ctx.beginPath();
+    ctx.moveTo(x, y);
   };
   const draw = (x: number, y: number) => {
     if (!isDrawing.current) return;
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-    ctx.lineTo(x, y); ctx.stroke();
+    const prev = lastPoint.current;
+    if (prev) {
+      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
+      if (dx < 2 && dy < 2) return;
+      ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    lastPoint.current = { x, y };
     setHasSig(true);
   };
-  const endDraw = () => { isDrawing.current = false; };
+  const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
   const getPos = (e: React.TouchEvent | React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
