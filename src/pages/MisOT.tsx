@@ -517,7 +517,14 @@ function OTActiveView({ otId }: { otId: string }) {
         <button onClick={() => navigate('/mis-ot')} className="flex items-center gap-1 text-sm text-muted-foreground font-dm">
           <ChevronLeft className="h-4 w-4" /> Mis OT
         </button>
-        <span className="font-barlow font-semibold text-[hsl(var(--gold-bright))]">{ot.code}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-barlow font-semibold text-[hsl(var(--gold-bright))]">{ot.code}</span>
+          {tasks.length > 0 && (
+            <span className={cn('inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold font-barlow min-w-[28px]', pctColor)}>
+              {taskPct}%
+            </span>
+          )}
+        </div>
         {ot.priority === 'critica' && <Badge className="bg-[#FDDEDE] text-[#C0392B] text-[10px]">🚨 Crítica</Badge>}
         {ot.priority === 'urgente' && <Badge className="bg-[#FFEDD5] text-[#EA580C] text-[10px]">⚡ Urgente</Badge>}
       </div>
