@@ -916,14 +916,33 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !open) return;
-    setTimeout(() => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = 180;
+    const setupCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 180 * dpr;
+      canvas.style.height = '180px';
       const ctx = canvas.getContext('2d');
-      if (ctx) { ctx.strokeStyle = '#1A1A1A'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0; }
-    }, 100);
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    };
+    setTimeout(setupCanvas, 150);
   }, [open]);
 
+  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
   const startDraw = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
@@ -938,8 +957,6 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
-      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
@@ -949,15 +966,15 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     setHasSig(true);
   };
   const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    if ('touches' in e) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
   const clearSig = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && canvasRef.current) { ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); setHasSig(false); }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      setHasSig(false);
+    }
   };
 
   const elapsedMs = timerStore.getElapsedMs();
