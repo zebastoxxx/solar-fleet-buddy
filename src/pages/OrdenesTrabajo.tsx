@@ -746,7 +746,7 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasSig, setHasSig] = useState(false);
   const isDrawing = useRef(false);
-
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
   // Fetch parts
   const { data: parts = [] } = useQuery({
     queryKey: ['ot-parts', ot.id],
