@@ -797,14 +797,16 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
     canvas.width = canvas.offsetWidth;
     canvas.height = 160;
     ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
+    ctx.shadowBlur = 0;
   }, [ot.status]);
 
   const startDraw = (x: number, y: number) => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
     isDrawing.current = true;
+    lastPoint.current = { x, y };
     ctx.beginPath();
     ctx.moveTo(x, y);
   };
@@ -812,10 +814,19 @@ function DetailOTModal({ ot, onClose, tenantId, userId }: { ot: any; onClose: ()
     if (!isDrawing.current) return;
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-    ctx.lineTo(x, y); ctx.stroke();
+    const prev = lastPoint.current;
+    if (prev) {
+      const dx = Math.abs(x - prev.x), dy = Math.abs(y - prev.y);
+      if (dx < 2 && dy < 2) return;
+      ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    lastPoint.current = { x, y };
     setHasSig(true);
   };
-  const endDraw = () => { isDrawing.current = false; };
+  const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
   const getPos = (e: React.TouchEvent | React.MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };

@@ -614,6 +614,7 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
     setHasSignature(true);
     const ctx = canvasRef.current!.getContext('2d')!;
     const pos = getPos(e);
+    lastPoint.current = { x: pos.x, y: pos.y };
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
   };
@@ -624,13 +625,22 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
     const ctx = canvasRef.current!.getContext('2d')!;
     const pos = getPos(e);
     ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
+    ctx.shadowBlur = 0;
+    const prev = lastPoint.current;
+    if (prev) {
+      const dx = Math.abs(pos.x - prev.x), dy = Math.abs(pos.y - prev.y);
+      if (dx < 2 && dy < 2) return;
+      ctx.quadraticCurveTo(prev.x, prev.y, (pos.x + prev.x) / 2, (pos.y + prev.y) / 2);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    lastPoint.current = { x: pos.x, y: pos.y };
   };
 
-  const stopDraw = () => { isDrawing.current = false; };
+  const stopDraw = () => { isDrawing.current = false; lastPoint.current = null; };
 
   const clearSignature = () => {
     const canvas = canvasRef.current!;
