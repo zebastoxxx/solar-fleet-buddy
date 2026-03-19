@@ -295,6 +295,17 @@ function OTActiveView({ otId }: { otId: string }) {
     enabled: !!otId,
   });
 
+  // Tasks query
+  const { data: tasks = [], refetch: refetchTasks } = useQuery({
+    queryKey: ['ot-tasks', otId],
+    queryFn: async () => {
+      const { data } = await supabase.from('work_order_tasks')
+        .select('*').eq('work_order_id', otId).order('sort_order');
+      return data || [];
+    },
+    enabled: !!otId,
+  });
+
   // Consumables search
   const { data: consumables = [] } = useQuery({
     queryKey: ['consumables-search', partsSearch, user?.tenant_id],
