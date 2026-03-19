@@ -674,19 +674,25 @@ function OTActiveView({ otId }: { otId: string }) {
           </div>
           <div className="grid grid-cols-3 gap-2">
             {filteredPhotos.map((p: any) => (
-              <div key={p.id} className="aspect-square rounded-lg overflow-hidden border border-border">
+              <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
                 <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => handleDeletePhoto(p)}
+                  className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))}
             <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
               <Camera className="h-5 w-5 text-muted-foreground mb-1" />
               <span className="text-[10px] text-muted-foreground font-dm">Cámara</span>
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePhotoUpload} />
             </label>
             <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
               <ImageIcon className="h-5 w-5 text-muted-foreground mb-1" />
               <span className="text-[10px] text-muted-foreground font-dm">Galería</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
             </label>
           </div>
         </div>
