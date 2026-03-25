@@ -1056,9 +1056,10 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
       if (ctx) {
         ctx.scale(dpr, dpr);
         ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.shadowBlur = 0;
       }
     };
     setTimeout(setupCanvas, 150);
