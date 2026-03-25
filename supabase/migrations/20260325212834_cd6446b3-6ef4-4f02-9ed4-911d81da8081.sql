@@ -1,0 +1,1 @@
+UPDATE public.personnel SET user_id = '01e9e2cb-78ba-43c7-bbb3-52bb40dd0de1' WHERE id = '98768a94-0e48-45b4-9011-3a724f8ebe57' AND user_id IS NULL;
