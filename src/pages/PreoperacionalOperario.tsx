@@ -611,7 +611,6 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
 
   const startDraw = (e: any) => {
     isDrawing.current = true;
-    setHasSignature(true);
     const ctx = canvasRef.current!.getContext('2d')!;
     const pos = getPos(e);
     lastPoint.current = { x: pos.x, y: pos.y };
@@ -624,10 +623,6 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
     e.preventDefault();
     const ctx = canvasRef.current!.getContext('2d')!;
     const pos = getPos(e);
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.shadowBlur = 0;
     const prev = lastPoint.current;
     if (prev) {
       const dx = Math.abs(pos.x - prev.x), dy = Math.abs(pos.y - prev.y);
@@ -638,6 +633,7 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
     lastPoint.current = { x: pos.x, y: pos.y };
+    setHasSignature(true);
   };
 
   const stopDraw = () => { isDrawing.current = false; lastPoint.current = null; };
@@ -651,8 +647,20 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = 200;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = (rect.width || canvas.offsetWidth) * dpr;
+      canvas.height = 200 * dpr;
+      canvas.style.height = '200px';
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowBlur = 0;
+      }
     }
   }, []);
 

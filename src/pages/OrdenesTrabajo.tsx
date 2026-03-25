@@ -1056,9 +1056,10 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
       if (ctx) {
         ctx.scale(dpr, dpr);
         ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.shadowBlur = 0;
       }
     };
     setTimeout(setupCanvas, 150);
@@ -1087,6 +1088,9 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
+      const dx = Math.abs(x - prev.x);
+      const dy = Math.abs(y - prev.y);
+      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
