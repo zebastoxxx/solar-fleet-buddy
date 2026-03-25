@@ -736,9 +736,12 @@ function FormatoB({ user, onBack }: { user: any; onBack: () => void }) {
   const { data: personnel } = useQuery({
     queryKey: ['personnel-by-user', user.id],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('id, full_name').eq('user_id', user.id).eq('tenant_id', user.tenant_id).single();
+      const { data, error } = await supabase.from('personnel').select('id, full_name').eq('user_id', user.id).eq('tenant_id', user.tenant_id).maybeSingle();
+      if (error) throw error;
       return data;
     },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const todayStart = new Date();
