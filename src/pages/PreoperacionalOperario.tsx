@@ -61,17 +61,25 @@ export default function PreoperacionalOperario() {
 // ─── HOME SCREEN ───
 function HomeScreen({ user, signOut, onNavigate }: { user: any; signOut: () => void; onNavigate: (s: FormScreen) => void }) {
   // Get personnel id for this user
-  const { data: personnel } = useQuery({
+  const { data: personnel, error: personnelError } = useQuery({
     queryKey: ['personnel-by-user', user.id],
     queryFn: async () => {
-      const { data } = await supabase
+      console.log('[PreopOperario] Querying personnel for user:', user.id);
+      const { data, error } = await supabase
         .from('personnel')
         .select('id')
         .eq('user_id', user.id)
         .eq('tenant_id', user.tenant_id)
-        .single();
+        .maybeSingle();
+      if (error) {
+        console.error('[PreopOperario] Personnel query error:', error);
+        throw error;
+      }
+      console.log('[PreopOperario] Personnel result:', data);
       return data;
     },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const operatorId = personnel?.id;
@@ -211,9 +219,12 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   const { data: personnel } = useQuery({
     queryKey: ['personnel-by-user', user.id],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('id').eq('user_id', user.id).eq('tenant_id', user.tenant_id).single();
+      const { data, error } = await supabase.from('personnel').select('id').eq('user_id', user.id).eq('tenant_id', user.tenant_id).maybeSingle();
+      if (error) throw error;
       return data;
     },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const { data: projects } = useQuery({
@@ -725,9 +736,12 @@ function FormatoB({ user, onBack }: { user: any; onBack: () => void }) {
   const { data: personnel } = useQuery({
     queryKey: ['personnel-by-user', user.id],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('id, full_name').eq('user_id', user.id).eq('tenant_id', user.tenant_id).single();
+      const { data, error } = await supabase.from('personnel').select('id, full_name').eq('user_id', user.id).eq('tenant_id', user.tenant_id).maybeSingle();
+      if (error) throw error;
       return data;
     },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const todayStart = new Date();

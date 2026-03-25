@@ -49,33 +49,53 @@ function MisOTList() {
   const timerStore = useOTTimerStore();
   const chrono = useChrono();
 
-  const { data: personnelId, isLoading: isLoadingPersonnel } = useQuery({
+  const { data: personnelId, isLoading: isLoadingPersonnel, error: personnelError } = useQuery({
     queryKey: ['my-personnel-id', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('id').eq('user_id', user!.id).single();
+      console.log('[MisOT] Querying personnel for user:', user!.id);
+      const { data, error } = await supabase.from('personnel').select('id').eq('user_id', user!.id).maybeSingle();
+      if (error) {
+        console.error('[MisOT] Personnel query error:', error);
+        throw error;
+      }
+      console.log('[MisOT] Personnel result:', data);
       return data?.id || null;
     },
     enabled: !!user?.id,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const { data: workOrders = [], isLoading } = useQuery({
     queryKey: ['my-work-orders', personnelId],
     queryFn: async () => {
-      const { data } = await supabase
+      console.log('[MisOT] Querying work orders for personnel:', personnelId);
+      const { data, error: techErr } = await supabase
         .from('work_order_technicians')
         .select('work_order_id')
         .eq('personnel_id', personnelId!);
+      if (techErr) {
+        console.error('[MisOT] Technician assignments query error:', techErr);
+        throw techErr;
+      }
       if (!data || data.length === 0) return [];
       const ids = data.map((d: any) => d.work_order_id);
-      const { data: ots } = await supabase
+      const { data: ots, error: otsErr } = await supabase
         .from('work_orders')
         .select(`*, machines!work_orders_machine_id_fkey(name, internal_code, type), projects!work_orders_project_id_fkey(name)`)
         .in('id', ids)
         .not('status', 'eq', 'firmada')
         .order('created_at', { ascending: false });
+      if (otsErr) {
+        console.error('[MisOT] Work orders query error:', otsErr);
+        throw otsErr;
+      }
+      console.log('[MisOT] Work orders found:', ots?.length);
       return ots || [];
     },
     enabled: !!personnelId,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const sorted = [...workOrders].sort((a: any, b: any) => {
@@ -111,12 +131,25 @@ function MisOTList() {
           <button onClick={() => signOut()} className="text-muted-foreground hover:text-foreground"><LogOut className="h-5 w-5" /></button>
         </div>
         <div className="p-6 text-center space-y-3 mt-12">
-          <p className="font-barlow text-base text-muted-foreground">
-            Tu perfil de técnico no está vinculado correctamente.
-          </p>
-          <p className="text-sm font-dm text-muted-foreground">
-            Contacta al administrador para que verifique tu registro en Personal.
-          </p>
+          {personnelError ? (
+            <>
+              <p className="font-barlow text-base text-destructive">
+                Error al cargar tu perfil de técnico
+              </p>
+              <p className="text-sm font-dm text-muted-foreground">
+                {(personnelError as any)?.message || 'Error de conexión. Intenta recargar la página.'}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-barlow text-base text-muted-foreground">
+                Tu perfil de técnico no está vinculado correctamente.
+              </p>
+              <p className="text-sm font-dm text-muted-foreground">
+                Contacta al administrador para que verifique tu registro en Personal.
+              </p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -263,10 +296,13 @@ function OTActiveView({ otId }: { otId: string }) {
   const { data: personnelId } = useQuery({
     queryKey: ['my-personnel-id', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('id, hourly_rate').eq('user_id', user!.id).single();
+      const { data, error } = await supabase.from('personnel').select('id, hourly_rate').eq('user_id', user!.id).maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   // Fetch OT
