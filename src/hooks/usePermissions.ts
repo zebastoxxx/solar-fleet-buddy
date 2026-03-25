@@ -15,7 +15,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   ot_own: ['tecnico'],
   inventario: ['superadmin', 'gerente', 'supervisor'],
   compras: ['superadmin', 'gerente', 'supervisor'],
-  configuracion: ['superadmin', 'gerente'],
+  configuracion: ['superadmin', 'gerente', 'supervisor'],
   logs: ['superadmin', 'gerente'],
   financiero: ['superadmin', 'gerente'],
 };

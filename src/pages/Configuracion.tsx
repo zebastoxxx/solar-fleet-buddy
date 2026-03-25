@@ -731,6 +731,9 @@ function LogsTab() {
 // ─── MAIN ───
 export default function Configuracion() {
   usePageTitle('Configuración');
+  const { user } = useAuthStore();
+  const isSupervisor = user?.role === 'supervisor';
+  const visibleTabs = isSupervisor ? TABS.filter(t => t.key === 'usuarios') : TABS;
   const [activeTab, setActiveTab] = useState('usuarios');
 
   return (
@@ -739,7 +742,7 @@ export default function Configuracion() {
       <div className="flex flex-col md:flex-row gap-4 md:gap-6">
         {/* Tabs - horizontal on mobile, vertical on desktop */}
         <nav className="flex md:flex-col md:w-[180px] md:shrink-0 gap-1 overflow-x-auto pb-1 md:pb-0">
-          {TABS.map(tab => {
+          {visibleTabs.map(tab => {
             const Icon = tab.icon;
             return (
               <button
@@ -762,10 +765,10 @@ export default function Configuracion() {
         {/* Content */}
         <div className="flex-1 min-w-0">
           {activeTab === 'usuarios' && <UsuariosTab />}
-          {activeTab === 'empresa' && <EmpresaTab />}
-          {activeTab === 'parametros' && <ParametrosTab />}
-          {activeTab === 'alertas' && <AlertasTab />}
-          {activeTab === 'logs' && <LogsTab />}
+          {activeTab === 'empresa' && !isSupervisor && <EmpresaTab />}
+          {activeTab === 'parametros' && !isSupervisor && <ParametrosTab />}
+          {activeTab === 'alertas' && !isSupervisor && <AlertasTab />}
+          {activeTab === 'logs' && !isSupervisor && <LogsTab />}
         </div>
       </div>
     </div>

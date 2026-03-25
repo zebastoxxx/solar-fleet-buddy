@@ -49,7 +49,7 @@ function MisOTList() {
   const timerStore = useOTTimerStore();
   const chrono = useChrono();
 
-  const { data: personnelId } = useQuery({
+  const { data: personnelId, isLoading: isLoadingPersonnel } = useQuery({
     queryKey: ['my-personnel-id', user?.id],
     queryFn: async () => {
       const { data } = await supabase.from('personnel').select('id').eq('user_id', user!.id).single();
@@ -100,8 +100,29 @@ function MisOTList() {
     enabled: !!personnelId,
   });
 
+  if (!personnelId && !isLoadingPersonnel) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <div>
+            <h1 className="font-barlow text-[hsl(var(--gold-bright))] text-lg font-semibold uppercase">Mis Órdenes</h1>
+            <p className="text-xs text-muted-foreground font-dm">{user?.full_name}</p>
+          </div>
+          <button onClick={() => signOut()} className="text-muted-foreground hover:text-foreground"><LogOut className="h-5 w-5" /></button>
+        </div>
+        <div className="p-6 text-center space-y-3 mt-12">
+          <p className="font-barlow text-base text-muted-foreground">
+            Tu perfil de técnico no está vinculado correctamente.
+          </p>
+          <p className="text-sm font-dm text-muted-foreground">
+            Contacta al administrador para que verifique tu registro en Personal.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div>
           <h1 className="font-barlow text-[hsl(var(--gold-bright))] text-lg font-semibold uppercase">Mis Órdenes</h1>
