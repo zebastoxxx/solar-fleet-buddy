@@ -123,6 +123,7 @@ function MisOTList() {
   }
 
   return (
+    <div className="min-h-screen bg-background">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div>
           <h1 className="font-barlow text-[hsl(var(--gold-bright))] text-lg font-semibold uppercase">Mis Órdenes</h1>
