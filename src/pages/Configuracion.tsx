@@ -321,7 +321,10 @@ function CreateUserModal({ open, onOpenChange, onSuccess }: { open: boolean; onO
             <Select value={role} onValueChange={v => setRole(v as UserRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(['superadmin', 'gerente', 'supervisor', 'tecnico', 'operario'] as const).map(r => (
+                {(currentUser?.role === 'supervisor'
+                  ? ['tecnico', 'operario'] as const
+                  : ['superadmin', 'gerente', 'supervisor', 'tecnico', 'operario'] as const
+                ).map(r => (
                   <SelectItem key={r} value={r}><div className="flex items-center gap-2"><RoleBadge role={r} /> {r}</div></SelectItem>
                 ))}
               </SelectContent>
