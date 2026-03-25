@@ -26,12 +26,18 @@ export function useOpenOTs() {
     queryKey: ['open-ots', tenantId],
     enabled: !!tenantId,
     staleTime: 30000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('work_orders')
         .select('id, priority, status')
         .eq('tenant_id', tenantId!)
         .in('status', ['creada', 'asignada', 'en_curso']);
+      if (error) {
+        console.error('[Dashboard] Open OTs error:', error);
+        throw error;
+      }
       const count = data?.length ?? 0;
       const hasCritical = data?.some((o) => o.priority === 'critica') ?? false;
       return { count, hasCritical };
@@ -89,13 +95,21 @@ export function useRecentOTs() {
     queryKey: ['recent-ots', tenantId],
     enabled: !!tenantId,
     staleTime: 30000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
     queryFn: async () => {
-      const { data } = await supabase
+      console.log('[Dashboard] Querying recent OTs for tenant:', tenantId);
+      const { data, error } = await supabase
         .from('work_orders')
         .select('id, code, status, priority, created_at, machines(name)')
         .eq('tenant_id', tenantId!)
         .order('created_at', { ascending: false })
         .limit(5);
+      if (error) {
+        console.error('[Dashboard] Recent OTs error:', error);
+        throw error;
+      }
+      console.log('[Dashboard] Recent OTs found:', data?.length);
       return data ?? [];
     },
   });
