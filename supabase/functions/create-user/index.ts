@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     const callerId = claims.claims.sub as string;
     const { data: callerProfile } = await supabaseAdmin.from('users').select('role, tenant_id').eq('id', callerId).single();
-    if (!callerProfile || !['superadmin', 'gerente'].includes(callerProfile.role)) {
+    if (!callerProfile || !['superadmin', 'gerente', 'supervisor'].includes(callerProfile.role)) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: corsHeaders });
     }
 

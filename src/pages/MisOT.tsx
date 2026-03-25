@@ -957,6 +957,9 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     if (!ctx) return;
     const prev = lastPoint.current;
     if (prev) {
+      const dx = Math.abs(x - prev.x);
+      const dy = Math.abs(y - prev.y);
+      if (dx < 2 && dy < 2) return;
       ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
       ctx.stroke();
     }
