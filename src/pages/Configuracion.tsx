@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText } from 'lucide-react';
+import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
@@ -30,6 +31,7 @@ const TABS = [
   { key: 'parametros', label: 'Parámetros', icon: SlidersHorizontal },
   { key: 'alertas', label: 'Alertas', icon: Bell },
   { key: 'logs', label: 'Logs del Sistema', icon: ScrollText },
+  { key: 'respaldos', label: 'Respaldos', icon: FolderArchive },
 ];
 
 function generatePassword() {
@@ -733,6 +735,130 @@ function LogsTab() {
 
 // ─── MAIN ───
 export default function Configuracion() {
+  return <ConfiguracionInner />;
+}
+
+// ─── RESPALDOS TAB ───
+function RespaldosTab() {
+  const { user } = useAuthStore();
+  const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState('');
+
+  const handleDownloadAll = async () => {
+    if (!user) return;
+    setDownloading(true);
+    setProgress('Consultando documentos...');
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // Fetch all document records in parallel
+      const [clientDocs, supplierDocs, machineDocs] = await Promise.all([
+        supabase.from('client_documents').select('*, clients(name)').eq('tenant_id', user.tenant_id),
+        supabase.from('supplier_documents').select('*, suppliers(name)').eq('tenant_id', user.tenant_id),
+        supabase.from('machine_documents').select('*, machines(name, internal_code)'),
+      ]);
+
+      type DocEntry = { url: string; folder: string; fileName: string };
+      const entries: DocEntry[] = [];
+
+      (clientDocs.data || []).forEach((d: any) => {
+        if (!d.file_url) return;
+        const clientName = (d.clients?.name || 'Sin_Cliente').replace(/[/\\]/g, '_');
+        entries.push({ url: d.file_url, folder: `Clientes/${clientName}`, fileName: d.file_name || d.name || 'documento' });
+      });
+
+      (supplierDocs.data || []).forEach((d: any) => {
+        if (!d.file_url) return;
+        const supplierName = (d.suppliers?.name || 'Sin_Proveedor').replace(/[/\\]/g, '_');
+        entries.push({ url: d.file_url, folder: `Proveedores/${supplierName}`, fileName: d.file_name || d.name || 'documento' });
+      });
+
+      (machineDocs.data || []).forEach((d: any) => {
+        if (!d.file_url) return;
+        const machineName = d.machines ? `[${d.machines.internal_code}] ${d.machines.name}` : 'Sin_Maquina';
+        entries.push({ url: d.file_url, folder: `Maquinas/${machineName.replace(/[/\\]/g, '_')}`, fileName: d.name || 'documento' });
+      });
+
+      if (entries.length === 0) {
+        toast.info('No hay documentos para descargar');
+        setDownloading(false);
+        setProgress('');
+        return;
+      }
+
+      setProgress(`Descargando 0/${entries.length} archivos...`);
+      let completed = 0;
+      const usedPaths = new Set<string>();
+
+      // Download files in batches of 5
+      for (let i = 0; i < entries.length; i += 5) {
+        const batch = entries.slice(i, i + 5);
+        await Promise.all(batch.map(async (entry) => {
+          try {
+            const res = await fetch(entry.url);
+            if (!res.ok) return;
+            const blob = await res.blob();
+            let path = `${entry.folder}/${entry.fileName}`;
+            // Deduplicate paths
+            if (usedPaths.has(path)) {
+              const ext = path.lastIndexOf('.') > -1 ? path.slice(path.lastIndexOf('.')) : '';
+              const base = ext ? path.slice(0, -ext.length) : path;
+              path = `${base}_${Date.now()}${ext}`;
+            }
+            usedPaths.add(path);
+            zip.file(path, blob);
+          } catch { /* skip failed files */ }
+          completed++;
+          setProgress(`Descargando ${completed}/${entries.length} archivos...`);
+        }));
+      }
+
+      setProgress('Generando ZIP...');
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `documentos_${format(new Date(), 'yyyy-MM-dd')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Descarga completada');
+    } catch (err: any) {
+      toast.error(err.message || 'Error al generar ZIP');
+    } finally {
+      setDownloading(false);
+      setProgress('');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex items-start gap-4">
+          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <FolderArchive className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-barlow font-semibold text-base">Descargar todos los documentos</h3>
+            <p className="text-sm text-muted-foreground font-dm mt-1">
+              Descarga un archivo ZIP con todos los documentos de <strong>Clientes</strong>, <strong>Proveedores</strong> y <strong>Máquinas</strong> organizados por carpetas.
+            </p>
+            <Button
+              className="mt-4 gap-2"
+              onClick={handleDownloadAll}
+              disabled={downloading}
+            >
+              <Download className="h-4 w-4" />
+              {downloading ? progress || 'Preparando...' : 'Descargar ZIP'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfiguracionInner() {
   usePageTitle('Configuración');
   const { user } = useAuthStore();
   const isSupervisor = user?.role === 'supervisor';
@@ -772,6 +898,7 @@ export default function Configuracion() {
           {activeTab === 'parametros' && !isSupervisor && <ParametrosTab />}
           {activeTab === 'alertas' && !isSupervisor && <AlertasTab />}
           {activeTab === 'logs' && !isSupervisor && <LogsTab />}
+          {activeTab === 'respaldos' && !isSupervisor && <RespaldosTab />}
         </div>
       </div>
     </div>
