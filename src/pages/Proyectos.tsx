@@ -166,6 +166,16 @@ export default function Proyectos() {
     onError: () => toast.error('Error al eliminar los registros seleccionados'),
   });
 
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from('projects').update({ status: status as any }).eq('id', id);
+      if (error) throw error;
+      await log('proyectos', 'cambiar_estado_proyecto', 'project', id, status);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success('Estado actualizado'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const formatBudget = (n: number | null) => {
     if (!n) return '—';
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(0)}M`;
@@ -180,6 +190,36 @@ export default function Proyectos() {
     { key: 'start_date', label: 'Inicio', sortable: true, render: (p: any) => <span className="text-muted-foreground text-xs">{p.start_date ? format(new Date(p.start_date), 'dd MMM yyyy', { locale: es }) : '—'}</span> },
     { key: 'status', label: 'Estado', sortable: true, render: (p: any) => <StatusBadge status={p.status || 'activo'} /> },
     { key: 'budget', label: 'Presupuesto', sortable: true, align: 'right', render: (p: any) => <span className="font-medium">{formatBudget(p.budget)}</span> },
+    { key: 'actions', label: '', width: '48px', render: (p: any) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onClick={() => openEdit(p)}>
+            <Pencil className="h-3.5 w-3.5 mr-2" /> Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {p.status !== 'activo' && (
+            <DropdownMenuItem onClick={() => statusMutation.mutate({ id: p.id, status: 'activo' })}>
+              <Play className="h-3.5 w-3.5 mr-2" /> Marcar Activo
+            </DropdownMenuItem>
+          )}
+          {p.status !== 'pausado' && (
+            <DropdownMenuItem onClick={() => statusMutation.mutate({ id: p.id, status: 'pausado' })}>
+              <PauseCircle className="h-3.5 w-3.5 mr-2" /> Pausar
+            </DropdownMenuItem>
+          )}
+          {p.status !== 'finalizado' && (
+            <DropdownMenuItem onClick={() => statusMutation.mutate({ id: p.id, status: 'finalizado' })}>
+              <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalizar
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )},
   ];
 
   return (
