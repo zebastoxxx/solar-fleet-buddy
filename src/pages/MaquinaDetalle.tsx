@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive } from 'lucide-react';
+import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -421,9 +422,16 @@ export default function MaquinaDetalle() {
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-barlow text-sm font-semibold">Documentos</h3>
-              <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setShowDocUpload(true)}>
-                <Upload className="h-3 w-3" /> Subir documento
-              </Button>
+              <div className="flex gap-2">
+                {docs.data && docs.data.length > 0 && (
+                  <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => downloadDocsAsZip(docs.data!, `Maquina_${machine.data?.internal_code || ''}_${machine.data?.name || 'docs'}`)}>
+                    <Archive className="h-3 w-3" /> Descargar todo (.zip)
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setShowDocUpload(true)}>
+                  <Upload className="h-3 w-3" /> Subir documento
+                </Button>
+              </div>
             </div>
             {docs.isLoading ? <Skeleton className="h-32" /> : !docs.data?.length ? (
               <p className="text-sm text-muted-foreground font-dm text-center py-8">Sin documentos cargados</p>
