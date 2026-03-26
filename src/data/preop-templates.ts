@@ -200,4 +200,35 @@ export const PREOP_TEMPLATES: Record<string, PreopTemplate> = {
       { id: "m11", label: "Tanque de Combustible (abrazaderas soportes)", critical: true },
       { id: "m12", label: "Ojos y pasadores de anclaje secciones boom", critical: false },
       { id: "m13", label: "Secciones del Boom, puntas y roldanas", critical: false }]}]},
+
+  hincadora: { sections: [
+    { name: "LUCES Y SEÑALIZACIÓN", items: [
+      { id: "hs_l1", label: "Luces delanteras y traseras operativas", critical: false },
+      { id: "hs_l2", label: "Alarma de retroceso y pito", critical: true },
+      { id: "hs_l3", label: "Balizas y elementos de señalización", critical: false }]},
+    { name: "CABINA Y CONTROLES", items: [
+      { id: "hs_c1", label: "Cinturón de seguridad", critical: true },
+      { id: "hs_c2", label: "Mandos y pedales en buen estado", critical: true },
+      { id: "hs_c3", label: "Indicadores de tablero / horómetro", critical: true },
+      { id: "hs_c4", label: "Extintor y botiquín", critical: false }]},
+    { name: "SISTEMA MECÁNICO", items: [
+      { id: "hs_m1", label: "Fugas hidráulicas o de combustible", critical: true },
+      { id: "hs_m2", label: "Estructura de mástil y guías", critical: true },
+      { id: "hs_m3", label: "Estado de mangueras y conexiones", critical: true },
+      { id: "hs_m4", label: "Anclajes y elementos de fijación", critical: true },
+      { id: "hs_m5", label: "Sistema de traslación / llantas u orugas", critical: false }]}]},
+
+  otro: { sections: [
+    { name: "SEGURIDAD GENERAL", items: [
+      { id: "og_s1", label: "Pito y alarma de retroceso", critical: true },
+      { id: "og_s2", label: "Cinturón de seguridad", critical: true },
+      { id: "og_s3", label: "Extintor vigente", critical: false }]},
+    { name: "INSPECCIÓN VISUAL", items: [
+      { id: "og_i1", label: "Sin fugas visibles", critical: true },
+      { id: "og_i2", label: "Sin daños estructurales evidentes", critical: true },
+      { id: "og_i3", label: "Llantas/orugas en buen estado", critical: false }]},
+    { name: "OPERACIÓN", items: [
+      { id: "og_o1", label: "Controles responden correctamente", critical: true },
+      { id: "og_o2", label: "Sistema hidráulico opera sin fallas", critical: true },
+      { id: "og_o3", label: "Equipo apto para iniciar jornada", critical: true }]}]},
 };
