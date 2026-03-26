@@ -27,7 +27,8 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Trash2, RotateCcw, Upload, Download, FileText, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, RotateCcw, Upload, Download, FileText, Users, Archive } from 'lucide-react';
+import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -679,7 +680,12 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
             {/* Documents Tab */}
             <TabsContent value="documents">
               <div className="space-y-3 py-2">
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {documents.length > 0 && (
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadDocsAsZip(documents, `Cliente_${selectedClient?.name || 'docs'}`)}>
+                      <Archive className="h-4 w-4" /> Descargar todo (.zip)
+                    </Button>
+                  )}
                   <Button size="sm" className="gap-1.5" onClick={() => { setDocName(''); setDocType('otro'); setDocFile(null); setDocModalOpen(true); }}>
                     <Upload className="h-4 w-4" /> Subir documento
                   </Button>
