@@ -656,7 +656,7 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
 
                 <div className="flex justify-end gap-2">
                   {documents.length > 0 && (
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadDocsAsZip(documents, `Proveedor_${selectedSupplier?.name || 'docs'}`)}>
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadDocsAsZip(documents, `Proveedor_${supplier?.name || 'docs'}`)}>
                       <Archive className="h-4 w-4" /> Descargar todo (.zip)
                     </Button>
                   )}
