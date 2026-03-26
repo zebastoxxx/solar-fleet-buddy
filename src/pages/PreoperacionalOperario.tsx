@@ -252,12 +252,13 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   const selectedMachine = machines?.find((m: any) => m.id === machineId);
   const machineType = selectedMachine?.type as string | undefined;
   const template = machineType ? PREOP_TEMPLATES[machineType] : null;
+  const templateMissing = !!machineType && !template;
   const allItems = template?.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.name }))) || [];
   const totalItems = allItems.length;
   const completedItems = allItems.filter((i) => results[i.id]).length;
 
   const step1Valid = projectId && machineId && horometer && parseFloat(horometer) > 0;
-  const step2Valid = totalItems > 0 && completedItems === totalItems;
+  const step2Valid = !templateMissing && totalItems > 0 && completedItems === totalItems;
 
   const setResult = (itemId: string, result: ItemResult, item: PreopItem & { section: string }) => {
     setResults((prev) => ({ ...prev, [itemId]: result }));
@@ -367,6 +368,9 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             totalItems={totalItems} completedItems={completedItems}
           />
         )}
+        {step === 2 && templateMissing && (
+          <MissingTemplateState machineType={machineType} />
+        )}
         {step === 3 && (
           <Step3Signature
             machineName={selectedMachine ? `[${selectedMachine.internal_code}] ${selectedMachine.name}` : ''}
@@ -407,10 +411,30 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
             onClick={() => setStep((s) => s + 1)}
           >
-            {step === 2 && !step2Valid ? `Faltan ${totalItems - completedItems} ítems por revisar` : 'Siguiente →'}
+            {step === 2 && templateMissing
+              ? `Sin plantilla para tipo: ${machineType}`
+              : step === 2 && !step2Valid
+              ? `Faltan ${totalItems - completedItems} ítems por revisar`
+              : 'Siguiente →'}
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function MissingTemplateState({ machineType }: { machineType?: string }) {
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-[hsl(var(--danger-bg))] p-4">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="text-destructive mt-0.5" size={18} />
+        <div>
+          <h3 className="font-barlow font-semibold text-sm">No hay checklist configurado para esta máquina</h3>
+          <p className="text-xs text-muted-foreground font-dm mt-1">
+            Tipo detectado: <span className="font-semibold text-foreground">{machineType || 'sin tipo'}</span>. Regresa al paso 1 y selecciona otra máquina o solicita configuración de la plantilla.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
