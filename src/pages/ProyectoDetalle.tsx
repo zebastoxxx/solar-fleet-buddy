@@ -252,10 +252,11 @@ export default function ProyectoDetalle() {
 
       {/* Tabs */}
       <Tabs defaultValue="resumen">
-        <TabsList className="font-dm">
+        <TabsList className="font-dm flex-wrap">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="maquinas">Máquinas</TabsTrigger>
           <TabsTrigger value="personal">Personal</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos ({projectDocs.length})</TabsTrigger>
           <TabsTrigger value="preops">Preoperacionales</TabsTrigger>
           <TabsTrigger value="ots">Órdenes de Trabajo</TabsTrigger>
           <TabsTrigger value="costos">Costos</TabsTrigger>
