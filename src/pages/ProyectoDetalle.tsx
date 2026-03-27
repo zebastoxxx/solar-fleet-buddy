@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,18 +13,23 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Upload, Download, FileText, Archive, Trash2 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PreviewButton } from '@/components/ui/DocumentPreview';
+import { downloadDocsAsZip } from '@/lib/download-docs-zip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { MachineStatus } from '@/types';
 
 export default function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  const userId = useAuthStore((s) => s.user?.id);
   const { log } = useLog();
   const qc = useQueryClient();
 
@@ -92,6 +97,61 @@ export default function ProyectoDetalle() {
     },
     enabled: !!id,
   });
+
+  // Tab: Documents
+  const { data: projectDocs = [], refetch: refetchDocs } = useQuery({
+    queryKey: ['project-documents', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('project_documents').select('*').eq('project_id', id!).order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Document upload state
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docName, setDocName] = useState('');
+  const [docType, setDocType] = useState('otro');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<any>(null);
+
+  const handleUploadDoc = async () => {
+    if (!docFile || !docName || !id || !tenantId) return;
+    setUploading(true);
+    try {
+      const path = `projects/${id}/${Date.now()}_${docFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from('documents').upload(path, docFile);
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+      const { error: insertErr } = await supabase.from('project_documents').insert([{
+        project_id: id, name: docName, doc_type: docType,
+        file_url: urlData.publicUrl, file_name: docFile.name, tenant_id: tenantId, uploaded_by: userId,
+      }]);
+      if (insertErr) throw insertErr;
+      toast.success('Documento subido correctamente');
+      refetchDocs();
+      setDocModalOpen(false);
+      setDocName(''); setDocType('otro'); setDocFile(null);
+    } catch (e: any) {
+      toast.error('Error al subir: ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!deleteDocTarget) return;
+    if (deleteDocTarget.file_url) {
+      const path = deleteDocTarget.file_url.split('/documents/')[1];
+      if (path) await supabase.storage.from('documents').remove([path]);
+    }
+    await supabase.from('project_documents').delete().eq('id', deleteDocTarget.id);
+    toast.success('Documento eliminado');
+    refetchDocs();
+    setDeleteDocTarget(null);
+  };
 
   // Assign machine modal
   const [assignMachineOpen, setAssignMachineOpen] = useState(false);
@@ -192,10 +252,11 @@ export default function ProyectoDetalle() {
 
       {/* Tabs */}
       <Tabs defaultValue="resumen">
-        <TabsList className="font-dm">
+        <TabsList className="font-dm flex-wrap">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="maquinas">Máquinas</TabsTrigger>
           <TabsTrigger value="personal">Personal</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos ({projectDocs.length})</TabsTrigger>
           <TabsTrigger value="preops">Preoperacionales</TabsTrigger>
           <TabsTrigger value="ots">Órdenes de Trabajo</TabsTrigger>
           <TabsTrigger value="costos">Costos</TabsTrigger>
@@ -264,6 +325,66 @@ export default function ProyectoDetalle() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* Documentos */}
+        <TabsContent value="documentos">
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              {projectDocs.length > 0 && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadDocsAsZip(projectDocs, `Proyecto_${project?.name || 'docs'}`)}>
+                  <Archive className="h-4 w-4" /> Descargar todo (.zip)
+                </Button>
+              )}
+              <Button size="sm" className="gap-1.5" onClick={() => { setDocName(''); setDocType('otro'); setDocFile(null); setDocModalOpen(true); }}>
+                <Upload className="h-4 w-4" /> Subir documento
+              </Button>
+            </div>
+            {projectDocs.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card py-12 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground font-dm">Sin documentos adjuntos</p>
+                <p className="text-xs text-muted-foreground font-dm mt-1">Sube PDFs, Excel, Word y más</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card">
+                <Table>
+                  <TableHeader><TableRow className="bg-secondary">
+                    <TableHead className="text-[11px] uppercase font-dm">Nombre</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm">Tipo</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm">Fecha</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm w-[100px]">Acciones</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {projectDocs.map((doc: any) => (
+                      <TableRow key={doc.id} className="h-[44px]">
+                        <TableCell className="font-dm text-sm font-medium flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" /> {doc.name}
+                        </TableCell>
+                        <TableCell className="font-dm text-xs text-muted-foreground capitalize">{doc.doc_type || 'otro'}</TableCell>
+                        <TableCell className="font-dm text-sm text-muted-foreground">
+                          {doc.uploaded_at ? format(new Date(doc.uploaded_at), 'dd MMM yyyy', { locale: es }) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {doc.file_url && (
+                              <>
+                                <PreviewButton url={doc.file_url} name={doc.name} />
+                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                  <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                </Button>
+                              </>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDocTarget(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -386,6 +507,55 @@ export default function ProyectoDetalle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Document Upload Dialog */}
+      <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-barlow text-lg">Subir Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Nombre del documento *</Label>
+              <Input value={docName} onChange={(e) => setDocName(e.target.value)} className="h-10 rounded-lg font-dm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Tipo</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['Contrato', 'Acta', 'Plano', 'Informe', 'Factura', 'Otro'].map(t => <SelectItem key={t} value={t.toLowerCase()}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Archivo *</Label>
+              <Input type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="h-10 rounded-lg font-dm"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.ppt,.pptx,.txt,.zip,.rar" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDocModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUploadDoc} disabled={uploading || !docFile || !docName}>
+              {uploading ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Doc Confirm */}
+      <AlertDialog open={!!deleteDocTarget} onOpenChange={(v) => !v && setDeleteDocTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Se eliminará el archivo del almacenamiento.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); handleDeleteDoc(); }}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

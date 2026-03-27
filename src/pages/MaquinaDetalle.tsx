@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive } from 'lucide-react';
+import { PreviewButton } from '@/components/ui/DocumentPreview';
+import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive, Download } from 'lucide-react';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -440,17 +441,23 @@ export default function MaquinaDetalle() {
                 {docs.data.map((doc) => {
                   const daysToExpiry = doc.expiry_date ? differenceInDays(new Date(doc.expiry_date), new Date()) : null;
                   return (
-                    <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border p-4 hover:border-primary/50 transition-colors block">
+                    <div key={doc.id} className="rounded-lg border border-border p-4 hover:border-primary/50 transition-colors">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-dm font-semibold">{doc.name}</p>
-                        <span className="text-[10px] uppercase text-muted-foreground font-dm">{doc.doc_type ?? 'otro'}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] uppercase text-muted-foreground font-dm">{doc.doc_type ?? 'otro'}</span>
+                          <PreviewButton url={doc.file_url} name={doc.name} />
+                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                            <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                          </Button>
+                        </div>
                       </div>
                       {daysToExpiry !== null && (
                         <span className={`text-[11px] font-semibold font-dm px-2 py-0.5 rounded-full ${daysToExpiry < 0 ? 'bg-danger-bg text-danger' : daysToExpiry <= 30 ? 'bg-warning-bg text-warning' : 'bg-success-bg text-success'}`}>
                           {daysToExpiry < 0 ? 'Vencido' : daysToExpiry <= 30 ? `Vence en ${daysToExpiry} días` : 'Vigente'}
                         </span>
                       )}
-                    </a>
+                    </div>
                   );
                 })}
               </div>

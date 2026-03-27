@@ -1287,6 +1287,71 @@ export type Database = {
           },
         ]
       }
+      project_documents: {
+        Row: {
+          doc_type: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          name: string
+          project_id: string
+          tenant_id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name: string
+          project_id: string
+          tenant_id: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          doc_type?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          tenant_id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_financials"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_machines: {
         Row: {
           assigned_date: string | null
