@@ -707,7 +707,7 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
             </TabsContent>
 
             <TabsContent value="ots">
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {[['Total OT', ots.length], ['En curso', activeOTs.length], ['Costo total', `$${totalOTCost.toLocaleString()}`]].map(([l, v]) => (
                   <div key={l as string} className="bg-secondary rounded-lg p-2.5 text-center">
                     <p className="text-[11px] uppercase text-muted-foreground font-dm">{l as string}</p>

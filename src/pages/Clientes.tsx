@@ -770,7 +770,7 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
             </TabsContent>
 
             <TabsContent value="financial">
-              <div className="grid grid-cols-3 gap-3 py-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-3">
                 <div className="bg-secondary rounded-lg p-3 text-center">
                   <p className="text-[11px] uppercase text-muted-foreground font-dm">Ingresos</p>
                   <p className="text-lg font-barlow font-semibold text-[hsl(var(--success))]">${(financials?.income || 0).toLocaleString()}</p>

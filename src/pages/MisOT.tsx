@@ -730,7 +730,7 @@ function OTActiveView({ otId }: { otId: string }) {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {filteredPhotos.map((p: any) => (
               <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
                 <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
