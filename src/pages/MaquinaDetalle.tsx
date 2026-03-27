@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PreviewButton } from '@/components/ui/DocumentPreview';
-import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive, Download } from 'lucide-react';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
