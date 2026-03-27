@@ -1047,7 +1047,7 @@ function TarifasTab() {
   );
 }
 
-
+function ConfiguracionInner() {
   usePageTitle('Configuración');
   const { user } = useAuthStore();
   const isSupervisor = user?.role === 'supervisor';
