@@ -898,6 +898,7 @@ function ConfiguracionInner() {
           {activeTab === 'empresa' && !isSupervisor && <EmpresaTab />}
           {activeTab === 'parametros' && !isSupervisor && <ParametrosTab />}
           {activeTab === 'alertas' && !isSupervisor && <AlertasTab />}
+          {activeTab === 'tarifas' && !isSupervisor && <TarifasTab />}
           {activeTab === 'logs' && !isSupervisor && <LogsTab />}
           {activeTab === 'respaldos' && !isSupervisor && <RespaldosTab />}
         </div>
