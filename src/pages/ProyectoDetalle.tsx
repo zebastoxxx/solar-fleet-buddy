@@ -507,6 +507,55 @@ export default function ProyectoDetalle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Document Upload Dialog */}
+      <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-barlow text-lg">Subir Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Nombre del documento *</Label>
+              <Input value={docName} onChange={(e) => setDocName(e.target.value)} className="h-10 rounded-lg font-dm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Tipo</Label>
+              <Select value={docType} onValueChange={setDocType}>
+                <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['Contrato', 'Acta', 'Plano', 'Informe', 'Factura', 'Otro'].map(t => <SelectItem key={t} value={t.toLowerCase()}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-dm text-xs">Archivo *</Label>
+              <Input type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} className="h-10 rounded-lg font-dm"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.gif,.ppt,.pptx,.txt,.zip,.rar" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDocModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleUploadDoc} disabled={uploading || !docFile || !docName}>
+              {uploading ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Doc Confirm */}
+      <AlertDialog open={!!deleteDocTarget} onOpenChange={(v) => !v && setDeleteDocTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-barlow">¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription className="font-dm">Se eliminará el archivo del almacenamiento.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(e) => { e.preventDefault(); handleDeleteDoc(); }}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
