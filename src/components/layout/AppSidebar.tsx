@@ -90,7 +90,7 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {visibleItems.map((item) => {
           const Icon = ICON_MAP[item.icon] || Settings;
           const active = location.pathname.startsWith(item.path);
