@@ -29,6 +29,7 @@ export default function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const tenantId = useAuthStore((s) => s.user?.tenant_id);
+  const userId = useAuthStore((s) => s.user?.id);
   const { log } = useLog();
   const qc = useQueryClient();
 
