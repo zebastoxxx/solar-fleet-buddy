@@ -9,6 +9,7 @@ const PERMISSIONS: Record<string, UserRole[]> = {
   maquinas: ['superadmin', 'gerente', 'supervisor'],
   personal: ['superadmin', 'gerente', 'supervisor'],
   proyectos: ['superadmin', 'gerente', 'supervisor'],
+  cotizaciones: ['superadmin', 'gerente', 'supervisor'],
   preop_view: ['superadmin', 'gerente', 'supervisor'],
   preop_create: ['operario'],
   ot_view: ['superadmin', 'gerente', 'supervisor'],
