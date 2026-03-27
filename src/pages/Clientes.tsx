@@ -29,6 +29,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Pencil, Trash2, RotateCcw, Upload, Download, FileText, Users, Archive } from 'lucide-react';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
+import { PreviewButton } from '@/components/ui/DocumentPreview';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -537,11 +538,12 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
       const { error: uploadErr } = await supabase.storage.from('documents').upload(path, docFile);
       if (uploadErr) throw uploadErr;
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
-      await supabase.from('client_documents').insert([{
+      const { error: insertErr } = await supabase.from('client_documents').insert([{
         client_id: client.id, name: docName, doc_type: docType,
         file_url: urlData.publicUrl, file_name: docFile.name, tenant_id: tenantId,
       }]);
-      toast.success('Documento subido');
+      if (insertErr) throw insertErr;
+      toast.success('Documento subido correctamente');
       refetchDocs();
       setDocModalOpen(false);
       setDocName(''); setDocType('otro'); setDocFile(null);
@@ -717,9 +719,12 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
                           <TableCell>
                             <div className="flex gap-1">
                               {doc.file_url && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
-                                </Button>
+                                <>
+                                  <PreviewButton url={doc.file_url} name={doc.name} />
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                  </Button>
+                                </>
                               )}
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDocTarget(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
                             </div>
