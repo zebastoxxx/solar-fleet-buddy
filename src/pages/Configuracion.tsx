@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText } from 'lucide-react';
+import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText, DollarSign } from 'lucide-react';
 import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,7 @@ const TABS = [
   { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'parametros', label: 'Parámetros', icon: SlidersHorizontal },
   { key: 'alertas', label: 'Alertas', icon: Bell },
+  { key: 'tarifas', label: 'Tarifas', icon: DollarSign },
   { key: 'logs', label: 'Logs del Sistema', icon: ScrollText },
   { key: 'respaldos', label: 'Respaldos', icon: FolderArchive },
 ];
@@ -857,6 +858,194 @@ function RespaldosTab() {
     </div>
   );
 }
+// ─── TARIFAS TAB ───
+function TarifasTab() {
+  const user = useAuthStore(s => s.user);
+  const qc = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [editRate, setEditRate] = useState<any>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [formCategory, setFormCategory] = useState('');
+  const [formEquipment, setFormEquipment] = useState('');
+  const [formMonthly, setFormMonthly] = useState('');
+  const [formWeekly, setFormWeekly] = useState('');
+  const [formDaily, setFormDaily] = useState('');
+  const [formOperator, setFormOperator] = useState('');
+
+  const { data: rates = [], isLoading } = useQuery({
+    queryKey: ['equipment-rates', user?.tenant_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('quote_equipment_rates').select('*')
+        .eq('tenant_id', user!.tenant_id).order('category').order('equipment');
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const filtered = rates.filter((r: any) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return r.category?.toLowerCase().includes(s) || r.equipment?.toLowerCase().includes(s);
+  });
+
+  const openEdit = (rate: any) => {
+    setEditRate(rate);
+    setFormCategory(rate.category);
+    setFormEquipment(rate.equipment);
+    setFormMonthly(String(rate.price_monthly || 0));
+    setFormWeekly(String(rate.price_weekly || 0));
+    setFormDaily(String(rate.price_daily || 0));
+    setFormOperator(String(rate.operator_monthly || 0));
+  };
+
+  const openCreate = () => {
+    setShowCreate(true);
+    setFormCategory(''); setFormEquipment('');
+    setFormMonthly(''); setFormWeekly(''); setFormDaily(''); setFormOperator('');
+  };
+
+  const handleSave = async () => {
+    if (!formCategory || !formEquipment) { toast.error('Categoría y equipo requeridos'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        category: formCategory.toUpperCase(),
+        equipment: formEquipment,
+        price_monthly: parseFloat(formMonthly) || 0,
+        price_weekly: parseFloat(formWeekly) || 0,
+        price_daily: parseFloat(formDaily) || 0,
+        operator_monthly: parseFloat(formOperator) || 0,
+      };
+      if (editRate) {
+        await supabase.from('quote_equipment_rates').update(payload).eq('id', editRate.id);
+        toast.success('Tarifa actualizada');
+      } else {
+        await supabase.from('quote_equipment_rates').insert({ ...payload, tenant_id: user!.tenant_id });
+        toast.success('Tarifa creada');
+      }
+      qc.invalidateQueries({ queryKey: ['equipment-rates'] });
+      setEditRate(null); setShowCreate(false);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const toggleActive = async (rate: any) => {
+    await supabase.from('quote_equipment_rates').update({ active: !rate.active }).eq('id', rate.id);
+    qc.invalidateQueries({ queryKey: ['equipment-rates'] });
+    toast.success(rate.active ? 'Tarifa desactivada' : 'Tarifa activada');
+  };
+
+  const fmtCOP = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
+
+  const rateForm = (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Categoría *</label>
+          <Input value={formCategory} onChange={e => setFormCategory(e.target.value)} placeholder="TELEHANDLER" />
+        </div>
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Equipo *</label>
+          <Input value={formEquipment} onChange={e => setFormEquipment(e.target.value)} placeholder="JCB 540-170" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Mensual</label>
+          <Input type="number" value={formMonthly} onChange={e => setFormMonthly(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Semanal</label>
+          <Input type="number" value={formWeekly} onChange={e => setFormWeekly(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Diario</label>
+          <Input type="number" value={formDaily} onChange={e => setFormDaily(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs font-dm font-medium text-muted-foreground">Operador/mes</label>
+          <Input type="number" value={formOperator} onChange={e => setFormOperator(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => { setEditRate(null); setShowCreate(false); }}>Cancelar</Button>
+        <Button onClick={handleSave} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="font-barlow font-bold text-lg text-foreground">Tarifas de Alquiler de Equipos</h2>
+          <p className="text-xs text-muted-foreground font-dm">Vigencia 2026 · Valores antes de IVA</p>
+        </div>
+        <Button onClick={openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1">
+          <Plus className="h-4 w-4" /> Nueva tarifa
+        </Button>
+      </div>
+
+      {showCreate && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="font-barlow font-semibold text-sm mb-3">Nueva Tarifa</h3>
+          {rateForm}
+        </div>
+      )}
+
+      <SearchInput value={search} onChange={setSearch} placeholder="Buscar equipo..." />
+
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card overflow-hidden overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Equipo</TableHead>
+                <TableHead className="text-right">Mensual</TableHead>
+                <TableHead className="text-right hidden sm:table-cell">Semanal</TableHead>
+                <TableHead className="text-right hidden sm:table-cell">Diario</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Operador/mes</TableHead>
+                <TableHead className="text-center">Activo</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r: any) => (
+                <React.Fragment key={r.id}>
+                  <TableRow className={!r.active ? 'opacity-50' : ''}>
+                    <TableCell className="font-dm text-xs font-semibold uppercase">{r.category}</TableCell>
+                    <TableCell className="font-dm text-sm">{r.equipment}</TableCell>
+                    <TableCell className="text-right font-barlow text-sm">{fmtCOP(r.price_monthly)}</TableCell>
+                    <TableCell className="text-right font-barlow text-sm hidden sm:table-cell">{fmtCOP(r.price_weekly)}</TableCell>
+                    <TableCell className="text-right font-barlow text-sm hidden sm:table-cell">{fmtCOP(r.price_daily)}</TableCell>
+                    <TableCell className="text-right font-barlow text-sm hidden md:table-cell">{fmtCOP(r.operator_monthly)}</TableCell>
+                    <TableCell className="text-center">
+                      <Switch checked={r.active} onCheckedChange={() => toggleActive(r)} />
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>✏️</Button>
+                    </TableCell>
+                  </TableRow>
+                  {editRate?.id === r.id && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="bg-muted/30 p-4">{rateForm}</TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ConfiguracionInner() {
   usePageTitle('Configuración');
@@ -897,6 +1086,7 @@ function ConfiguracionInner() {
           {activeTab === 'empresa' && !isSupervisor && <EmpresaTab />}
           {activeTab === 'parametros' && !isSupervisor && <ParametrosTab />}
           {activeTab === 'alertas' && !isSupervisor && <AlertasTab />}
+          {activeTab === 'tarifas' && !isSupervisor && <TarifasTab />}
           {activeTab === 'logs' && !isSupervisor && <LogsTab />}
           {activeTab === 'respaldos' && !isSupervisor && <RespaldosTab />}
         </div>

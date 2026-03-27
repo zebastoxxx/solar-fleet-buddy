@@ -7,14 +7,14 @@ import { useAlertsStore } from '@/stores/alertsStore';
 import { RoleBadge } from '@/components/ui/role-badge';
 import {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
-  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign, ShoppingCart, X
+  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign, ShoppingCart, X, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImg from '@/assets/logo.png';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
-  FolderOpen, ClipboardList, Wrench, Package, Settings, DollarSign, ShoppingCart,
+  FolderOpen, ClipboardList, Wrench, Package, Settings, DollarSign, ShoppingCart, FileText,
 };
 
 // Map nav permission keys to usePermissions keys
@@ -26,6 +26,7 @@ const PERM_MAP: Record<string, string> = {
   maquinas: 'maquinas',
   personal: 'personal',
   proyectos: 'proyectos',
+  cotizaciones: 'cotizaciones',
   preop_view: 'preop_view',
   ot_view: 'ot_view',
   inventario: 'inventario',
