@@ -98,6 +98,61 @@ export default function ProyectoDetalle() {
     enabled: !!id,
   });
 
+  // Tab: Documents
+  const { data: projectDocs = [], refetch: refetchDocs } = useQuery({
+    queryKey: ['project-documents', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('project_documents').select('*').eq('project_id', id!).order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Document upload state
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [docName, setDocName] = useState('');
+  const [docType, setDocType] = useState('otro');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<any>(null);
+
+  const handleUploadDoc = async () => {
+    if (!docFile || !docName || !id || !tenantId) return;
+    setUploading(true);
+    try {
+      const path = `projects/${id}/${Date.now()}_${docFile.name}`;
+      const { error: uploadErr } = await supabase.storage.from('documents').upload(path, docFile);
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+      const { error: insertErr } = await supabase.from('project_documents').insert([{
+        project_id: id, name: docName, doc_type: docType,
+        file_url: urlData.publicUrl, file_name: docFile.name, tenant_id: tenantId, uploaded_by: userId,
+      }]);
+      if (insertErr) throw insertErr;
+      toast.success('Documento subido correctamente');
+      refetchDocs();
+      setDocModalOpen(false);
+      setDocName(''); setDocType('otro'); setDocFile(null);
+    } catch (e: any) {
+      toast.error('Error al subir: ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!deleteDocTarget) return;
+    if (deleteDocTarget.file_url) {
+      const path = deleteDocTarget.file_url.split('/documents/')[1];
+      if (path) await supabase.storage.from('documents').remove([path]);
+    }
+    await supabase.from('project_documents').delete().eq('id', deleteDocTarget.id);
+    toast.success('Documento eliminado');
+    refetchDocs();
+    setDeleteDocTarget(null);
+  };
+
   // Assign machine modal
   const [assignMachineOpen, setAssignMachineOpen] = useState(false);
   const [selectedMachineId, setSelectedMachineId] = useState('');
