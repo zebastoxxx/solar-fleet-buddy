@@ -563,7 +563,7 @@ function QuoteFormModal({
       const payload = {
         tenant_id: tenantId,
         client_id: clientId || null,
-        project_id: projectId || null,
+        project_id: projectId && projectId !== '__none__' ? projectId : null,
         business_line: bizLine,
         title,
         notes: notes || null,
