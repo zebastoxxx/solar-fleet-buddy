@@ -328,6 +328,66 @@ export default function ProyectoDetalle() {
           </div>
         </TabsContent>
 
+        {/* Documentos */}
+        <TabsContent value="documentos">
+          <div className="space-y-3">
+            <div className="flex justify-end gap-2">
+              {projectDocs.length > 0 && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadDocsAsZip(projectDocs, `Proyecto_${project?.name || 'docs'}`)}>
+                  <Archive className="h-4 w-4" /> Descargar todo (.zip)
+                </Button>
+              )}
+              <Button size="sm" className="gap-1.5" onClick={() => { setDocName(''); setDocType('otro'); setDocFile(null); setDocModalOpen(true); }}>
+                <Upload className="h-4 w-4" /> Subir documento
+              </Button>
+            </div>
+            {projectDocs.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card py-12 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground font-dm">Sin documentos adjuntos</p>
+                <p className="text-xs text-muted-foreground font-dm mt-1">Sube PDFs, Excel, Word y más</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card">
+                <Table>
+                  <TableHeader><TableRow className="bg-secondary">
+                    <TableHead className="text-[11px] uppercase font-dm">Nombre</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm">Tipo</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm">Fecha</TableHead>
+                    <TableHead className="text-[11px] uppercase font-dm w-[100px]">Acciones</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {projectDocs.map((doc: any) => (
+                      <TableRow key={doc.id} className="h-[44px]">
+                        <TableCell className="font-dm text-sm font-medium flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" /> {doc.name}
+                        </TableCell>
+                        <TableCell className="font-dm text-xs text-muted-foreground capitalize">{doc.doc_type || 'otro'}</TableCell>
+                        <TableCell className="font-dm text-sm text-muted-foreground">
+                          {doc.uploaded_at ? format(new Date(doc.uploaded_at), 'dd MMM yyyy', { locale: es }) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {doc.file_url && (
+                              <>
+                                <PreviewButton url={doc.file_url} name={doc.name} />
+                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                                  <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                </Button>
+                              </>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDocTarget(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="preops">
           <div className="rounded-xl border border-border bg-card">
             <Table>
