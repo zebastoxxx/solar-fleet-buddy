@@ -230,13 +230,15 @@ button:active:not(:disabled) {
   }
 }
 
-/* Touch targets */
+/* Touch targets — only enforce on standalone tap targets, not inline table cells */
 @media (pointer: coarse) {
-  button, a, [role="button"] {
+  button:not(table button):not(.h-7):not(.h-6):not(.w-7):not(.w-6),
+  a:not(table a),
+  [role="button"]:not(table [role="button"]) {
     min-height: 44px;
-    min-width: 44px;
   }
-  button.h-7, button.h-9, [class*="size-sm"] {
+  /* Smaller inline action buttons keep 36px */
+  table button, button.h-7, button.h-9, [class*="size-sm"] {
     min-height: 36px;
   }
 }

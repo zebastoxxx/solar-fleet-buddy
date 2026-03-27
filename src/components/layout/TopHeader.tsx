@@ -14,9 +14,9 @@ export function TopHeader({ onMenuClick }: TopHeaderProps) {
   const current = NAV_ITEMS.find((i) => location.pathname.startsWith(i.path));
 
   return (
-    <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-card px-4 md:px-6">
+    <header className="sticky top-0 z-20 flex h-[52px] shrink-0 items-center justify-between border-b border-border bg-card/95 backdrop-blur-sm px-4 md:px-6">
       <div className="flex items-center gap-3">
-        <button onClick={onMenuClick} className="md:hidden text-muted-foreground hover:text-foreground">
+        <button onClick={onMenuClick} className="md:hidden flex items-center justify-center h-10 w-10 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <Menu className="h-5 w-5" />
         </button>
         <span className="text-base font-barlow font-semibold uppercase tracking-wide text-foreground">
