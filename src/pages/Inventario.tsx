@@ -520,7 +520,7 @@ function ConsumableFormModal({ open, onClose, editing, tenantId, userId, log, qc
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel className="font-dm text-xs">Nombre *</FormLabel>
@@ -784,7 +784,7 @@ function EntryModal({ open, onClose, consumables, tenantId, userId, log, qc }: a
           {selected && (
             <p className="text-xs text-muted-foreground font-dm">Stock actual: <strong>{selected.stock_current} {selected.unit}</strong></p>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="font-dm text-xs">Cantidad *</Label>
               <Input type="number" value={qty} onChange={e => setQty(Number(e.target.value))} min={1} className="font-dm" />
@@ -1097,7 +1097,7 @@ function ToolFormModal({ open, onClose, editing, tenantId, log, qc }: any) {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel className="font-dm text-xs">Nombre *</FormLabel>
@@ -1328,7 +1328,7 @@ function ReturnToolModal({ open, onClose, tool, tenantId, userId, log, qc }: any
         <div className="space-y-4">
           <div>
             <Label className="font-dm text-xs mb-2 block">Estado al devolver</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {statusOptions.map(opt => (
                 <button key={opt.value} onClick={() => setReturnStatus(opt.value)}
                   className={`p-3 rounded-lg border-2 text-xs font-dm text-left transition-all ${returnStatus === opt.value ? opt.bg : 'border-border bg-card'}`}>
@@ -1994,7 +1994,7 @@ function ReceiveKitModal({ open, onClose, kit, tenantId, userId, log, qc }: any)
               {toolItemsList.map((item: any) => (
                 <div key={item.id} className="py-2 border-b border-border last:border-0">
                   <p className="text-sm font-dm font-medium mb-1">🔧 {item.inventory_tools?.name} [{item.inventory_tools?.internal_code}]</p>
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     {[
                       { v: 'disponible', l: '✅ Buen estado' },
                       { v: 'en_reparacion', l: '🔧 Reparación' },

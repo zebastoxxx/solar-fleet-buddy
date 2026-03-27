@@ -300,7 +300,7 @@ function PreopDetailModal({ id, onClose }: { id: string; onClose: () => void }) 
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 bg-secondary rounded-lg p-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-secondary rounded-lg p-3 text-xs">
                 <div><span className="text-muted-foreground">Horómetro:</span> {Number(record.horometer_value).toLocaleString('es-CO')} h</div>
                 <div><span className="text-muted-foreground">Proyecto:</span> {(record.projects as any)?.name || '—'}</div>
                 {record.hours_worked != null && <div><span className="text-muted-foreground">Horas trabajadas:</span> {Number(record.hours_worked).toFixed(1)} h</div>}

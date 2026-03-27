@@ -303,7 +303,7 @@ export default function Clientes() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Nombre / Razón social *</Label>
                 <Input {...form.register('name')} className="h-10 rounded-lg font-dm" />
@@ -604,7 +604,7 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
             </TabsList>
 
             <TabsContent value="info">
-              <div className="grid grid-cols-2 gap-4 py-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3">
                 {[
                   ['Contacto principal', client.contact_name],
                   ['Teléfono', client.contact_phone ? <a href={`tel:${client.contact_phone}`} className="text-primary hover:underline">{client.contact_phone}</a> : null],
@@ -817,7 +817,7 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
               <Label className="font-dm text-xs">Cargo</Label>
               <Input {...contactForm.register('role')} placeholder="Ej: Gerente de Compras" className="h-10 rounded-lg font-dm" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Teléfono</Label>
                 <Input {...contactForm.register('phone')} className="h-10 rounded-lg font-dm" />

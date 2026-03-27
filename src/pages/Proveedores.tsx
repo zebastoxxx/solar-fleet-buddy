@@ -294,7 +294,7 @@ export default function Proveedores() {
             <DialogDescription className="font-dm text-sm text-muted-foreground">Completa la información del proveedor</DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Nombre *</Label>
                 <Input {...form.register('name')} className="h-10 rounded-lg font-dm" />
@@ -569,7 +569,7 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
             </TabsList>
 
             <TabsContent value="info">
-              <div className="grid grid-cols-2 gap-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
                 {[
                   ['Especialidad', supplier.specialty],
                   ['NIT', supplier.tax_id],
@@ -793,7 +793,7 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
               <Label className="font-dm text-xs">Cargo</Label>
               <Input {...contactForm.register('role')} placeholder="Ej: Gerente de Compras" className="h-10 rounded-lg font-dm" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Teléfono</Label>
                 <Input {...contactForm.register('phone')} className="h-10 rounded-lg font-dm" />

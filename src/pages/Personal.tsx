@@ -512,7 +512,7 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
             {!isTecnico && <TabsTrigger value="preops">Preoperacionales</TabsTrigger>}
           </TabsList>
           <TabsContent value="info">
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
               {[
                 ['Cédula', person.id_number],
                 ['Teléfono', person.phone],
