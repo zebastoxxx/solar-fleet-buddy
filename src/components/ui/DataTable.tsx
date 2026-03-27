@@ -104,7 +104,8 @@ export function DataTable<T>({
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <Table>
+      <div className="overflow-x-auto">
+      <Table className="min-w-[640px]">
         <TableHeader className={stickyHeader ? 'sticky top-0 z-10' : ''}>
           <TableRow className="bg-secondary">
             {selectable && (
@@ -205,6 +206,7 @@ export function DataTable<T>({
             })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

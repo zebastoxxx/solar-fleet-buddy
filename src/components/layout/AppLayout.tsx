@@ -30,29 +30,29 @@ export function AppLayout() {
   useAlerts(); // Initialize realtime alerts globally
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={`
-        fixed top-0 left-0 z-40 h-screen w-[220px] bg-[hsl(var(--sidebar-bg))] flex flex-col
-        transition-transform duration-200
-        md:translate-x-0
+        fixed top-0 left-0 z-50 h-screen w-[220px] bg-[hsl(var(--sidebar-bg))] flex flex-col
+        transition-transform duration-200 ease-out will-change-transform
+        md:z-30 md:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <AppSidebar onClose={() => setSidebarOpen(false)} />
       </aside>
 
       {/* Main */}
-      <div className="flex flex-1 flex-col md:ml-[220px]">
+      <div className="flex flex-1 flex-col min-w-0 md:ml-[220px]">
         <TopHeader onMenuClick={() => setSidebarOpen(true)} />
-        <main id="main-content" className="flex-1 p-3 sm:p-5 sm:px-6 page-content pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+        <main id="main-content" className="flex-1 overflow-y-auto p-3 sm:p-5 sm:px-6 page-content pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-primary focus:text-primary-foreground focus:p-2 focus:rounded">
             Ir al contenido principal
           </a>

@@ -91,7 +91,7 @@ export function MachineAlertConfig({ alerts, onChange }: Props) {
             <Label className="font-dm text-xs">Nombre *</Label>
             <Input value={newAlert.alert_name} onChange={(e) => setNewAlert({ ...newAlert, alert_name: e.target.value })} placeholder="Ej: Cambio de aceite" className="h-8 text-xs" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <Label className="font-dm text-xs">Tipo</Label>
               <Select value={newAlert.trigger_type} onValueChange={(v) => setNewAlert({ ...newAlert, trigger_type: v as any })}>

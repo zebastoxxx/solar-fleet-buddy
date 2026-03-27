@@ -6,7 +6,7 @@ function Shimmer({ className, style }: { className?: string; style?: React.CSSPr
 
 export function SkeletonStatCards({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="h-[88px] rounded-xl border border-border bg-card p-3.5 px-4">
           <Shimmer className="mb-2 h-3 w-24" />

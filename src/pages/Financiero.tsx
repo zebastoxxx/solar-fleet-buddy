@@ -1107,7 +1107,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
 
         <div className="space-y-4">
           {/* Type selector */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button onClick={() => setEntryType('ingreso')}
               className={cn('p-3 rounded-lg border-2 text-center font-dm font-medium transition-colors',
                 entryType === 'ingreso' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-border hover:border-muted-foreground')}>
@@ -1121,7 +1121,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           </div>
 
           {/* Row 1 */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="font-dm text-xs">Fecha *</Label>
               <Input type="date" value={costDate} onChange={e => setCostDate(e.target.value)} className="font-dm" />
@@ -1163,7 +1163,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           </div>
 
           {/* Row 2 */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="font-dm text-xs">Descripción *</Label>
               <Input value={description} onChange={e => setDescription(e.target.value)}
@@ -1177,7 +1177,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           </div>
 
           {/* Row 3 - Cost centers */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="font-dm text-xs">Máquina</Label>
               <Select value={machineId || '__none__'} onValueChange={v => setMachineId(v === '__none__' ? '' : v)}>
@@ -1207,7 +1207,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           )}
 
           {/* Row 4 */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {entryType === 'gasto' && (
               <div>
                 <Label className="font-dm text-xs">Proveedor</Label>
@@ -1233,7 +1233,7 @@ function EntryFormModal({ open, onClose, entry, categories, machines, projects, 
           </div>
 
           {/* Row 5 */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="font-dm text-xs">Número de factura</Label>
               <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="FV-00123" className="font-dm" />
@@ -1452,7 +1452,7 @@ function ImportModal({ open, onClose, categories, machines, projects, tenantId, 
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Asignar a máquina</Label>
                 <Select value={globalMachineId || '__none__'} onValueChange={v => setGlobalMachineId(v === '__none__' ? '' : v)}>

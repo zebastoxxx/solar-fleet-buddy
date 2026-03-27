@@ -335,7 +335,7 @@ function CreateUserModal({ open, onOpenChange, onSuccess }: { open: boolean; onO
 
           {['tecnico', 'operario'].includes(role) && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-dm font-medium text-muted-foreground">Cédula / ID</label>
                   <Input value={idNumber} onChange={e => setIdNumber(e.target.value)} />
@@ -346,7 +346,7 @@ function CreateUserModal({ open, onOpenChange, onSuccess }: { open: boolean; onO
                 </div>
               </div>
               {role === 'tecnico' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-dm font-medium text-muted-foreground">Especialidad</label>
                     <Input value={specialty} onChange={e => setSpecialty(e.target.value)} />
@@ -465,7 +465,7 @@ function EmpresaTab() {
     <div className="max-w-2xl space-y-6">
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
         <h3 className="font-barlow text-sm font-semibold uppercase tracking-wider text-muted-foreground">Identidad</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-dm font-medium text-muted-foreground">Nombre empresa *</label>
             <Input value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} />
@@ -479,7 +479,7 @@ function EmpresaTab() {
 
       <div className="rounded-xl border border-border bg-card p-6 space-y-4">
         <h3 className="font-barlow text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contacto</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-dm font-medium text-muted-foreground">Teléfono</label>
             <Input value={form.phone ?? ''} onChange={e => setForm({ ...form, phone: e.target.value })} />

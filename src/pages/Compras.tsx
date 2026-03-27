@@ -714,7 +714,7 @@ function DetailOCModal({ open, onClose, oc, tenantId, userId, userRole, log, qc,
             </TabsList>
 
             <TabsContent value="resumen" className="space-y-4 mt-3">
-              <div className="grid grid-cols-2 gap-3 text-xs font-dm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-dm">
                 <div><span className="text-muted-foreground">Categoría:</span> <span className="font-medium ml-1">{oc.category || '—'}</span></div>
                 <div><span className="text-muted-foreground">Prioridad:</span> <span className="font-medium ml-1">{oc.priority}</span></div>
                 <div><span className="text-muted-foreground">Proveedor:</span> <span className="font-medium ml-1">{oc.suppliers?.name || '—'}</span></div>
@@ -810,7 +810,7 @@ function DetailOCModal({ open, onClose, oc, tenantId, userId, userRole, log, qc,
               {/* Upload sub-dialog */}
               {showUpload && (
                 <div className="p-3 rounded-lg border border-border bg-card space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs font-dm">Nombre *</Label>
                       <Input value={docName} onChange={e => setDocName(e.target.value)} className="text-xs h-8 font-dm" placeholder="Nombre del documento" />

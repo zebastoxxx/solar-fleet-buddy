@@ -7,7 +7,7 @@ import { useAlertsStore } from '@/stores/alertsStore';
 import { RoleBadge } from '@/components/ui/role-badge';
 import {
   BarChart3, TrendingUp, Users, Factory, Truck, HardHat,
-  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign, ShoppingCart
+  FolderOpen, ClipboardList, Wrench, Package, Settings, LogOut, DollarSign, ShoppingCart, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import logoImg from '@/assets/logo.png';
@@ -73,11 +73,20 @@ export function AppSidebar({ onClose }: AppSidebarProps) {
   return (
     <>
       {/* Logo area */}
-      <div className="flex flex-col items-center gap-1 px-4 py-4">
-        <img src={logoImg} alt="Up & Down Solar" className="h-12 w-auto object-contain" />
-        <span className="text-[10px] font-barlow font-semibold uppercase tracking-wider text-gold-bright">
-          Solar OS
-        </span>
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <img src={logoImg} alt="Up & Down Solar" className="h-12 w-auto object-contain" />
+          <span className="text-[10px] font-barlow font-semibold uppercase tracking-wider text-gold-bright">
+            Solar OS
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="md:hidden flex items-center justify-center h-9 w-9 rounded-lg text-[hsl(var(--sidebar-text))] hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Nav */}

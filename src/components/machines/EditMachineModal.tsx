@@ -167,7 +167,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
             size="md"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><Label className="font-dm text-xs">Código interno *</Label><Input value={form.internal_code} onChange={(e) => set('internal_code', e.target.value)} /></div>
             <div><Label className="font-dm text-xs">Nombre *</Label><Input value={form.name} onChange={(e) => set('name', e.target.value)} /></div>
           </div>
@@ -179,7 +179,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><Label className="font-dm text-xs">Marca</Label><Input value={form.brand} onChange={(e) => set('brand', e.target.value)} /></div>
             <div><Label className="font-dm text-xs">Modelo</Label><Input value={form.model} onChange={(e) => set('model', e.target.value)} /></div>
           </div>

@@ -212,7 +212,8 @@ export default function Personal() {
   };
 
   const renderTable = (people: PersonRow[], isTecnico: boolean) => (
-    <Table>
+    <div className="overflow-x-auto">
+    <Table className="min-w-[640px]">
       <TableHeader>
         <TableRow className="bg-secondary">
           <TableHead className="w-10">
@@ -222,8 +223,8 @@ export default function Personal() {
             />
           </TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Nombre</TableHead>
-          {isTecnico && <TableHead className="text-[11px] uppercase tracking-wider font-dm">Especialidad</TableHead>}
-          <TableHead className="text-[11px] uppercase tracking-wider font-dm">Contratación</TableHead>
+          {isTecnico && <TableHead className="text-[11px] uppercase tracking-wider font-dm hidden sm:table-cell">Especialidad</TableHead>}
+          <TableHead className="text-[11px] uppercase tracking-wider font-dm hidden md:table-cell">Contratación</TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Salario</TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Estado</TableHead>
           <TableHead className="text-[11px] uppercase tracking-wider font-dm">Acciones</TableHead>
@@ -244,11 +245,11 @@ export default function Personal() {
             </TableCell>
             <TableCell className="font-medium font-dm text-sm">{p.full_name}</TableCell>
             {isTecnico && (
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 {p.specialty && <span className={`inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm ${SPECIALTY_BADGE[p.specialty] || 'bg-secondary text-muted-foreground'}`}>{SPECIALTY_LABEL[p.specialty] || p.specialty}</span>}
               </TableCell>
             )}
-            <TableCell>
+            <TableCell className="hidden md:table-cell">
               <span className="inline-flex items-center rounded-[20px] px-2.5 py-0.5 text-[11px] font-semibold font-dm bg-secondary text-muted-foreground">
                 {CONTRACT_LABEL[p.contract_type || 'empresa'] || p.contract_type}
               </span>
@@ -265,6 +266,7 @@ export default function Personal() {
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 
   return (
@@ -313,7 +315,7 @@ export default function Personal() {
             <DialogDescription className="font-dm text-sm text-muted-foreground">Completa la información</DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Nombre completo *</Label>
                 <Input {...form.register('full_name')} className="h-10 rounded-lg font-dm" />
@@ -510,7 +512,7 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
             {!isTecnico && <TabsTrigger value="preops">Preoperacionales</TabsTrigger>}
           </TabsList>
           <TabsContent value="info">
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
               {[
                 ['Cédula', person.id_number],
                 ['Teléfono', person.phone],

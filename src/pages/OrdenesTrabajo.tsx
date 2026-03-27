@@ -641,7 +641,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
             </div>
             <div>
               <Label className="font-barlow uppercase text-xs mb-2 block">Tipo de OT</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {Object.entries(TYPE_LABELS).map(([k, v]) => (
                   <button key={k} onClick={() => setOTType(k)}
                     className={cn('p-3 rounded-lg border-2 text-center transition-colors',
@@ -676,7 +676,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
         {step === 2 && (
           <div className="space-y-4">
             <Label className="font-barlow uppercase text-xs block">Ubicación del trabajo</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {Object.entries(LOCATION_BADGES).map(([k, v]) => (
                 <button key={k} onClick={() => { setLocationType(k); setSelectedTechnicians([]); setSupplierId(''); }}
                   className={cn('p-3 rounded-lg border-2 text-center transition-colors',
@@ -1222,7 +1222,7 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
         {editMode && (
           <div className="space-y-3 p-3 rounded-lg border border-[hsl(var(--gold)/0.3)] bg-[hsl(var(--gold)/0.03)]">
             <p className="font-barlow uppercase text-xs text-[hsl(var(--gold-bright))]">✏️ Editar OT</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Prioridad</Label>
                 <Select value={editPriority} onValueChange={setEditPriority}>
@@ -1399,7 +1399,7 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
                   {photosByPhase[p].length === 0 ? (
                     <p className="text-xs text-muted-foreground font-dm py-4 text-center">Sin fotos en esta etapa</p>
                   ) : (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {photosByPhase[p].map((ph: any) => (
                         <div key={ph.id} className="aspect-square rounded-lg overflow-hidden border border-border">
                           <img src={ph.photo_url} alt="" className="w-full h-full object-cover" />
