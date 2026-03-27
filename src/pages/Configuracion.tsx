@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText } from 'lucide-react';
+import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText, DollarSign } from 'lucide-react';
 import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,7 @@ const TABS = [
   { key: 'empresa', label: 'Empresa', icon: Building2 },
   { key: 'parametros', label: 'Parámetros', icon: SlidersHorizontal },
   { key: 'alertas', label: 'Alertas', icon: Bell },
+  { key: 'tarifas', label: 'Tarifas', icon: DollarSign },
   { key: 'logs', label: 'Logs del Sistema', icon: ScrollText },
   { key: 'respaldos', label: 'Respaldos', icon: FolderArchive },
 ];
