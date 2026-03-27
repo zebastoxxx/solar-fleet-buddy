@@ -315,7 +315,7 @@ export default function Personal() {
             <DialogDescription className="font-dm text-sm text-muted-foreground">Completa la información</DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Nombre completo *</Label>
                 <Input {...form.register('full_name')} className="h-10 rounded-lg font-dm" />
