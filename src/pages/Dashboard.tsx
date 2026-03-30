@@ -102,9 +102,9 @@ export default function Dashboard() {
               value={`${openOTs.data?.count ?? 0} abiertas`}
               trend={openOTs.data?.hasCritical ? { value: 'Hay OT críticas', positive: false } : undefined}
             />
-            <div className="min-h-[88px] h-auto rounded-xl border border-border bg-card p-3.5 px-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-dm">Gasto Mensual</p>
-              <p className="mt-1 text-[28px] font-bold leading-tight font-barlow text-foreground">
+            <div className="min-h-[72px] sm:min-h-[88px] h-auto rounded-xl border border-border bg-card p-3 sm:p-3.5 px-3 sm:px-4">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground font-dm">Gasto Mensual</p>
+              <p className="mt-0.5 sm:mt-1 text-xl sm:text-[28px] font-bold leading-tight font-barlow text-foreground">
                 {formatCOP(spend.data?.total ?? 0)}
               </p>
               <div className="mt-1 flex items-center gap-2">
@@ -114,7 +114,7 @@ export default function Dashboard() {
                     style={{ width: `${Math.min(spend.data?.pct ?? 0, 100)}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-muted-foreground font-dm">de {formatCOP(spend.data?.budget ?? 12000000)}</span>
+                <span className="text-[10px] text-muted-foreground font-dm hidden sm:inline">de {formatCOP(spend.data?.budget ?? 12000000)}</span>
               </div>
             </div>
             <StatCard label="Proyectos Activos" value={`${projects.data ?? 0} activos`} />
