@@ -1,6 +1,6 @@
 {
-  "name": "Up & Down App",
-  "short_name": "UD App",
+  "name": "Up & Down",
+  "short_name": "Up & Down",
   "description": "Sistema de gestión de maquinaria pesada y proyectos solares",
   "start_url": "/",
   "display": "standalone",
