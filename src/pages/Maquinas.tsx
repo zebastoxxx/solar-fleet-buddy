@@ -229,7 +229,7 @@ export default function Maquinas() {
                   <span className="text-3xl opacity-20">⚙️</span>
                 )}
               </div>
-              <div className="p-3">
+              <div className="p-2 sm:p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <StatusIndicator status={m.status as MachineStatus} showLabel={false} />
                   <span className="text-[10px] font-semibold uppercase text-muted-foreground font-dm bg-muted px-1.5 py-0.5 rounded-md">
