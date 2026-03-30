@@ -134,7 +134,7 @@ export default function Dashboard() {
           ) : !machines.data?.length ? (
             <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin máquinas registradas</p>
           ) : (
-            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {machines.data.map((m) => (
                 <button
                   key={m.id}
