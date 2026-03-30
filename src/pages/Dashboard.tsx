@@ -74,7 +74,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Critical alerts banner */}
       {criticalAlerts.length > 0 && !alertsCollapsed && (
         <div className="rounded-xl border border-danger bg-danger-bg p-4">
