@@ -15,7 +15,7 @@ export function FilterPills({ options, value, onChange, className }: FilterPills
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "h-7 rounded-[20px] px-3 text-xs font-medium font-dm transition-colors",
+            "h-8 sm:h-7 rounded-[20px] px-3 text-xs font-medium font-dm transition-colors whitespace-nowrap",
             value === opt.value
               ? "bg-gold text-white"
               : "border border-border bg-card text-muted-foreground hover:border-gold"
