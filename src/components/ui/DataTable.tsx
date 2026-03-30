@@ -152,7 +152,7 @@ export function DataTable<T>({
         <TableBody>
           {isLoading &&
             Array.from({ length: skeletonRows }).map((_, i) => (
-              <TableRow key={`skel-${i}`} className="h-[44px]">
+              <TableRow key={`skel-${i}`} className="h-[32px] md:h-[36px]">
                 {selectable && <TableCell><Skeleton className="h-4 w-4" /></TableCell>}
                 {columns.map((_, j) => (
                   <TableCell key={j}>
