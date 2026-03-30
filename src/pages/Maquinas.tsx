@@ -214,7 +214,7 @@ export default function Maquinas() {
           action={can('maquinas') ? { label: '+ Nueva Máquina', onClick: () => setShowCreate(true) } : undefined}
         />
       ) : viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((m: any) => (
             <div
               key={m.id}
