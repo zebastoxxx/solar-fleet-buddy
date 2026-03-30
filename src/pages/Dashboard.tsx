@@ -91,7 +91,7 @@ export default function Dashboard() {
       )}
 
       {/* Row 1 — StatCards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {fleet.isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)
         ) : (
