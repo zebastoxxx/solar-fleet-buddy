@@ -152,7 +152,7 @@ export function DataTable<T>({
         <TableBody>
           {isLoading &&
             Array.from({ length: skeletonRows }).map((_, i) => (
-              <TableRow key={`skel-${i}`} className="h-[44px]">
+              <TableRow key={`skel-${i}`} className="h-[32px] md:h-[36px]">
                 {selectable && <TableCell><Skeleton className="h-4 w-4" /></TableCell>}
                 {columns.map((_, j) => (
                   <TableCell key={j}>
@@ -175,7 +175,7 @@ export function DataTable<T>({
                 <TableRow
                   key={key}
                   className={cn(
-                    'h-[44px]',
+                    'h-[32px] md:h-[36px]',
                     onRowClick && 'cursor-pointer hover:bg-[hsl(var(--gold)/0.04)]',
                     rowClassName?.(row)
                   )}
