@@ -175,7 +175,7 @@ export function DataTable<T>({
                 <TableRow
                   key={key}
                   className={cn(
-                    'h-[44px]',
+                    'h-[32px] md:h-[36px]',
                     onRowClick && 'cursor-pointer hover:bg-[hsl(var(--gold)/0.04)]',
                     rowClassName?.(row)
                   )}
