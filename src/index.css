@@ -232,8 +232,8 @@ button:active:not(:disabled) {
 
 /* Touch targets — only enforce on standalone tap targets, not inline table cells */
 @media (pointer: coarse) {
-  button:not(table button):not(.h-7):not(.h-6):not(.w-7):not(.w-6),
-  a:not(table a),
+  button:not(table button):not(.h-7):not(.h-6):not(.w-7):not(.w-6):not([class*="h-8"]):not([class*="h-9"]):not([role="combobox"]):not([role="option"]):not([role="tab"]),
+  a:not(table a):not(.nav-item),
   [role="button"]:not(table [role="button"]) {
     min-height: 44px;
   }

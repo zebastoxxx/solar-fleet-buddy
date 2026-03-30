@@ -9,13 +9,13 @@ interface FilterPillsProps {
 
 export function FilterPills({ options, value, onChange, className }: FilterPillsProps) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-1.5 overflow-x-auto", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden", className)}>
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "h-7 rounded-[20px] px-3 text-xs font-medium font-dm transition-colors",
+            "h-8 sm:h-7 rounded-[20px] px-3 text-xs font-medium font-dm transition-colors whitespace-nowrap",
             value === opt.value
               ? "bg-gold text-white"
               : "border border-border bg-card text-muted-foreground hover:border-gold"

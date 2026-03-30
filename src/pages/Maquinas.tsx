@@ -214,7 +214,7 @@ export default function Maquinas() {
           action={can('maquinas') ? { label: '+ Nueva Máquina', onClick: () => setShowCreate(true) } : undefined}
         />
       ) : viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((m: any) => (
             <div
               key={m.id}
@@ -222,14 +222,14 @@ export default function Maquinas() {
               onClick={() => navigate(`/maquinas/${m.id}`)}
             >
               {/* Compact photo area */}
-              <div className="h-[90px] bg-muted flex items-center justify-center overflow-hidden">
+              <div className="h-[70px] sm:h-[90px] bg-muted flex items-center justify-center overflow-hidden">
                 {m.cover_photo_url ? (
                   <img src={m.cover_photo_url} alt={m.name} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-3xl opacity-20">⚙️</span>
                 )}
               </div>
-              <div className="p-3">
+              <div className="p-2 sm:p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <StatusIndicator status={m.status as MachineStatus} showLabel={false} />
                   <span className="text-[10px] font-semibold uppercase text-muted-foreground font-dm bg-muted px-1.5 py-0.5 rounded-md">
@@ -237,8 +237,8 @@ export default function Maquinas() {
                   </span>
                   {profitBadge(m.profit_margin)}
                 </div>
-                <p className="font-barlow text-sm font-semibold text-foreground truncate">{m.name}</p>
-                <p className="text-[11px] text-muted-foreground font-dm">{m.internal_code} · {m.brand ?? ''} {m.model ?? ''}</p>
+                <p className="font-barlow text-xs sm:text-sm font-semibold text-foreground truncate">{m.name}</p>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-dm truncate">{m.internal_code} · {m.brand ?? ''} {m.model ?? ''}</p>
                 <p className="text-[12px] font-dm text-foreground mt-1">⏱ {Number(m.horometer_current ?? 0).toLocaleString()} h</p>
                 {(m as any).projects?.name && (
                   <p className="text-[11px] text-primary font-dm truncate">📍 {(m as any).projects.name}</p>
