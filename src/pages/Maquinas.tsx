@@ -237,8 +237,8 @@ export default function Maquinas() {
                   </span>
                   {profitBadge(m.profit_margin)}
                 </div>
-                <p className="font-barlow text-sm font-semibold text-foreground truncate">{m.name}</p>
-                <p className="text-[11px] text-muted-foreground font-dm">{m.internal_code} · {m.brand ?? ''} {m.model ?? ''}</p>
+                <p className="font-barlow text-xs sm:text-sm font-semibold text-foreground truncate">{m.name}</p>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-dm truncate">{m.internal_code} · {m.brand ?? ''} {m.model ?? ''}</p>
                 <p className="text-[12px] font-dm text-foreground mt-1">⏱ {Number(m.horometer_current ?? 0).toLocaleString()} h</p>
                 {(m as any).projects?.name && (
                   <p className="text-[11px] text-primary font-dm truncate">📍 {(m as any).projects.name}</p>
