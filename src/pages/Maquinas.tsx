@@ -222,7 +222,7 @@ export default function Maquinas() {
               onClick={() => navigate(`/maquinas/${m.id}`)}
             >
               {/* Compact photo area */}
-              <div className="h-[90px] bg-muted flex items-center justify-center overflow-hidden">
+              <div className="h-[70px] sm:h-[90px] bg-muted flex items-center justify-center overflow-hidden">
                 {m.cover_photo_url ? (
                   <img src={m.cover_photo_url} alt={m.name} className="w-full h-full object-cover" />
                 ) : (
