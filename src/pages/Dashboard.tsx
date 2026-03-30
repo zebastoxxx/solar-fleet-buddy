@@ -128,7 +128,7 @@ export default function Dashboard() {
         <div className="lg:col-span-3 rounded-xl border border-border bg-card p-4">
           <h3 className="font-barlow text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Flota Completa</h3>
           {machines.isLoading ? (
-            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-xl" />)}
             </div>
           ) : !machines.data?.length ? (
