@@ -516,33 +516,45 @@ function CreateOCModal({ open, onClose, tenantId, userId, log, qc, editing, pref
             </div>
             <div>
               <Label className="text-xs font-dm">Proveedor</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger className="text-sm font-dm"><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none" className="text-xs">Sin proveedor</SelectItem>
-                  {suppliers.map((s: any) => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={supplierId}
+                onValueChange={setSupplierId}
+                placeholder="Opcional..."
+                searchPlaceholder="Buscar proveedor..."
+                emptyText="No se encontraron proveedores."
+                options={[
+                  { value: "none", label: "Sin proveedor" },
+                  ...suppliers.map((s: any) => ({ value: s.id, label: s.name })),
+                ]}
+              />
             </div>
             <div>
               <Label className="text-xs font-dm">Máquina (opcional)</Label>
-              <Select value={machineId} onValueChange={setMachineId}>
-                <SelectTrigger className="text-sm font-dm"><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none" className="text-xs">Ninguna</SelectItem>
-                  {machines.map((m: any) => <SelectItem key={m.id} value={m.id} className="text-xs">{m.internal_code} — {m.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={machineId}
+                onValueChange={setMachineId}
+                placeholder="Opcional..."
+                searchPlaceholder="Buscar máquina..."
+                emptyText="No se encontraron máquinas."
+                options={[
+                  { value: "none", label: "Ninguna" },
+                  ...machines.map((m: any) => ({ value: m.id, label: `${m.internal_code} — ${m.name}` })),
+                ]}
+              />
             </div>
             <div>
               <Label className="text-xs font-dm">Proyecto (opcional)</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="text-sm font-dm"><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none" className="text-xs">Ninguno</SelectItem>
-                  {projects.map((p: any) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={projectId}
+                onValueChange={setProjectId}
+                placeholder="Opcional..."
+                searchPlaceholder="Buscar proyecto..."
+                emptyText="No se encontraron proyectos."
+                options={[
+                  { value: "none", label: "Ninguno" },
+                  ...projects.map((p: any) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </div>
           </div>
 
