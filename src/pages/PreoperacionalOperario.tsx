@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useNetworkStatus, useSyncStore } from '@/hooks/useNetworkStatus';
 import { useLog } from '@/hooks/useLog';
 import { addToOfflineQueue } from '@/lib/offline-queue';
-import { PREOP_TEMPLATES } from '@/data/preop-templates';
+import { PREOP_UNIVERSAL } from '@/data/preop-templates';
 import type { PreopSection, PreopItem } from '@/data/preop-templates';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -250,15 +250,13 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   });
 
   const selectedMachine = machines?.find((m: any) => m.id === machineId);
-  const machineType = selectedMachine?.type as string | undefined;
-  const template = machineType ? PREOP_TEMPLATES[machineType] : null;
-  const templateMissing = !!machineType && !template;
-  const allItems = template?.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.name }))) || [];
+  const template = PREOP_UNIVERSAL;
+  const allItems = template.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.name })));
   const totalItems = allItems.length;
   const completedItems = allItems.filter((i) => results[i.id]).length;
 
   const step1Valid = projectId && machineId && horometer && parseFloat(horometer) > 0;
-  const step2Valid = !templateMissing && totalItems > 0 && completedItems === totalItems;
+  const step2Valid = totalItems > 0 && completedItems === totalItems;
 
   const setResult = (itemId: string, result: ItemResult, item: PreopItem & { section: string }) => {
     setResults((prev) => ({ ...prev, [itemId]: result }));
@@ -310,13 +308,23 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
       }
 
       if (record.has_critical_failures && isOnline) {
+        const failedNames = allItems
+          .filter((i) => i.critical && results[i.id] === 'malo')
+          .map((i) => i.label);
+
         await supabase.from('alerts').insert([{
           tenant_id: user.tenant_id,
           type: 'preop_critico',
           severity: 'critical',
           machine_id: machineId,
-          message: `Preoperacional con ${record.critical_failures_count} punto(s) crítico(s) — ${selectedMachine?.name}`,
+          message: `⚠️ Falla crítica en preoperacional — ${selectedMachine?.name}: ${failedNames.join(', ')}`,
         }]);
+
+        // Auto-disable machine
+        await supabase
+          .from('machines')
+          .update({ status: 'en_campo_dañada' as any })
+          .eq('id', machineId);
       }
 
       await log('preoperacionales', 'crear_preop_inicio', 'preop_record', undefined, selectedMachine?.name);
@@ -361,15 +369,12 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             selectedMachine={selectedMachine}
           />
         )}
-        {step === 2 && template && (
+        {step === 2 && (
           <Step2Checklist
             template={template} results={results} observations={observations}
             setResult={setResult} setObservation={(id, v) => setObservations((p) => ({ ...p, [id]: v }))}
             totalItems={totalItems} completedItems={completedItems}
           />
-        )}
-        {step === 2 && templateMissing && (
-          <MissingTemplateState machineType={machineType} />
         )}
         {step === 3 && (
           <Step3Signature
@@ -411,9 +416,7 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
             onClick={() => setStep((s) => s + 1)}
           >
-            {step === 2 && templateMissing
-              ? `Sin plantilla para tipo: ${machineType}`
-              : step === 2 && !step2Valid
+            {step === 2 && !step2Valid
               ? `Faltan ${totalItems - completedItems} ítems por revisar`
               : 'Siguiente →'}
           </Button>
@@ -423,21 +426,8 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   );
 }
 
-function MissingTemplateState({ machineType }: { machineType?: string }) {
-  return (
-    <div className="rounded-xl border border-destructive/30 bg-[hsl(var(--danger-bg))] p-4">
-      <div className="flex items-start gap-2">
-        <AlertTriangle className="text-destructive mt-0.5" size={18} />
-        <div>
-          <h3 className="font-barlow font-semibold text-sm">No hay checklist configurado para esta máquina</h3>
-          <p className="text-xs text-muted-foreground font-dm mt-1">
-            Tipo detectado: <span className="font-semibold text-foreground">{machineType || 'sin tipo'}</span>. Regresa al paso 1 y selecciona otra máquina o solicita configuración de la plantilla.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+
+
 
 // ─── STEP 1: IDENTIFICATION ───
 function Step1Identification({ projectId, setProjectId, machineId, setMachineId, horometer, setHorometer, projects, machines, selectedMachine }: any) {
