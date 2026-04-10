@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useNetworkStatus, useSyncStore } from '@/hooks/useNetworkStatus';
 import { useLog } from '@/hooks/useLog';
 import { addToOfflineQueue } from '@/lib/offline-queue';
-import { PREOP_TEMPLATES } from '@/data/preop-templates';
+import { PREOP_UNIVERSAL } from '@/data/preop-templates';
 import type { PreopSection, PreopItem } from '@/data/preop-templates';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
