@@ -11,7 +11,7 @@ const BADGE_STYLES: Record<string, string> = {
   asignada: "bg-warning-bg text-warning",
   en_curso: "bg-[#DBEAFE] text-[#1E40AF]",
   pausada: "bg-warning-bg text-warning",
-  cerrada: "bg-success-bg text-success",
+  cerrada: "bg-[#DBEAFE] text-[#1E40AF]",
   firmada: "bg-success-bg text-success",
   // Priority
   normal: "bg-muted text-muted-foreground",
