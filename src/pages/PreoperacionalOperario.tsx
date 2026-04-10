@@ -256,7 +256,7 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   const completedItems = allItems.filter((i) => results[i.id]).length;
 
   const step1Valid = projectId && machineId && horometer && parseFloat(horometer) > 0;
-  const step2Valid = !templateMissing && totalItems > 0 && completedItems === totalItems;
+  const step2Valid = totalItems > 0 && completedItems === totalItems;
 
   const setResult = (itemId: string, result: ItemResult, item: PreopItem & { section: string }) => {
     setResults((prev) => ({ ...prev, [itemId]: result }));
@@ -359,15 +359,12 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             selectedMachine={selectedMachine}
           />
         )}
-        {step === 2 && template && (
+        {step === 2 && (
           <Step2Checklist
             template={template} results={results} observations={observations}
             setResult={setResult} setObservation={(id, v) => setObservations((p) => ({ ...p, [id]: v }))}
             totalItems={totalItems} completedItems={completedItems}
           />
-        )}
-        {step === 2 && templateMissing && (
-          <MissingTemplateState machineType={machineType} />
         )}
         {step === 3 && (
           <Step3Signature
@@ -409,9 +406,7 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
             disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
             onClick={() => setStep((s) => s + 1)}
           >
-            {step === 2 && templateMissing
-              ? `Sin plantilla para tipo: ${machineType}`
-              : step === 2 && !step2Valid
+            {step === 2 && !step2Valid
               ? `Faltan ${totalItems - completedItems} ítems por revisar`
               : 'Siguiente →'}
           </Button>
