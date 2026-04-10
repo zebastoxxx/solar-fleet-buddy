@@ -426,21 +426,8 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   );
 }
 
-function MissingTemplateState({ machineType }: { machineType?: string }) {
-  return (
-    <div className="rounded-xl border border-destructive/30 bg-[hsl(var(--danger-bg))] p-4">
-      <div className="flex items-start gap-2">
-        <AlertTriangle className="text-destructive mt-0.5" size={18} />
-        <div>
-          <h3 className="font-barlow font-semibold text-sm">No hay checklist configurado para esta máquina</h3>
-          <p className="text-xs text-muted-foreground font-dm mt-1">
-            Tipo detectado: <span className="font-semibold text-foreground">{machineType || 'sin tipo'}</span>. Regresa al paso 1 y selecciona otra máquina o solicita configuración de la plantilla.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+
+
 
 // ─── STEP 1: IDENTIFICATION ───
 function Step1Identification({ projectId, setProjectId, machineId, setMachineId, horometer, setHorometer, projects, machines, selectedMachine }: any) {
