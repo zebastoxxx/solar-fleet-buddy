@@ -308,13 +308,23 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
       }
 
       if (record.has_critical_failures && isOnline) {
+        const failedNames = allItems
+          .filter((i) => i.critical && results[i.id] === 'malo')
+          .map((i) => i.label);
+
         await supabase.from('alerts').insert([{
           tenant_id: user.tenant_id,
           type: 'preop_critico',
           severity: 'critical',
           machine_id: machineId,
-          message: `Preoperacional con ${record.critical_failures_count} punto(s) crítico(s) — ${selectedMachine?.name}`,
+          message: `⚠️ Falla crítica en preoperacional — ${selectedMachine?.name}: ${failedNames.join(', ')}`,
         }]);
+
+        // Auto-disable machine
+        await supabase
+          .from('machines')
+          .update({ status: 'en_campo_dañada' as any })
+          .eq('id', machineId);
       }
 
       await log('preoperacionales', 'crear_preop_inicio', 'preop_record', undefined, selectedMachine?.name);
