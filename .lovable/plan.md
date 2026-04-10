@@ -1,90 +1,60 @@
 
 
-# Plan: Fix OT Visibility for Technicians, Operators, and Superadmin
+## Plan: Plantilla preoperacional universal con inhabilitación automática de máquinas
 
-## Problem Summary
+### Resumen
+Reemplazar las plantillas por tipo de máquina con una **plantilla universal única** basada en el Excel proporcionado. Todos los ítems incluyen la opción "N/A" (ya existe en el UI). Al enviar un Formato A con ítems **críticos** marcados como "malo", el sistema automáticamente cambia la máquina a estado `en_campo_dañada` y genera alertas.
 
-After investigation, the database data is **correct** — all work orders exist, all personnel records are linked to user accounts, and RLS policies are properly configured. The issues are in the **frontend code** silently swallowing errors and a potential **auth race condition**.
+### Ítems del Excel (9 categorías, ~48 ítems)
 
-### Evidence from database:
-- All 6 work orders exist with correct `tenant_id`
-- OT-005 → Rafael (personnel `058a1c54`, user_id linked ✓)
-- OT-006 → Bienvenido (personnel `98768a94`, user_id linked ✓)
-- Diego (superadmin) has correct tenant_id in users table ✓
-- `get_user_tenant_id()` function works correctly ✓
+Los ítems marcados con **★** son críticos (amarillos en el Excel). Muchos ítems ya dicen "(SI APLICA)" lo cual refuerza que el operario puede marcar N/A.
 
-### Root causes identified:
+| Categoría | Ítems | Críticos ★ |
+|---|---|---|
+| ESTRUCTURA | 9 ítems (carrocería, escalera, vidrios, limpiabrisas, retrovisores, asiento, puertas, horquillas, mástil) | Ninguno |
+| CANASTA/PLATAFORMA | 3 (canasta, puntos de anclaje, barandas) | Ninguno |
+| LLANTAS | 1 (llantas en buen estado) | Ninguno |
+| ORUGAS | 3 (orugas, tren de rodaje, barra defensiva) | Ninguno |
+| FLUIDOS E INDICADORES | 4 | ★ Nivel aceite, ★ Nivel agua/refrigerante, ★ Indicadores, ★ Tanque combustible |
+| SEGURIDAD | 9 | ★ Frenos, ★ Parada de emergencia, ★ Estado de baterías |
+| LUCES Y SONIDOS | 6 (delanteras, traseras, direccionales, alarma retroceso, pito, baliza) | Ninguno |
+| ESTADO MECÁNICO | 11 | ★ Equipos sin fugas, ★ Freno de servicio, ★ Cilindros en buen estado, ★ Estado del bastidor |
+| MANDOS Y FUNCIONES | 5 | ★ Funciones de control hidráulico, ★ Pedales y/o mandos en buen estado |
 
-1. **Silent query failures**: The `MisOT.tsx` queries destructure `{ data }` without checking `error`. If `.single()` fails (e.g., temporary RLS timeout), it returns null and the user sees "profile not linked" instead of the real error.
+### Opción N/A
+El componente `ChecklistItem` **ya tiene el botón N/A** (línea 587: `<button ... onClick={() => onResult('na')}>N/A</button>`). El tipo `ItemResult = 'bueno' | 'malo' | 'na'` ya lo soporta. Los ítems que dicen "(SI APLICA)" simplemente se marcan N/A si no aplican a esa máquina. No se requiere cambio en la lógica de N/A.
 
-2. **Auth race condition**: The `authStore.initialize()` uses `setTimeout(0)` inside `onAuthStateChange`, which can cause a brief window where the Supabase client session is set but `auth.uid()` hasn't propagated to the RLS context. Queries fired in this window return empty results.
-
-3. **Rafael's personnel type mismatch**: Rafael's linked personnel record has `type: operario` instead of `tecnico`. While this doesn't block the current queries, it can cause issues when the OT creation modal filters technicians by `type = 'tecnico'`.
-
-4. **Duplicate personnel records**: Rafael has two personnel entries — one linked (type: operario) and one orphaned (type: tecnico, user_id: null). This can confuse supervisors when assigning OTs.
-
----
-
-## Changes (Frontend Only — No Database Modifications)
-
-### Step 1: Add error handling to MisOT.tsx queries
-
-In the `personnelId` query and `workOrders` query, capture and surface errors instead of silently failing:
-
-```typescript
-const { data: personnelId, isLoading: isLoadingPersonnel, error: personnelError } = useQuery({
-  queryKey: ['my-personnel-id', user?.id],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('personnel')
-      .select('id').eq('user_id', user!.id).single();
-    if (error) {
-      console.error('Personnel query error:', error);
-      throw error;
-    }
-    return data?.id || null;
-  },
-  enabled: !!user?.id,
-  retry: 3, // Retry on transient failures
-  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
-});
-```
-
-Update the "not linked" message to also show when there's an error vs genuinely unlinked.
-
-### Step 2: Add error handling to Dashboard OT queries
-
-In `useDashboardData.ts`, the `useRecentOTs` and `useOpenOTs` hooks don't check for errors. Add error checking and retry logic:
-
-```typescript
-queryFn: async () => {
-  const { data, error } = await supabase...;
-  if (error) throw error;
-  return data ?? [];
-},
-retry: 2,
-```
-
-### Step 3: Add retry logic to auth-dependent queries across MisOT
-
-Add `retry: 3` and `retryDelay` to all auth-dependent queries in `MisOT.tsx` to handle the auth race condition where `auth.uid()` returns null temporarily.
-
-### Step 4: Fix Configuración user creation to ensure personnel type matches role
-
-In `Configuracion.tsx` `CreateUserModal`, ensure that when creating a tecnico user, the personnel record is created with `type: 'tecnico'` (not defaulting to something else). Currently it uses `type: role as 'tecnico' | 'operario'` which is correct, but add validation.
-
-### Step 5: Add console.log debugging for development
-
-Add temporary `console.log` statements to:
-- `MisOT.tsx` personnelId query result
-- `MisOT.tsx` workOrders query result  
-- `useRecentOTs` query result
-
-This will make errors visible in console logs for the next debugging session.
+### Validación de completitud
+Actualmente, `step2Valid` requiere que **todos** los ítems tengan respuesta (bueno, malo o N/A). Esto ya funciona correctamente: el operario debe responder cada ítem pero puede elegir N/A para los que no apliquen.
 
 ---
 
-## Files to modify:
-1. **`src/pages/MisOT.tsx`** — Add error handling, retry logic, and debug logging to personnel and work order queries
-2. **`src/hooks/useDashboardData.ts`** — Add error checking and retry to `useRecentOTs` and `useOpenOTs`
-3. **`src/pages/PreoperacionalOperario.tsx`** — Add same error handling pattern for operario preop queries
+### Cambios a implementar
+
+#### 1. Reescribir `src/data/preop-templates.ts`
+- Eliminar todas las plantillas por tipo (minicargador, retroexcavadora, telehandler, manlift, camion_grua, hincadora, otro).
+- Exportar una constante `PREOP_UNIVERSAL: PreopTemplate` con las 9 secciones y los ~48 ítems exactos del Excel.
+- Los 13 ítems críticos marcados con `critical: true`.
+- Mantener las interfaces `PreopItem`, `PreopSection`, `PreopTemplate`.
+
+#### 2. Modificar `src/pages/PreoperacionalOperario.tsx` — FormatoA
+- **Selección de plantilla** (líneas 253-256): Cambiar de `PREOP_TEMPLATES[machineType]` a usar siempre `PREOP_UNIVERSAL`. Eliminar `templateMissing` y el componente `MissingTemplateState`.
+- **handleSave** (líneas 270-330): Después de guardar exitosamente, si `has_critical_failures === true`:
+  - Actualizar la máquina: `supabase.from('machines').update({ status: 'en_campo_dañada' }).eq('id', machineId)`
+  - La alerta ya se crea (líneas 312-319), solo agregar los nombres de los ítems críticos fallidos al mensaje.
+- **Bottom nav** (líneas 407-421): Eliminar la condición de `templateMissing` del botón.
+
+#### 3. Verificar `src/pages/Preoperacionales.tsx`
+- El modal de detalle (`PreopDetailModal`) ya agrupa ítems por sección dinámicamente desde la DB. No requiere cambios.
+
+#### 4. Verificar Dashboard y MaquinaDetalle
+- El Dashboard ya muestra alertas críticas con banner rojo. El `StatusIndicator` ya tiene `en_campo_dañada` con punto rojo palpitante. No requiere cambios.
+- `MaquinaDetalle.tsx` ya permite cambiar el estado manualmente a cualquier valor (superadmins/supervisores). No requiere cambios.
+
+### Archivos a modificar
+1. `src/data/preop-templates.ts` — reescribir completamente
+2. `src/pages/PreoperacionalOperario.tsx` — simplificar plantilla + auto-inhabilitar máquina
+
+### Sin cambios de base de datos
+No se requieren migraciones. Se usan las tablas y columnas existentes (`preop_records`, `preop_items`, `alerts`, `machines`).
 
