@@ -250,10 +250,8 @@ function FormatoA({ user, onBack }: { user: any; onBack: () => void }) {
   });
 
   const selectedMachine = machines?.find((m: any) => m.id === machineId);
-  const machineType = selectedMachine?.type as string | undefined;
-  const template = machineType ? PREOP_TEMPLATES[machineType] : null;
-  const templateMissing = !!machineType && !template;
-  const allItems = template?.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.name }))) || [];
+  const template = PREOP_UNIVERSAL;
+  const allItems = template.sections.flatMap((s) => s.items.map((i) => ({ ...i, section: s.name })));
   const totalItems = allItems.length;
   const completedItems = allItems.filter((i) => results[i.id]).length;
 
