@@ -9,6 +9,7 @@ import { useLog } from '@/hooks/useLog';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ActionBar, ActionBarLeft, ActionBarRight } from '@/components/ui/action-bar';
 import { SearchInput } from '@/components/ui/search-input';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { FilterPills } from '@/components/ui/filter-pills';
 import { AdvancedFilters } from '@/components/ui/AdvancedFilters';
 import { Button } from '@/components/ui/button';
@@ -293,13 +294,18 @@ export default function Proyectos() {
               </div>
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Cliente</Label>
-                <Select value={form.watch('client_id') || '__none__'} onValueChange={(v) => form.setValue('client_id', v === '__none__' ? '' : v)}>
-                  <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue placeholder="Sin cliente" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin cliente asignado</SelectItem>
-                    {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}{c.city ? ` · ${c.city}` : ''}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={form.watch('client_id') || ''}
+                  onValueChange={(v) => form.setValue('client_id', v)}
+                  options={[
+                    { value: '', label: 'Sin cliente asignado' },
+                    ...clients.map((c: any) => ({ value: c.id, label: `${c.name}${c.city ? ` · ${c.city}` : ''}` }))
+                  ]}
+                  placeholder="Buscar cliente..."
+                  searchPlaceholder="Buscar cliente..."
+                  emptyText="No se encontraron clientes."
+                  className="rounded-lg"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="font-dm text-xs">Estado</Label>
