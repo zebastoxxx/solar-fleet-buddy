@@ -51,7 +51,9 @@ export function DocumentPreview({ url, name, open, onClose }: DocumentPreviewPro
             <img src={url} alt={name} className="max-w-full max-h-[70vh] object-contain p-4" />
           )}
           {previewType === 'pdf' && (
-            <iframe src={url} className="w-full h-[70vh] border-0" title={name} />
+            <object data={url} type="application/pdf" className="w-full h-[70vh]">
+              <iframe src={url} className="w-full h-[70vh] border-0" title={name} />
+            </object>
           )}
           {previewType === 'none' && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
