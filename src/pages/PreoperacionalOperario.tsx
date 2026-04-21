@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 type ItemResult = 'bueno' | 'malo' | 'na';
 type FormScreen = 'home' | 'formatoA' | 'formatoB';
@@ -616,97 +618,45 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
   onSave: (sig: string) => void; saving: boolean;
   isFormatoB?: boolean; extraSummary?: React.ReactNode;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { user } = useAuthStore();
+  const sigRef = useRef<SignaturePadRef>(null);
   const [hasSignature, setHasSignature] = useState(false);
-  const isDrawing = useRef(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const buenos = allItems.filter((i) => results[i.id] === 'bueno').length;
   const malos = allItems.filter((i) => results[i.id] === 'malo').length;
   const nas = allItems.filter((i) => results[i.id] === 'na').length;
   const criticalMalos = allItems.filter((i) => i.critical && results[i.id] === 'malo').length;
 
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+  const handleSave = async () => {
+    if (!sigRef.current || sigRef.current.isEmpty()) return;
+    setUploading(true);
+    try {
+      const blob = await sigRef.current.toBlob('image/png');
+      const fallback = sigRef.current.toDataURL('image/png');
+      // Si no hay tenant (raro en este flujo) usamos el dataURL de respaldo
+      const sigUrl = user?.tenant_id
+        ? await uploadSignature(blob, user.tenant_id, `preop_${isFormatoB ? 'b' : 'a'}_operario`, fallback)
+        : fallback;
+      onSave(sigUrl);
+    } finally {
+      setUploading(false);
     }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
   };
-
-  const startDraw = (e: any) => {
-    isDrawing.current = true;
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    lastPoint.current = { x: pos.x, y: pos.y };
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const draw = (e: any) => {
-    if (!isDrawing.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    const prev = lastPoint.current;
-    if (prev) {
-      const dx = Math.abs(pos.x - prev.x), dy = Math.abs(pos.y - prev.y);
-      if (dx < 2 && dy < 2) return;
-      ctx.quadraticCurveTo(prev.x, prev.y, (pos.x + prev.x) / 2, (pos.y + prev.y) / 2);
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-    lastPoint.current = { x: pos.x, y: pos.y };
-    setHasSignature(true);
-  };
-
-  const stopDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-
-  const clearSignature = () => {
-    const canvas = canvasRef.current!;
-    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
-    setHasSignature(false);
-  };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = (rect.width || canvas.offsetWidth) * dpr;
-      canvas.height = 200 * dpr;
-      canvas.style.height = '200px';
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.shadowBlur = 0;
-      }
-    }
-  }, []);
 
   return (
     <div className="space-y-4">
       <h2 className="font-barlow text-lg font-semibold">Firma del Operario</h2>
       <p className="text-xs text-muted-foreground font-dm">Al firmar confirmas que el checklist fue completado con veracidad</p>
 
-      <div className="relative">
-        <canvas
-          ref={canvasRef}
-          className="w-full border-2 border-dashed border-border rounded-xl bg-card touch-none"
-          style={{ height: 200 }}
-          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-        />
-        {!hasSignature && (
-          <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground pointer-events-none">✍️ Firma aquí con tu dedo</p>
-        )}
-      </div>
-      <Button variant="ghost" size="sm" onClick={clearSignature} className="text-xs">Limpiar firma</Button>
+      <SignaturePad
+        ref={sigRef}
+        height={200}
+        strokeColor="#1A1A1A"
+        strokeWidth={1.8}
+        placeholder="✍️ Firma aquí con tu dedo"
+        onChange={() => setHasSignature(true)}
+        onClear={() => setHasSignature(false)}
+      />
 
       {/* Summary */}
       <div className="bg-secondary rounded-xl p-4 space-y-2 text-sm font-dm">
@@ -727,10 +677,10 @@ function Step3Signature({ machineName, projectName, horometer, results, allItems
 
       <Button
         className="w-full h-12 font-barlow uppercase tracking-wide bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-bright))] text-white"
-        disabled={!hasSignature || saving}
-        onClick={() => onSave(canvasRef.current!.toDataURL('image/png'))}
+        disabled={!hasSignature || saving || uploading}
+        onClick={handleSave}
       >
-        {saving ? 'Guardando...' : isFormatoB ? 'Guardar Formato B' : 'Guardar Formato A'}
+        {(saving || uploading) ? 'Guardando...' : isFormatoB ? 'Guardar Formato B' : 'Guardar Formato A'}
       </Button>
     </div>
   );
