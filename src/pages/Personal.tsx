@@ -114,6 +114,21 @@ export default function Personal() {
     staleTime: 30000,
   });
 
+  // Usuarios del tenant que aún no están vinculados a personnel — para el selector "Vincular usuario existente"
+  const { data: unlinkedUsers = [] } = useQuery({
+    queryKey: ['unlinked-users', tenantId, personnel.length],
+    queryFn: async () => {
+      const linkedIds = personnel.map(p => p.user_id).filter(Boolean);
+      let q = supabase.from('users').select('id, full_name, role').eq('tenant_id', tenantId!).eq('active', true).in('role', ['tecnico', 'operario'] as any);
+      if (linkedIds.length > 0) q = q.not('id', 'in', `(${linkedIds.join(',')})`);
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!tenantId && modalOpen,
+  });
+
+  const unlinkedPersonnelCount = personnel.filter(p => ['tecnico', 'operario'].includes(p.type) && !p.user_id).length;
+
   const filtered = personnel.filter((p) => {
     if (typeFilter !== 'all' && p.type !== typeFilter) return false;
     if (search) {
