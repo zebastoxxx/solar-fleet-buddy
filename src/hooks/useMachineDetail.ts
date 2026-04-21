@@ -211,6 +211,25 @@ export function useCreateMachine() {
   });
 }
 
+const MAX_DOC_SIZE = 100 * 1024 * 1024; // 100 MB
+
+function sanitizeFilename(name: string): { base: string; ext: string } {
+  const lastDot = name.lastIndexOf('.');
+  const rawBase = lastDot > 0 ? name.slice(0, lastDot) : name;
+  const rawExt = lastDot > 0 ? name.slice(lastDot + 1) : '';
+  const norm = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^[-.]+|[-.]+$/g, '');
+  const base = norm(rawBase) || 'archivo';
+  const ext = norm(rawExt);
+  return { base, ext };
+}
+
 export function useUploadMachineDocument() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -218,14 +237,28 @@ export function useUploadMachineDocument() {
     mutationFn: async ({ machineId, file, name, docType, expiryDate }: {
       machineId: string; file: File; name: string; docType: string; expiryDate?: string;
     }) => {
-      const path = `machines/${machineId}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('documents').upload(path, file);
+      if (file.size > MAX_DOC_SIZE) {
+        const err = new Error('El archivo excede el límite de 100 MB');
+        (err as any).code = 'FILE_TOO_LARGE';
+        throw err;
+      }
+      if (!user?.tenant_id) throw new Error('Sesión no válida');
+      const { base, ext } = sanitizeFilename(file.name);
+      const path = `${user.tenant_id}/${machineId}/${Date.now()}_${base}${ext ? '.' + ext : ''}`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(path, file, { contentType: file.type || undefined, upsert: false });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path);
       const { error } = await supabase.from('machine_documents').insert({
-        machine_id: machineId, name, doc_type: docType, file_url: publicUrl,
-        expiry_date: expiryDate || null, uploaded_by: user?.id,
-      });
+        machine_id: machineId,
+        tenant_id: user.tenant_id,
+        name,
+        doc_type: docType,
+        file_url: publicUrl,
+        expiry_date: expiryDate || null,
+        uploaded_by: user?.id,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['machine-documents'] }),
