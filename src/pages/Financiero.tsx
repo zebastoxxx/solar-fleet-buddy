@@ -34,8 +34,7 @@ import {
 } from 'lucide-react';
 import { subMonths, subDays, startOfMonth, startOfYear, format, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
+// XLSX y Papa se cargan dinámicamente en los handlers de import/export para no inflar el bundle.
 
 // ─── Types ───
 interface FinancialEntry {

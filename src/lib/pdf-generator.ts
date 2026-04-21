@@ -1,4 +1,8 @@
-import jsPDF from 'jspdf';
+// Dynamic import of jspdf — keeps it out of the main bundle.
+type JsPdfModule = typeof import('jspdf');
+let _jsPdfPromise: Promise<JsPdfModule> | null = null;
+const loadJsPdf = () => (_jsPdfPromise ??= import('jspdf'));
+
 
 interface DeliveryActData {
   type: 'herramienta_ot' | 'kit_campo';
@@ -15,6 +19,7 @@ interface DeliveryActData {
 }
 
 export async function generateDeliveryActPDF(data: DeliveryActData): Promise<Blob> {
+  const { default: jsPDF } = await loadJsPdf();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   doc.setFillColor(212, 136, 30);
@@ -89,6 +94,7 @@ interface MachineReportData {
 }
 
 export async function generateMachineReportPDF(data: MachineReportData): Promise<Blob> {
+  const { default: jsPDF } = await loadJsPdf();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const m = data.machine;
 

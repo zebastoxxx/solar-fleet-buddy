@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+// Dynamic import of jszip — keeps it out of the main bundle.
 import { format } from 'date-fns';
 
 interface DocEntry {
@@ -15,6 +15,7 @@ export async function downloadDocsAsZip(
   const validDocs = docs.filter((d) => d.file_url);
   if (!validDocs.length) return;
 
+  const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
   const folder = zip.folder(folderName)!;
   const usedNames = new Set<string>();
