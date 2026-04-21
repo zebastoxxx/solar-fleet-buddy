@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText, DollarSign } from 'lucide-react';
+import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, SlidersHorizontal, Bell, ScrollText, DollarSign, Stethoscope, Link2, UserPlus, AlertTriangle } from 'lucide-react';
 import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,7 @@ const TABS = [
   { key: 'tarifas', label: 'Tarifas', icon: DollarSign },
   { key: 'logs', label: 'Logs del Sistema', icon: ScrollText },
   { key: 'respaldos', label: 'Respaldos', icon: FolderArchive },
+  { key: 'diagnostico', label: 'Diagnóstico personal', icon: Stethoscope },
 ];
 
 function generatePassword() {
@@ -1048,11 +1049,213 @@ function TarifasTab() {
   );
 }
 
+// ─── DIAGNÓSTICO DE PERSONAL TAB (solo superadmin) ───
+function DiagnosticoTab() {
+  const { user } = useAuthStore();
+  const qc = useQueryClient();
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [busy, setBusy] = useState(false);
+
+  // Personnel huérfanos (tecnico/operario sin user_id)
+  const { data: orphanPersonnel = [], isLoading: loadingP } = useQuery({
+    queryKey: ['diag-orphan-personnel', user?.tenant_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('personnel')
+        .select('id, full_name, type, email, status')
+        .eq('tenant_id', user!.tenant_id)
+        .in('type', ['tecnico', 'operario'])
+        .is('user_id', null)
+        .order('full_name');
+      return data || [];
+    },
+    enabled: !!user?.tenant_id,
+  });
+
+  // Auth users sin personnel asociado
+  const { data: orphanUsers = [], isLoading: loadingU } = useQuery({
+    queryKey: ['diag-orphan-users', user?.tenant_id],
+    queryFn: async () => {
+      const { data: users } = await supabase.from('users')
+        .select('id, full_name, role')
+        .eq('tenant_id', user!.tenant_id)
+        .in('role', ['tecnico', 'operario'] as any)
+        .eq('active', true);
+      const { data: linked } = await supabase.from('personnel')
+        .select('user_id')
+        .eq('tenant_id', user!.tenant_id)
+        .not('user_id', 'is', null);
+      const linkedSet = new Set((linked || []).map((p: any) => p.user_id));
+      return (users || []).filter((u: any) => !linkedSet.has(u.id));
+    },
+    enabled: !!user?.tenant_id,
+  });
+
+  // Para vincular: lista de auth users disponibles (los huérfanos sirven)
+  const linkOptions = orphanUsers;
+
+  const linkExisting = async (personnelId: string, userId: string) => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('personnel').update({ user_id: userId }).eq('id', personnelId);
+      if (error) throw error;
+      toast.success('Personal vinculado correctamente');
+      setLinkingId(null);
+      setSelectedUserId('');
+      qc.invalidateQueries({ queryKey: ['diag-orphan-personnel'] });
+      qc.invalidateQueries({ queryKey: ['diag-orphan-users'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Error al vincular');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createNewUserAndLink = async (p: any) => {
+    const email = prompt(`Email para nuevo usuario de "${p.full_name}":`, p.email || '');
+    if (!email) return;
+    const password = generatePassword();
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          action: 'create_and_link_personnel',
+          email,
+          password,
+          fullName: p.full_name,
+          role: p.type,
+          personnelId: p.id,
+        },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+      toast.success(`Usuario creado. Contraseña temporal: ${password}`, { duration: 15000 });
+      qc.invalidateQueries({ queryKey: ['diag-orphan-personnel'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Error al crear usuario');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createPersonnelForUser = async (u: any) => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('personnel').insert({
+        tenant_id: user!.tenant_id,
+        user_id: u.id,
+        full_name: u.full_name,
+        type: u.role as 'tecnico' | 'operario',
+        contract_type: 'empresa',
+        status: 'activo',
+      });
+      if (error) throw error;
+      toast.success('Registro de personal creado');
+      qc.invalidateQueries({ queryKey: ['diag-orphan-personnel'] });
+      qc.invalidateQueries({ queryKey: ['diag-orphan-users'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Error al crear personal');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-2 mb-3">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-barlow font-semibold uppercase tracking-wide text-sm text-foreground">Personal sin usuario vinculado</h3>
+            <p className="text-xs text-muted-foreground font-dm">Técnicos/operarios que no pueden iniciar sesión ni recibir asignaciones.</p>
+          </div>
+        </div>
+        {loadingP ? (
+          <Skeleton className="h-20 w-full" />
+        ) : orphanPersonnel.length === 0 ? (
+          <p className="text-xs text-muted-foreground font-dm py-2">✓ Todo el personal está correctamente vinculado.</p>
+        ) : (
+          <div className="space-y-2">
+            {orphanPersonnel.map((p: any) => (
+              <div key={p.id} className="rounded-lg border border-border bg-background p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-dm text-sm font-semibold text-foreground">{p.full_name}</p>
+                    <p className="text-[11px] text-muted-foreground capitalize">{p.type} · {p.email || 'sin email'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" disabled={busy || linkOptions.length === 0}
+                      onClick={() => setLinkingId(linkingId === p.id ? null : p.id)}>
+                      <Link2 className="h-3.5 w-3.5 mr-1" />
+                      {linkingId === p.id ? 'Cancelar' : 'Vincular usuario'}
+                    </Button>
+                    <Button size="sm" disabled={busy} onClick={() => createNewUserAndLink(p)}>
+                      <UserPlus className="h-3.5 w-3.5 mr-1" />
+                      Crear usuario nuevo
+                    </Button>
+                  </div>
+                </div>
+                {linkingId === p.id && (
+                  <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger className="h-9 w-[260px]"><SelectValue placeholder="Selecciona un usuario huérfano..." /></SelectTrigger>
+                      <SelectContent>
+                        {linkOptions.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.role})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" disabled={!selectedUserId || busy} onClick={() => linkExisting(p.id, selectedUserId)}>
+                      Confirmar vínculo
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-2 mb-3">
+          <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-barlow font-semibold uppercase tracking-wide text-sm text-foreground">Usuarios sin registro de personal</h3>
+            <p className="text-xs text-muted-foreground font-dm">Cuentas de técnico/operario activas que no tienen ficha en el módulo de Personal.</p>
+          </div>
+        </div>
+        {loadingU ? (
+          <Skeleton className="h-20 w-full" />
+        ) : orphanUsers.length === 0 ? (
+          <p className="text-xs text-muted-foreground font-dm py-2">✓ Todos los usuarios tienen ficha de personal.</p>
+        ) : (
+          <div className="space-y-2">
+            {orphanUsers.map((u: any) => (
+              <div key={u.id} className="rounded-lg border border-border bg-background p-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-dm text-sm font-semibold text-foreground">{u.full_name}</p>
+                  <p className="text-[11px] text-muted-foreground capitalize">{u.role}</p>
+                </div>
+                <Button size="sm" disabled={busy} onClick={() => createPersonnelForUser(u)}>
+                  <UserPlus className="h-3.5 w-3.5 mr-1" />
+                  Crear personal para este usuario
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ConfiguracionInner() {
   usePageTitle('Configuración');
   const { user } = useAuthStore();
   const isSupervisor = user?.role === 'supervisor';
-  const visibleTabs = isSupervisor ? TABS.filter(t => t.key === 'usuarios') : TABS;
+  const isSuperadmin = user?.role === 'superadmin';
+  const visibleTabs = isSupervisor
+    ? TABS.filter(t => t.key === 'usuarios')
+    : TABS.filter(t => t.key !== 'diagnostico' || isSuperadmin);
   const [activeTab, setActiveTab] = useState('usuarios');
 
   return (
@@ -1090,6 +1293,7 @@ function ConfiguracionInner() {
           {activeTab === 'tarifas' && !isSupervisor && <TarifasTab />}
           {activeTab === 'logs' && !isSupervisor && <LogsTab />}
           {activeTab === 'respaldos' && !isSupervisor && <RespaldosTab />}
+          {activeTab === 'diagnostico' && isSuperadmin && <DiagnosticoTab />}
         </div>
       </div>
     </div>
