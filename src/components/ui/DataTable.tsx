@@ -56,10 +56,15 @@ export function DataTable<T>({
   onSelectionChange,
   rowKey,
   skeletonRows = 5,
+  pagination = true,
+  initialPageSize = 25,
+  pageSizeOptions = [10, 25, 50, 100],
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | undefined>(defaultSort?.key);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSort?.direction || 'desc');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [page, setPage] = useState(0);
 
   const handleSort = useCallback((key: string) => {
     if (sortKey === key) {
@@ -86,6 +91,20 @@ export function DataTable<T>({
     });
   }, [data, sortKey, sortDir]);
 
+  const total = sortedData.length;
+  const totalPages = pagination ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+
+  // Reset to page 0 when data shrinks beyond current page
+  useEffect(() => {
+    if (page > totalPages - 1) setPage(0);
+  }, [page, totalPages]);
+
+  const pagedData = useMemo(() => {
+    if (!pagination) return sortedData;
+    const start = page * pageSize;
+    return sortedData.slice(start, start + pageSize);
+  }, [sortedData, page, pageSize, pagination]);
+
   const getKey = (row: T, idx: number) => rowKey ? rowKey(row) : String((row as any).id ?? idx);
 
   const toggleSelect = (key: string) => {
@@ -99,15 +118,19 @@ export function DataTable<T>({
   };
 
   const toggleAll = () => {
-    if (selected.size === sortedData.length) {
+    if (selected.size === pagedData.length) {
       setSelected(new Set());
       onSelectionChange?.([]);
     } else {
-      const all = new Set(sortedData.map((r, i) => getKey(r, i)));
+      const all = new Set(pagedData.map((r, i) => getKey(r, i)));
       setSelected(all);
-      onSelectionChange?.(sortedData);
+      onSelectionChange?.(pagedData);
     }
   };
+
+  const showPagination = pagination && !isLoading && total > 0;
+  const startItem = page * pageSize + 1;
+  const endItem = Math.min(total, (page + 1) * pageSize);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -118,7 +141,7 @@ export function DataTable<T>({
             {selectable && (
               <TableHead className="w-10">
                 <Checkbox
-                  checked={sortedData.length > 0 && selected.size === sortedData.length}
+                  checked={pagedData.length > 0 && selected.size === pagedData.length}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
@@ -168,7 +191,7 @@ export function DataTable<T>({
                 ))}
               </TableRow>
             ))}
-          {!isLoading && sortedData.length === 0 && (
+          {!isLoading && total === 0 && (
             <TableRow>
               <TableCell colSpan={columns.length + (selectable ? 1 : 0)} className="text-center py-12 text-muted-foreground font-dm">
                 {emptyState || emptyMessage}
@@ -176,7 +199,7 @@ export function DataTable<T>({
             </TableRow>
           )}
           {!isLoading &&
-            sortedData.map((row, idx) => {
+            pagedData.map((row, idx) => {
               const key = getKey(row, idx);
               return (
                 <TableRow
@@ -214,6 +237,58 @@ export function DataTable<T>({
         </TableBody>
       </Table>
       </div>
+
+      {showPagination && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-border px-3 py-2 bg-card">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-dm text-muted-foreground">Items por página</span>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
+              <SelectTrigger className="h-7 w-[70px] text-xs font-dm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map(n => (
+                  <SelectItem key={n} value={String(n)} className="text-xs font-dm">{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-dm text-muted-foreground tabular-nums">
+              {startItem}–{endItem} de {total}
+            </span>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                aria-label="Primera página"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
+              ><ChevronsLeft className="h-3.5 w-3.5" /></button>
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                aria-label="Página anterior"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
+              ><ChevronLeft className="h-3.5 w-3.5" /></button>
+              <span className="text-[11px] font-dm text-foreground px-2 tabular-nums">
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                aria-label="Página siguiente"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
+              ><ChevronRight className="h-3.5 w-3.5" /></button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                aria-label="Última página"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
+              ><ChevronsRight className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
