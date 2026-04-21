@@ -567,7 +567,7 @@ function ParametrosTab() {
 
 // ─── ALERTAS TAB ───
 function AlertasTab() {
-  const { unresolved } = useAlertsStore();
+  const unresolved = useAlertsStore((s) => s.unresolved);
   const qc = useQueryClient();
 
   const resolveAlert = async (id: string) => {

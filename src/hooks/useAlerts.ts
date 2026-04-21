@@ -5,7 +5,8 @@ import { useAlertsStore, type Alert } from '@/stores/alertsStore';
 import { toast } from 'sonner';
 
 export function useAlerts() {
-  const { setAlerts, addAlert } = useAlertsStore();
+  const setAlerts = useAlertsStore((s) => s.setAlerts);
+  const addAlert = useAlertsStore((s) => s.addAlert);
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {

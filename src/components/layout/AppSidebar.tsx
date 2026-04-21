@@ -57,9 +57,10 @@ function OTTimerChip() {
 export function AppSidebar({ onClose }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
   const { can } = usePermissions();
-  const { criticalCount } = useAlertsStore();
+  const criticalCount = useAlertsStore((s) => s.criticalCount);
 
   const handleLogout = async () => {
     await signOut();
