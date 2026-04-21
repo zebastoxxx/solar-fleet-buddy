@@ -456,14 +456,21 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
     enabled: open && !!tenantId,
   });
 
-  const { data: technicians = [] } = useQuery({
+  const { data: techData = { linked: [], unlinkedCount: 0 } } = useQuery({
     queryKey: ['technicians-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('*').eq('tenant_id', tenantId).eq('type', 'tecnico').eq('status', 'activo').order('full_name');
-      return data || [];
+      const { data } = await supabase.from('personnel').select('id, full_name, user_id')
+        .eq('tenant_id', tenantId).eq('type', 'tecnico').eq('status', 'activo').order('full_name');
+      const all = data || [];
+      return {
+        linked: all.filter((p: any) => p.user_id),
+        unlinkedCount: all.filter((p: any) => !p.user_id).length,
+      };
     },
     enabled: open && !!tenantId,
   });
+  const technicians = techData.linked;
+  const unlinkedTechCount = techData.unlinkedCount;
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-ot', tenantId],
