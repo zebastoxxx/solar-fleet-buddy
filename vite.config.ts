@@ -31,4 +31,22 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-query': ['@tanstack/react-query', 'zustand'],
+          'vendor-charts': ['recharts'],
+          'vendor-forms': ['react-hook-form', 'zod', '@hookform/resolvers'],
+          'vendor-ui': ['lucide-react', 'sonner', 'next-themes'],
+        },
+      },
+    },
+  },
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
 }));

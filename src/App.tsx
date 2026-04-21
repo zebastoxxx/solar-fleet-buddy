@@ -33,7 +33,16 @@ const Compras = lazy(() => import('./pages/Compras'));
 const Cotizaciones = lazy(() => import('./pages/Cotizaciones'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function AppInit({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((s) => s.initialize);

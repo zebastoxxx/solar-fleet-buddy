@@ -34,8 +34,7 @@ import {
 } from 'lucide-react';
 import { subMonths, subDays, startOfMonth, startOfYear, format, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
+// XLSX y Papa se cargan dinámicamente en los handlers de import/export para no inflar el bundle.
 
 // ─── Types ───
 interface FinancialEntry {
@@ -331,7 +330,7 @@ export default function Financiero() {
   });
 
   // ─── CSV Export ───
-  const exportCSV = useCallback(() => {
+  const exportCSV = useCallback(async () => {
     const rows = filteredEntries.map(e => {
       const cat = categories.find(c => c.id === e.category_id);
       const machine = machines.find(m => m.id === e.machine_id);
@@ -347,6 +346,7 @@ export default function Financiero() {
         Factura: e.invoice_number ?? '',
       };
     });
+    const { default: Papa } = await import('papaparse');
     const csv = Papa.unparse(rows);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1294,10 +1294,12 @@ function ImportModal({ open, onClose, categories, machines, projects, tenantId, 
     setFileName(file.name);
     let data: any[];
     if (file.name.endsWith('.csv')) {
+      const { default: Papa } = await import('papaparse');
       data = await new Promise(resolve => {
         Papa.parse(file, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) });
       });
     } else {
+      const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];

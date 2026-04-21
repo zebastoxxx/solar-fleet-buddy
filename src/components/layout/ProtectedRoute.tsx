@@ -8,7 +8,9 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
-  const { user, session, loading } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const session = useAuthStore((s) => s.session);
+  const loading = useAuthStore((s) => s.loading);
 
   if (loading) {
     return (

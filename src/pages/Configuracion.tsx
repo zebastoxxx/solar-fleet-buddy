@@ -23,6 +23,7 @@ import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, Slid
 import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatCOP } from '@/lib/format';
 import type { UserRole } from '@/types';
 
 const TABS = [
@@ -566,7 +567,7 @@ function ParametrosTab() {
 
 // ─── ALERTAS TAB ───
 function AlertasTab() {
-  const { unresolved } = useAlertsStore();
+  const unresolved = useAlertsStore((s) => s.unresolved);
   const qc = useQueryClient();
 
   const resolveAlert = async (id: string) => {
@@ -938,7 +939,7 @@ function TarifasTab() {
     toast.success(rate.active ? 'Tarifa desactivada' : 'Tarifa activada');
   };
 
-  const fmtCOP = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
+  const fmtCOP = (v: number) => formatCOP(v || 0);
 
   const rateForm = (
     <div className="space-y-3">

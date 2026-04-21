@@ -27,7 +27,7 @@ import {
   Plus, Eye, Pencil, Trash2, FileText, Download, Send, CheckCircle, XCircle,
   X, Clock, Filter, RotateCcw, FileDown
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+// jsPDF cargado dinámicamente dentro de generatePDF para no inflar el bundle inicial.
 
 // ─── Types ───
 interface QuotationRow {
@@ -918,7 +918,8 @@ function QuoteDetailModal({
     onClose();
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF('p', 'mm', 'letter');
     const pw = doc.internal.pageSize.getWidth();
     let y = 20;
