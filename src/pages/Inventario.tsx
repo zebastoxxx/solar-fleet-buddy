@@ -92,6 +92,8 @@ const SignatureCanvas = _forwardRef<SignaturePadRef, { onSignature: (data: strin
         onChange={(d) => onSignature(d)}
         onClear={() => onSignature(null)}
       />
+    );
+  }
 );
 
 // Convierte dataURL → Blob para subirlo a Storage
@@ -101,8 +103,6 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob | null> {
     return await r.blob();
   } catch { return null; }
 }
-  }
-);
 
 // ─── Main Inventario Page ───────────────────────────
 export default function Inventario() {
