@@ -456,14 +456,21 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
     enabled: open && !!tenantId,
   });
 
-  const { data: technicians = [] } = useQuery({
+  const { data: techData = { linked: [], unlinkedCount: 0 } } = useQuery({
     queryKey: ['technicians-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('personnel').select('*').eq('tenant_id', tenantId).eq('type', 'tecnico').eq('status', 'activo').order('full_name');
-      return data || [];
+      const { data } = await supabase.from('personnel').select('id, full_name, user_id')
+        .eq('tenant_id', tenantId).eq('type', 'tecnico').eq('status', 'activo').order('full_name');
+      const all = data || [];
+      return {
+        linked: all.filter((p: any) => p.user_id),
+        unlinkedCount: all.filter((p: any) => !p.user_id).length,
+      };
     },
     enabled: open && !!tenantId,
   });
+  const technicians = techData.linked;
+  const unlinkedTechCount = techData.unlinkedCount;
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-ot', tenantId],
@@ -691,16 +698,28 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
             {(locationType === 'bodega_propia' || locationType === 'campo_directo') && (
               <div>
                 <Label className="font-barlow uppercase text-xs mb-2 block">Técnicos asignados</Label>
-                <div className="flex flex-wrap gap-2">
-                  {technicians.map((t: any) => (
-                    <button key={t.id}
-                      onClick={() => setSelectedTechnicians(prev => prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id])}
-                      className={cn('px-3 py-1.5 rounded-full text-xs font-dm border transition-colors',
-                        selectedTechnicians.includes(t.id) ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold)/0.1)] font-semibold' : 'border-border hover:bg-muted')}>
-                      {t.full_name}
-                    </button>
-                  ))}
-                </div>
+                {unlinkedTechCount > 0 && (
+                  <div className="mb-2 p-2 rounded-lg bg-[hsl(var(--warning-bg,40_92%_94%))] text-[hsl(var(--warning,40_84%_29%))] text-xs font-dm flex items-center justify-between gap-2">
+                    <span>
+                      ⚠ Hay {unlinkedTechCount} técnico{unlinkedTechCount > 1 ? 's' : ''} sin usuario vinculado — no pueden recibir OTs.
+                    </span>
+                    <a href="/personal" className="underline font-semibold whitespace-nowrap">Ir a Personal</a>
+                  </div>
+                )}
+                {technicians.length === 0 ? (
+                  <p className="text-xs text-muted-foreground font-dm">No hay técnicos vinculados disponibles.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {technicians.map((t: any) => (
+                      <button key={t.id} type="button"
+                        onClick={() => setSelectedTechnicians(prev => prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id])}
+                        className={cn('px-3 py-1.5 rounded-full text-xs font-dm border transition-colors',
+                          selectedTechnicians.includes(t.id) ? 'border-[hsl(var(--gold))] bg-[hsl(var(--gold)/0.1)] font-semibold' : 'border-border hover:bg-muted')}>
+                        {t.full_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {locationType === 'campo_directo' && (

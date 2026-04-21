@@ -438,6 +438,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "delivery_acts_personnel_id_fkey"
+            columns: ["personnel_id"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "delivery_acts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -798,6 +805,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inventory_tools_assigned_to_person_fkey"
+            columns: ["assigned_to_person"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inventory_tools_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1153,7 +1167,7 @@ export type Database = {
           {
             foreignKeyName: "personnel_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -1272,6 +1286,13 @@ export type Database = {
             columns: ["operator_id"]
             isOneToOne: false
             referencedRelation: "personnel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preop_records_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
             referencedColumns: ["id"]
           },
           {
@@ -1449,6 +1470,13 @@ export type Database = {
             columns: ["personnel_id"]
             isOneToOne: false
             referencedRelation: "personnel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_personnel_personnel_id_fkey"
+            columns: ["personnel_id"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
             referencedColumns: ["id"]
           },
           {
@@ -2692,6 +2720,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "work_order_technicians_personnel_id_fkey"
+            columns: ["personnel_id"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "work_order_technicians_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
@@ -2731,6 +2766,13 @@ export type Database = {
             columns: ["personnel_id"]
             isOneToOne: false
             referencedRelation: "personnel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_timers_personnel_id_fkey"
+            columns: ["personnel_id"]
+            isOneToOne: false
+            referencedRelation: "personnel_sin_vincular"
             referencedColumns: ["id"]
           },
           {
@@ -2956,6 +2998,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "machines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personnel_sin_vincular: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          phone: string | null
+          tenant_id: string | null
+          type: Database["public"]["Enums"]["personnel_type"] | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+          type?: Database["public"]["Enums"]["personnel_type"] | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          phone?: string | null
+          tenant_id?: string | null
+          type?: Database["public"]["Enums"]["personnel_type"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personnel_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

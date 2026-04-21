@@ -50,6 +50,7 @@ function MisOTList() {
   const navigate = useNavigate();
   const timerStore = useOTTimerStore();
   const chrono = useChrono();
+  const qc = useQueryClient();
 
   const { data: personnelId, isLoading: isLoadingPersonnel, error: personnelError } = useQuery({
     queryKey: ['my-personnel-id', user?.id],
@@ -122,6 +123,23 @@ function MisOTList() {
     enabled: !!personnelId,
   });
 
+  // Realtime: refresh assignments when supervisor adds/removes me
+  useEffect(() => {
+    if (!personnelId) return;
+    const channel = supabase
+      .channel(`wo-tech-${personnelId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'work_order_technicians', filter: `personnel_id=eq.${personnelId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ['my-work-orders', personnelId] });
+          qc.invalidateQueries({ queryKey: ['my-ot-history', personnelId] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [personnelId]);
+
   if (!personnelId && !isLoadingPersonnel) {
     return (
       <div className="min-h-screen bg-background">
@@ -130,28 +148,28 @@ function MisOTList() {
             <h1 className="font-barlow text-[hsl(var(--gold-bright))] text-lg font-semibold uppercase">Mis Órdenes</h1>
             <p className="text-xs text-muted-foreground font-dm">{user?.full_name}</p>
           </div>
-          <button onClick={() => signOut()} className="text-muted-foreground hover:text-foreground"><LogOut className="h-5 w-5" /></button>
+          <button onClick={() => signOut()} className="text-muted-foreground hover:text-foreground" aria-label="Cerrar sesión"><LogOut className="h-5 w-5" /></button>
         </div>
-        <div className="p-6 text-center space-y-3 mt-12">
+        <div className="p-6 text-center space-y-4 mt-12 max-w-md mx-auto">
+          <div className="text-5xl">🔗</div>
           {personnelError ? (
             <>
-              <p className="font-barlow text-base text-destructive">
-                Error al cargar tu perfil de técnico
-              </p>
+              <p className="font-barlow text-base text-destructive">Error al cargar tu perfil</p>
               <p className="text-sm font-dm text-muted-foreground">
                 {(personnelError as any)?.message || 'Error de conexión. Intenta recargar la página.'}
               </p>
             </>
           ) : (
             <>
-              <p className="font-barlow text-base text-muted-foreground">
-                Tu perfil de técnico no está vinculado correctamente.
-              </p>
+              <p className="font-barlow text-base">Tu cuenta no está vinculada a un registro de personal.</p>
               <p className="text-sm font-dm text-muted-foreground">
-                Contacta al administrador para que verifique tu registro en Personal.
+                Contacta a tu administrador para que vincule tu usuario en el módulo Personal.
               </p>
             </>
           )}
+          <Button variant="outline" className="mt-4" onClick={() => signOut()}>
+            <LogOut className="h-4 w-4 mr-2" /> Cerrar sesión
+          </Button>
         </div>
       </div>
     );

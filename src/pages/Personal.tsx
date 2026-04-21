@@ -40,6 +40,9 @@ const personSchema = z.object({
   hourly_rate: z.coerce.number().min(0).optional(),
   status: z.string().default('activo'),
   notes: z.string().optional(),
+  user_id: z.string().nullable().optional(),
+  // Solo cuando se va a crear un usuario nuevo
+  new_user_password: z.string().optional(),
 });
 
 type PersonForm = z.infer<typeof personSchema>;
@@ -48,6 +51,7 @@ type PersonRow = {
   phone: string | null; email: string | null; specialty: string | null;
   hourly_rate: number | null; monthly_salary: number | null; contract_type: string | null;
   status: string | null; notes: string | null;
+  user_id: string | null;
   tenant_id: string; created_at: string | null;
 };
 
@@ -110,6 +114,21 @@ export default function Personal() {
     staleTime: 30000,
   });
 
+  // Usuarios del tenant que aún no están vinculados a personnel — para el selector "Vincular usuario existente"
+  const { data: unlinkedUsers = [] } = useQuery({
+    queryKey: ['unlinked-users', tenantId, personnel.length],
+    queryFn: async () => {
+      const linkedIds = personnel.map(p => p.user_id).filter(Boolean);
+      let q = supabase.from('users').select('id, full_name, role').eq('tenant_id', tenantId!).eq('active', true).in('role', ['tecnico', 'operario'] as any);
+      if (linkedIds.length > 0) q = q.not('id', 'in', `(${linkedIds.join(',')})`);
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!tenantId && modalOpen,
+  });
+
+  const unlinkedPersonnelCount = personnel.filter(p => ['tecnico', 'operario'].includes(p.type) && !p.user_id).length;
+
   const filtered = personnel.filter((p) => {
     if (typeFilter !== 'all' && p.type !== typeFilter) return false;
     if (search) {
@@ -131,7 +150,7 @@ export default function Personal() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', contract_type: 'empresa', monthly_salary: 0, hourly_rate: 0, notes: '' });
+    form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', contract_type: 'empresa', monthly_salary: 0, hourly_rate: 0, notes: '', user_id: null, new_user_password: '' });
     setModalOpen(true);
   };
   const openEdit = (p: PersonRow) => {
@@ -148,12 +167,69 @@ export default function Personal() {
       hourly_rate: p.hourly_rate || 0,
       status: p.status || 'activo',
       notes: p.notes || '',
+      user_id: p.user_id || null,
+      new_user_password: '',
     });
     setModalOpen(true);
   };
 
   const mutation = useMutation({
     mutationFn: async (values: PersonForm) => {
+      const requiresUser = ['tecnico', 'operario'].includes(values.type);
+      let finalUserId: string | null = values.user_id || null;
+
+      // Si es técnico/operario, exigir vinculación: o usuario existente o crear uno nuevo
+      if (requiresUser && !finalUserId) {
+        if (!values.email || !values.new_user_password || values.new_user_password.length < 8) {
+          throw new Error('Debes vincular un usuario existente o crear uno nuevo (email + contraseña ≥ 8 caracteres).');
+        }
+        // Crear usuario nuevo + vincular
+        const { data: result, error: fnErr } = await supabase.functions.invoke('create-user', {
+          body: {
+            action: 'create_and_link_personnel',
+            email: values.email,
+            password: values.new_user_password,
+            fullName: values.full_name,
+            role: values.type,
+            personnelId: editing?.id || null,
+          },
+        });
+        if (fnErr || result?.error) {
+          // Si es creación nueva (no edit) y aún no existe el personnel, primero lo creamos abajo y luego se vincula manualmente
+          if (!editing) {
+            // Caso especial: insert primero, luego edge function para crear+vincular
+            const insertRow: any = {
+              full_name: values.full_name, type: values.type,
+              tenant_id: tenantId!, status: values.status || 'activo',
+              email: values.email, phone: values.phone || null,
+              id_number: values.id_number || null,
+              specialty: values.type === 'tecnico' ? (values.specialty || null) : null,
+              contract_type: values.contract_type || 'empresa',
+              monthly_salary: values.contract_type === 'empresa' ? (values.monthly_salary || 0) : 0,
+              hourly_rate: values.contract_type !== 'empresa' ? (values.hourly_rate || 0) : 0,
+              notes: values.notes || null,
+            };
+            const { data: ins, error: insErr } = await supabase.from('personnel').insert([insertRow]).select('id').single();
+            if (insErr) throw insErr;
+            const { data: r2, error: fn2 } = await supabase.functions.invoke('create-user', {
+              body: {
+                action: 'create_and_link_personnel',
+                email: values.email, password: values.new_user_password,
+                fullName: values.full_name, role: values.type, personnelId: ins.id,
+              },
+            });
+            if (fn2 || r2?.error) {
+              await supabase.from('personnel').delete().eq('id', ins.id);
+              throw new Error(r2?.error || fn2?.message || 'Error creando usuario');
+            }
+            await log('personal', 'crear_persona', 'personnel', ins.id, values.full_name);
+            return;
+          }
+          throw new Error(result?.error || fnErr?.message || 'Error creando usuario');
+        }
+        finalUserId = result.user_id;
+      }
+
       const row: any = {
         full_name: values.full_name,
         type: values.type,
@@ -167,6 +243,7 @@ export default function Personal() {
         status: values.status || 'activo',
         notes: values.notes || null,
         tenant_id: tenantId!,
+        user_id: finalUserId,
       };
       if (editing) {
         const { error } = await supabase.from('personnel').update(row).eq('id', editing.id);
@@ -286,6 +363,12 @@ export default function Personal() {
         </ActionBarRight>
       </ActionBar>
 
+      {unlinkedPersonnelCount > 0 && (
+        <div className="mb-3 p-3 rounded-xl border border-[hsl(var(--warning,40_84%_29%)/0.3)] bg-[hsl(var(--warning-bg,40_92%_94%))] text-[hsl(var(--warning,40_84%_29%))] text-sm font-dm">
+          ⚠ Hay <strong>{unlinkedPersonnelCount}</strong> técnico(s)/operario(s) sin cuenta de acceso vinculada. No podrán iniciar sesión ni recibir OTs/preoperacionales hasta que los vincules editándolos.
+        </div>
+      )}
+
       {isLoading ? (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[44px] w-full" />)}
@@ -392,6 +475,44 @@ export default function Personal() {
                 </div>
               )}
             </div>
+
+            {/* Vinculación de usuario (obligatoria para técnico/operario) */}
+            {['tecnico', 'operario'].includes(watchType) && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <Label className="font-dm text-xs uppercase">Cuenta de acceso *</Label>
+                <p className="text-[11px] text-muted-foreground font-dm">
+                  Un {watchType} debe estar vinculado a una cuenta para recibir OTs / preoperacionales.
+                </p>
+                <Select
+                  value={form.watch('user_id') || '__new__'}
+                  onValueChange={(v) => form.setValue('user_id', v === '__new__' ? null : v)}
+                >
+                  <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__">➕ Crear cuenta nueva con email + contraseña</SelectItem>
+                    {unlinkedUsers.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.role})</SelectItem>
+                    ))}
+                    {editing?.user_id && !unlinkedUsers.find((u: any) => u.id === editing.user_id) && (
+                      <SelectItem value={editing.user_id}>(actual) Usuario ya vinculado</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {!form.watch('user_id') && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <Label className="font-dm text-[11px]">Email cuenta</Label>
+                      <Input {...form.register('email')} type="email" placeholder="usuario@empresa.com" className="h-9 rounded-lg font-dm" />
+                    </div>
+                    <div>
+                      <Label className="font-dm text-[11px]">Contraseña (mín. 8)</Label>
+                      <Input {...form.register('new_user_password')} type="text" placeholder="Contraseña temporal" className="h-9 rounded-lg font-dm" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="font-dm text-xs">Notas</Label>
               <Textarea {...form.register('notes')} rows={3} className="rounded-lg font-dm" />
