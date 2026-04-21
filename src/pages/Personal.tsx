@@ -363,6 +363,12 @@ export default function Personal() {
         </ActionBarRight>
       </ActionBar>
 
+      {unlinkedPersonnelCount > 0 && (
+        <div className="mb-3 p-3 rounded-xl border border-[hsl(var(--warning,40_84%_29%)/0.3)] bg-[hsl(var(--warning-bg,40_92%_94%))] text-[hsl(var(--warning,40_84%_29%))] text-sm font-dm">
+          ⚠ Hay <strong>{unlinkedPersonnelCount}</strong> técnico(s)/operario(s) sin cuenta de acceso vinculada. No podrán iniciar sesión ni recibir OTs/preoperacionales hasta que los vincules editándolos.
+        </div>
+      )}
+
       {isLoading ? (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[44px] w-full" />)}
@@ -469,6 +475,44 @@ export default function Personal() {
                 </div>
               )}
             </div>
+
+            {/* Vinculación de usuario (obligatoria para técnico/operario) */}
+            {['tecnico', 'operario'].includes(watchType) && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                <Label className="font-dm text-xs uppercase">Cuenta de acceso *</Label>
+                <p className="text-[11px] text-muted-foreground font-dm">
+                  Un {watchType} debe estar vinculado a una cuenta para recibir OTs / preoperacionales.
+                </p>
+                <Select
+                  value={form.watch('user_id') || '__new__'}
+                  onValueChange={(v) => form.setValue('user_id', v === '__new__' ? null : v)}
+                >
+                  <SelectTrigger className="h-10 rounded-lg font-dm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__new__">➕ Crear cuenta nueva con email + contraseña</SelectItem>
+                    {unlinkedUsers.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.role})</SelectItem>
+                    ))}
+                    {editing?.user_id && !unlinkedUsers.find((u: any) => u.id === editing.user_id) && (
+                      <SelectItem value={editing.user_id}>(actual) Usuario ya vinculado</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {!form.watch('user_id') && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <Label className="font-dm text-[11px]">Email cuenta</Label>
+                      <Input {...form.register('email')} type="email" placeholder="usuario@empresa.com" className="h-9 rounded-lg font-dm" />
+                    </div>
+                    <div>
+                      <Label className="font-dm text-[11px]">Contraseña (mín. 8)</Label>
+                      <Input {...form.register('new_user_password')} type="text" placeholder="Contraseña temporal" className="h-9 rounded-lg font-dm" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="font-dm text-xs">Notas</Label>
               <Textarea {...form.register('notes')} rows={3} className="rounded-lg font-dm" />
