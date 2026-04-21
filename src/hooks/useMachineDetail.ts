@@ -264,3 +264,25 @@ export function useUploadMachineDocument() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['machine-documents'] }),
   });
 }
+
+export function useDeleteMachineDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, fileUrl }: { id: string; fileUrl?: string | null }) => {
+      // Try to remove the storage object first (best effort)
+      if (fileUrl) {
+        try {
+          const marker = '/storage/v1/object/public/documents/';
+          const idx = fileUrl.indexOf(marker);
+          if (idx >= 0) {
+            const path = decodeURIComponent(fileUrl.slice(idx + marker.length));
+            await supabase.storage.from('documents').remove([path]);
+          }
+        } catch { /* ignore storage errors, proceed with DB delete */ }
+      }
+      const { error } = await supabase.from('machine_documents').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['machine-documents'] }),
+  });
+}

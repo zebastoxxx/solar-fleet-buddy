@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PreviewButton } from '@/components/ui/DocumentPreview';
-import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive, Download } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive, Download, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -22,7 +23,7 @@ import {
   useMachine, useMachineConditions, useMachineOTs, useMachinePreops,
   useMachineKits, useMachineProjects, useMachineDocuments, useMachineCosts,
   useMachineAlerts, useUpdateMachineStatus, useMachineFinancials,
-  useUpdateMachine, useUploadMachineDocument,
+  useUpdateMachine, useUploadMachineDocument, useDeleteMachineDocument,
 } from '@/hooks/useMachineDetail';
 import { EditMachineModal } from '@/components/machines/EditMachineModal';
 import { MachinePhotoUpload } from '@/components/machines/MachinePhotoUpload';
@@ -73,13 +74,17 @@ export default function MaquinaDetalle() {
   const updateStatus = useUpdateMachineStatus();
   const updateMachine = useUpdateMachine();
   const uploadDoc = useUploadMachineDocument();
+  const deleteDoc = useDeleteMachineDocument();
 
   const [showEdit, setShowEdit] = useState(false);
   const [showDocUpload, setShowDocUpload] = useState(false);
   const [docForm, setDocForm] = useState({ name: '', doc_type: 'otro', expiry_date: '' });
   const [docFile, setDocFile] = useState<File | null>(null);
+  const [deleteDocTarget, setDeleteDocTarget] = useState<{ id: string; name: string; file_url: string } | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+
+  const canManageDocs = !!user && ['superadmin', 'gerente', 'supervisor'].includes(user.role);
 
   const m = machine.data;
 
@@ -450,6 +455,17 @@ export default function MaquinaDetalle() {
                           <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
                             <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
                           </Button>
+                          {canManageDocs && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-danger hover:text-danger hover:bg-danger-bg"
+                              onClick={() => setDeleteDocTarget({ id: doc.id, name: doc.name, file_url: doc.file_url })}
+                              title="Eliminar documento"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                       {daysToExpiry !== null && (
@@ -556,6 +572,27 @@ export default function MaquinaDetalle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete document confirmation */}
+      {deleteDocTarget && (
+        <ConfirmDialog
+          open={!!deleteDocTarget}
+          onClose={() => setDeleteDocTarget(null)}
+          title="Eliminar documento"
+          message={`¿Seguro que deseas eliminar "${deleteDocTarget.name}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          isLoading={deleteDoc.isPending}
+          onConfirm={async () => {
+            try {
+              await deleteDoc.mutateAsync({ id: deleteDocTarget.id, fileUrl: deleteDocTarget.file_url });
+              toast({ title: '✓ Documento eliminado' });
+              setDeleteDocTarget(null);
+            } catch (err: any) {
+              toast({ title: 'Error', description: err?.message ?? 'No se pudo eliminar', variant: 'destructive' });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
