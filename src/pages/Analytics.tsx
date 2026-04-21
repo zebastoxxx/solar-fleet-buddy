@@ -11,8 +11,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { BrandedGrid, BrandedTooltip, GOLD, DANGER } from '@/components/ui/ChartWrapper';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, Legend,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
   ComposedChart,
 } from 'recharts';
@@ -125,7 +127,7 @@ function CostosTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
   }, [costEntries, tenant, dateFrom, dateTo]);
 
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)}</div>;
-  if (!stats) return <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin datos para este período</p>;
+  if (!stats) return <EmptyState icon="📊" title="Sin datos" description="No hay información para el período seleccionado." />;
 
   const maxMachine = stats.topMachines[0]?.total ?? 1;
 
@@ -145,17 +147,17 @@ function CostosTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
           {stats.monthlyData.length > 0 ? (
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={stats.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(36 10% 86%)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fontFamily: 'DM Sans' }} />
-                <YAxis tickFormatter={(v) => formatCOP(v)} tick={{ fontSize: 11, fontFamily: 'DM Sans' }} />
-                <Tooltip formatter={(v: number) => formatCOP(v)} />
+                <BrandedGrid />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fontFamily: 'DM Sans', fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis tickFormatter={(v) => formatCOP(v)} tick={{ fontSize: 11, fontFamily: 'DM Sans', fill: 'hsl(var(--muted-foreground))' }} />
+                <BrandedTooltip formatter={(v: number) => formatCOP(v)} />
                 <Legend />
                 {Object.entries(COST_COLORS).map(([key, color]) => (
                   <Bar key={key} dataKey={key} stackId="a" fill={color} name={key.replace('_', ' ')} radius={[2, 2, 0, 0]} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin datos</p>}
+          ) : <EmptyState icon="📊" title="Sin datos" description="No hay costos registrados." size="sm" />}
         </div>
 
         {/* Top 5 machines */}
@@ -194,7 +196,7 @@ function CostosTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
                   <Cell fill={stats.pct > 100 ? '#C0392B' : '#D4881E'} />
                   <Cell fill="hsl(36 14% 93%)" />
                 </Pie>
-                <Tooltip formatter={(v: number) => formatCOP(v)} />
+                <BrandedTooltip formatter={(v: number) => formatCOP(v)} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -277,7 +279,7 @@ function OperativoTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
   }, [workOrders]);
 
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)}</div>;
-  if (!stats) return <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin datos</p>;
+  if (!stats) return <EmptyState icon="🛠️" title="Sin OT" description="No hay órdenes de trabajo en este período." />;
 
   return (
     <div className="space-y-6">
@@ -295,14 +297,14 @@ function OperativoTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
           {stats.techData.length > 0 ? (
             <ResponsiveContainer width="100%" height={Math.max(200, stats.techData.length * 40)}>
               <BarChart data={stats.techData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(36 10% 86%)" horizontal={false} />
-                <XAxis type="number" tickFormatter={v => `${v}h`} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12, fontFamily: 'DM Sans' }} />
-                <Tooltip formatter={(v: number) => `${v.toFixed(1)}h`} />
-                <Bar dataKey="hours" fill="#D4881E" radius={[0, 4, 4, 0]} />
+                <BrandedGrid vertical horizontal={false} />
+                <XAxis type="number" tickFormatter={v => `${v}h`} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12, fontFamily: 'DM Sans', fill: 'hsl(var(--muted-foreground))' }} />
+                <BrandedTooltip formatter={(v: number) => `${v.toFixed(1)}h`} />
+                <Bar dataKey="hours" fill={GOLD} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <p className="text-sm text-muted-foreground font-dm text-center py-4">Sin datos</p>}
+          ) : <EmptyState icon="👷" title="Sin actividad" description="Sin horas registradas." size="sm" />}
         </div>
 
         {/* OT by type pie */}
@@ -316,7 +318,7 @@ function OperativoTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
                     <Cell key={d.name} fill={OT_TYPE_COLORS[d.name] ?? '#6B7280'} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <BrandedTooltip />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -419,7 +421,7 @@ function PreopsTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
   }, [preops, preopItems, dateFrom, dateTo]);
 
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[88px] rounded-xl" />)}</div>;
-  if (!stats) return <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin datos</p>;
+  if (!stats) return <EmptyState icon="✅" title="Sin preoperacionales" description="No hay registros para este período." />;
 
   const maxItem = stats.topItems[0]?.count ?? 1;
 
@@ -474,11 +476,11 @@ function PreopsTab({ dateFrom, dateTo }: { dateFrom: Date; dateTo: Date }) {
           <h3 className="font-barlow text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Actividad por Día de la Semana</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={stats.heatData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(36 10% 86%)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fontFamily: 'DM Sans' }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#D4881E" radius={[4, 4, 0, 0]} name="Preoperacionales" />
+              <BrandedGrid />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fontFamily: 'DM Sans', fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <BrandedTooltip />
+              <Bar dataKey="count" fill={GOLD} radius={[4, 4, 0, 0]} name="Preoperacionales" />
             </BarChart>
           </ResponsiveContainer>
         </div>
