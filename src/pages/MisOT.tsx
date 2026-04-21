@@ -23,6 +23,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 const TYPE_LABELS: Record<string, string> = { preventivo: 'Preventivo', correctivo: 'Correctivo', inspeccion: 'Inspección', preparacion: 'Preparación' };
 const TYPE_STYLES: Record<string, string> = {
@@ -945,99 +947,7 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
   const [finalNotes, setFinalNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasSig, setHasSig] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isDrawing = useRef(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
-
-  // Load all notes to concatenate for technician_notes
-  const { data: allNotes = [] } = useQuery({
-    queryKey: ['ot-all-notes', otId],
-    queryFn: async () => {
-      const { data } = await supabase.from('work_order_notes')
-        .select('*')
-        .eq('work_order_id', otId)
-        .order('created_at', { ascending: true });
-      return data || [];
-    },
-    enabled: open,
-  });
-
-  useEffect(() => {
-    if (allNotes.length > 0 && !finalNotes) {
-      const summary = allNotes
-        .map((n: any) => `[${PHASE_LABELS[n.phase] || n.phase}] ${n.content}`)
-        .join('\n');
-      setFinalNotes(summary);
-    }
-  }, [allNotes]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !open) return;
-    const setupCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = 180 * dpr;
-      canvas.style.height = '180px';
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.shadowBlur = 0;
-      }
-    };
-    setTimeout(setupCanvas, 150);
-  }, [open]);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-  const startDraw = (x: number, y: number) => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    isDrawing.current = true;
-    lastPoint.current = { x, y };
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-  const draw = (x: number, y: number) => {
-    if (!isDrawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const prev = lastPoint.current;
-    if (prev) {
-      const dx = Math.abs(x - prev.x);
-      const dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
-      ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    lastPoint.current = { x, y };
-    setHasSig(true);
-  };
-  const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const clearSig = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-      setHasSig(false);
-    }
-  };
+  const sigRef = useRef<SignaturePadRef>(null);
 
   const elapsedMs = timerStore.getElapsedMs();
   const actualHours = parseFloat((elapsedMs / 3600000).toFixed(2));
@@ -1050,7 +960,8 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     if (!hasSig) { toast.error('Firma requerida para cerrar la OT'); return; }
     setSaving(true);
     try {
-      const sigUrl = canvasRef.current?.toDataURL('image/png') || '';
+      const blob = await sigRef.current?.toBlob('image/png') ?? null;
+      const sigUrl = await uploadSignature(blob, user!.tenant_id, `ot_tech_${otId}`);
       await supabase.from('work_orders').update({
         status: 'cerrada' as any, closed_at: new Date().toISOString(),
         actual_hours: actualHours, parts_cost: partsCost, labor_cost: laborCost,
@@ -1111,14 +1022,7 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
           {/* Signature */}
           <div>
             <Label className="font-barlow uppercase text-xs mb-2 block">Firma del técnico</Label>
-            <canvas ref={canvasRef} className="w-full h-[180px] border-2 border-dashed border-border rounded-xl bg-white cursor-crosshair touch-none"
-              onMouseDown={(e) => { const p = getPos(e); startDraw(p.x, p.y); }}
-              onMouseMove={(e) => { const p = getPos(e); draw(p.x, p.y); }}
-              onMouseUp={endDraw} onMouseLeave={endDraw}
-              onTouchStart={(e) => { e.preventDefault(); const p = getPos(e); startDraw(p.x, p.y); }}
-              onTouchMove={(e) => { e.preventDefault(); const p = getPos(e); draw(p.x, p.y); }}
-              onTouchEnd={endDraw} />
-            <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={clearSig}>Limpiar firma</Button>
+            <SignaturePad ref={sigRef} height={180} onChange={() => setHasSig(true)} onClear={() => setHasSig(false)} />
           </div>
 
           <Button className="w-full h-[52px] bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase"

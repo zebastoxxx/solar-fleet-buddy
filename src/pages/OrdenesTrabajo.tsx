@@ -879,10 +879,8 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const [newTaskName, setNewTaskName] = useState('');
   const [taskTemplateSearch, setTaskTemplateSearch] = useState('');
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sigRef = useRef<SignaturePadRef>(null);
   const [hasSig, setHasSig] = useState(false);
-  const isDrawing = useRef(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
   // Live OT data
   const { data: liveOT, refetch: refetchOT } = useQuery({

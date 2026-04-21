@@ -27,6 +27,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 // ─── Constants ──────────────────────────────────────
 const STATUS_OPTIONS = [
@@ -938,74 +940,16 @@ function ApproveModal({ open, onClose, oc, userId, qc, onDone }: any) {
   const [amount, setAmount] = useState(oc.total_estimated || 0);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = 120 * dpr;
-    canvas.style.height = '120px';
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(dpr, dpr);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, rect.width, 120);
-    }
-  }, []);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
-
-  const startDraw = (e: any) => {
-    e.preventDefault();
-    drawingRef.current = true;
-    lastPointRef.current = getPos(e);
-  };
-  const draw = (e: any) => {
-    if (!drawingRef.current || !canvasRef.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current.getContext('2d')!;
-    const pos = getPos(e);
-    const last = lastPointRef.current!;
-    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
-    lastPointRef.current = pos;
-  };
-  const stopDraw = () => { drawingRef.current = false; lastPointRef.current = null; };
-
-  const clearSig = () => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, rect.width, 120);
-  };
+  const sigRef = useRef<SignaturePadRef>(null);
 
   const handleApprove = async () => {
     setSaving(true);
     try {
-      let sigUrl = null;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'));
-        if (blob) {
-          const path = `signatures/approve_${oc.id}_${Date.now()}.png`;
-          await supabase.storage.from('documents').upload(path, blob);
-          const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path);
-          sigUrl = publicUrl;
-        }
-      }
+      const blob = await sigRef.current?.toBlob('image/png') ?? null;
+      const sigUrl = await uploadSignature(blob, oc.tenant_id, `approve_${oc.id}`);
       await supabase.from('purchase_orders').update({
         status: 'aprobada', approved_by: userId, approved_at: new Date().toISOString(),
-        total_approved: amount, approval_notes: notes || null, approved_signature_url: sigUrl,
+        total_approved: amount, approval_notes: notes || null, approved_signature_url: sigUrl || null,
       }).eq('id', oc.id);
       toast.success('Orden aprobada');
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
@@ -1030,14 +974,7 @@ function ApproveModal({ open, onClose, oc, userId, qc, onDone }: any) {
           </div>
           <div>
             <Label className="text-xs font-dm">Firma del aprobador</Label>
-            <canvas
-              ref={canvasRef}
-              className="w-full border border-border rounded-lg bg-white cursor-crosshair touch-none"
-              style={{ height: 120 }}
-              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-            />
-            <Button variant="ghost" size="sm" className="text-[10px] font-dm mt-1" onClick={clearSig}>Limpiar firma</Button>
+            <SignaturePad ref={sigRef} height={120} />
           </div>
         </div>
         <DialogFooter>

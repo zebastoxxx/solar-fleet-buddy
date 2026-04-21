@@ -78,67 +78,30 @@ const TOOL_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   de_baja: { bg: 'bg-muted', text: 'text-muted-foreground', label: '✕ De baja' },
 };
 
-// ─── Signature Canvas ───────────────────────────────
-function SignatureCanvas({ onSignature, height = 150 }: { onSignature: (data: string | null) => void; height?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const hasDrawn = useRef(false);
+// ─── Signature Canvas (wrapper sobre SignaturePad reutilizable) ───
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
+import { forwardRef as _forwardRef } from 'react';
 
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const start = (e: any) => {
-    drawing.current = true;
-    hasDrawn.current = true;
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const move = (e: any) => {
-    if (!drawing.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    onSignature(canvasRef.current!.toDataURL('image/png'));
-  };
-
-  const end = () => { drawing.current = false; };
-
-  const clear = () => {
-    const ctx = canvasRef.current!.getContext('2d')!;
-    ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-    hasDrawn.current = false;
-    onSignature(null);
-  };
-
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={600}
+const SignatureCanvas = _forwardRef<SignaturePadRef, { onSignature: (data: string | null) => void; height?: number }>(
+  function SignatureCanvas({ onSignature, height = 150 }, ref) {
+    return (
+      <SignaturePad
+        ref={ref}
         height={height}
-        className="w-full border-2 border-dashed border-border rounded-xl bg-card touch-none"
-        style={{ height: `${height}px` }}
-        onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-        onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+        onChange={(d) => onSignature(d)}
+        onClear={() => onSignature(null)}
       />
-      <Button variant="ghost" size="sm" onClick={clear} className="mt-1 text-xs text-muted-foreground">
-        Limpiar firma
-      </Button>
-    </div>
-  );
+    );
+  }
+);
+
+// Convierte dataURL → Blob para subirlo a Storage
+async function dataUrlToBlob(dataUrl: string): Promise<Blob | null> {
+  try {
+    const r = await fetch(dataUrl);
+    return await r.blob();
+  } catch { return null; }
 }
 
 // ─── Main Inventario Page ───────────────────────────
@@ -1200,11 +1163,14 @@ function AssignToolModal({ open, onClose, tool, tenantId, userId, userName, log,
         reason: `Asignada a ${selectedOTData?.code}`, registered_by: userId,
       });
 
+      const sigBlob = signature ? await dataUrlToBlob(signature) : null;
+      const sigUrl = await uploadSignature(sigBlob, tenantId, `tool_assign_${tool.id}`, signature || undefined);
+
       await supabase.from('delivery_acts').insert({
         tenant_id: tenantId, act_type: 'herramienta_ot', work_order_id: selectedOT,
         personnel_id: selectedTech,
         items: [{ tool_id: tool.id, name: tool.name, code: tool.internal_code }],
-        signature_delivery_url: signature,
+        signature_delivery_url: sigUrl,
       });
 
       // Generate PDF
@@ -1797,10 +1763,15 @@ function SendKitModal({ open, onClose, kit, tenantId, userId, userName, log, qc 
         is_returnable: i.is_returnable,
       }));
 
+      const sigDelBlob = sigSupervisor ? await dataUrlToBlob(sigSupervisor) : null;
+      const sigRecBlob = sigOperario ? await dataUrlToBlob(sigOperario) : null;
+      const sigDelUrl = await uploadSignature(sigDelBlob, tenantId, `kit_send_sup_${kit.id}`, sigSupervisor || undefined);
+      const sigRecUrl = await uploadSignature(sigRecBlob, tenantId, `kit_send_op_${kit.id}`, sigOperario || undefined);
+
       await supabase.from('delivery_acts').insert({
         tenant_id: tenantId, act_type: 'kit_campo', kit_id: kit.id,
         personnel_id: operarioId, items: itemsToSend,
-        signature_delivery_url: sigSupervisor, signature_receipt_url: sigOperario,
+        signature_delivery_url: sigDelUrl, signature_receipt_url: sigRecUrl,
       });
 
       // Mark tools as in_uso
@@ -1955,8 +1926,10 @@ function ReceiveKitModal({ open, onClose, kit, tenantId, userId, log, qc }: any)
       await supabase.from('inventory_kits').update({ status: 'en_bodega' }).eq('id', kit.id);
 
       if (lastAct) {
+        const sigBlob = signature ? await dataUrlToBlob(signature) : null;
+        const sigUrl = await uploadSignature(sigBlob, tenantId, `kit_receive_${kit.id}`, signature || undefined);
         await supabase.from('delivery_acts').update({
-          received_at: new Date().toISOString(), signature_receipt_url: signature,
+          received_at: new Date().toISOString(), signature_receipt_url: sigUrl,
         }).eq('id', lastAct.id);
       }
 
