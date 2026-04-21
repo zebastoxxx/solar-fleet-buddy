@@ -23,6 +23,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 const TYPE_LABELS: Record<string, string> = { preventivo: 'Preventivo', correctivo: 'Correctivo', inspeccion: 'Inspección', preparacion: 'Preparación' };
 const TYPE_STYLES: Record<string, string> = {
