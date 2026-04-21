@@ -30,6 +30,12 @@ export interface DataTableProps<T> {
   onSelectionChange?: (selected: T[]) => void;
   rowKey?: (row: T) => string;
   skeletonRows?: number;
+  /** When true (default), shows pagination controls. Set false for already-paginated/small datasets. */
+  pagination?: boolean;
+  /** Initial page size (default 25). */
+  initialPageSize?: number;
+  /** Available page-size options. */
+  pageSizeOptions?: number[];
 }
 
 function getNestedValue(obj: any, path: string): any {
