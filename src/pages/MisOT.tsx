@@ -55,13 +55,11 @@ function MisOTList() {
   const { data: personnelId, isLoading: isLoadingPersonnel, error: personnelError } = useQuery({
     queryKey: ['my-personnel-id', user?.id],
     queryFn: async () => {
-      console.log('[MisOT] Querying personnel for user:', user!.id);
       const { data, error } = await supabase.from('personnel').select('id').eq('user_id', user!.id).maybeSingle();
       if (error) {
         console.error('[MisOT] Personnel query error:', error);
         throw error;
       }
-      console.log('[MisOT] Personnel result:', data);
       return data?.id || null;
     },
     enabled: !!user?.id,
@@ -72,7 +70,6 @@ function MisOTList() {
   const { data: workOrders = [], isLoading } = useQuery({
     queryKey: ['my-work-orders', personnelId],
     queryFn: async () => {
-      console.log('[MisOT] Querying work orders for personnel:', personnelId);
       const { data, error: techErr } = await supabase
         .from('work_order_technicians')
         .select('work_order_id')
@@ -93,7 +90,6 @@ function MisOTList() {
         console.error('[MisOT] Work orders query error:', otsErr);
         throw otsErr;
       }
-      console.log('[MisOT] Work orders found:', ots?.length);
       return ots || [];
     },
     enabled: !!personnelId,

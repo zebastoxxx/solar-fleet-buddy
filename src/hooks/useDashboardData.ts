@@ -98,7 +98,6 @@ export function useRecentOTs() {
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
     queryFn: async () => {
-      console.log('[Dashboard] Querying recent OTs for tenant:', tenantId);
       const { data, error } = await supabase
         .from('work_orders')
         .select('id, code, status, priority, created_at, machines(name)')
@@ -109,7 +108,6 @@ export function useRecentOTs() {
         console.error('[Dashboard] Recent OTs error:', error);
         throw error;
       }
-      console.log('[Dashboard] Recent OTs found:', data?.length);
       return data ?? [];
     },
   });

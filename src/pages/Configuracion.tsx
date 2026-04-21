@@ -938,7 +938,7 @@ function TarifasTab() {
     toast.success(rate.active ? 'Tarifa desactivada' : 'Tarifa activada');
   };
 
-  const fmtCOP = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
+  const fmtCOP = (v: number) => formatCOP(v || 0);
 
   const rateForm = (
     <div className="space-y-3">
