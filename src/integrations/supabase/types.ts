@@ -863,6 +863,7 @@ export type Database = {
           id: string
           machine_id: string | null
           name: string
+          tenant_id: string
           uploaded_at: string | null
           uploaded_by: string | null
         }
@@ -873,6 +874,7 @@ export type Database = {
           id?: string
           machine_id?: string | null
           name: string
+          tenant_id: string
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
@@ -883,6 +885,7 @@ export type Database = {
           id?: string
           machine_id?: string | null
           name?: string
+          tenant_id?: string
           uploaded_at?: string | null
           uploaded_by?: string | null
         }
@@ -899,6 +902,13 @@ export type Database = {
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "machine_documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
           {
