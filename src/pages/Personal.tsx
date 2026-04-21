@@ -150,7 +150,7 @@ export default function Personal() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', contract_type: 'empresa', monthly_salary: 0, hourly_rate: 0, notes: '' });
+    form.reset({ full_name: '', type: 'tecnico', status: 'activo', id_number: '', phone: '', email: '', specialty: '', contract_type: 'empresa', monthly_salary: 0, hourly_rate: 0, notes: '', user_id: null, new_user_password: '' });
     setModalOpen(true);
   };
   const openEdit = (p: PersonRow) => {
@@ -167,12 +167,69 @@ export default function Personal() {
       hourly_rate: p.hourly_rate || 0,
       status: p.status || 'activo',
       notes: p.notes || '',
+      user_id: p.user_id || null,
+      new_user_password: '',
     });
     setModalOpen(true);
   };
 
   const mutation = useMutation({
     mutationFn: async (values: PersonForm) => {
+      const requiresUser = ['tecnico', 'operario'].includes(values.type);
+      let finalUserId: string | null = values.user_id || null;
+
+      // Si es técnico/operario, exigir vinculación: o usuario existente o crear uno nuevo
+      if (requiresUser && !finalUserId) {
+        if (!values.email || !values.new_user_password || values.new_user_password.length < 8) {
+          throw new Error('Debes vincular un usuario existente o crear uno nuevo (email + contraseña ≥ 8 caracteres).');
+        }
+        // Crear usuario nuevo + vincular
+        const { data: result, error: fnErr } = await supabase.functions.invoke('create-user', {
+          body: {
+            action: 'create_and_link_personnel',
+            email: values.email,
+            password: values.new_user_password,
+            fullName: values.full_name,
+            role: values.type,
+            personnelId: editing?.id || null,
+          },
+        });
+        if (fnErr || result?.error) {
+          // Si es creación nueva (no edit) y aún no existe el personnel, primero lo creamos abajo y luego se vincula manualmente
+          if (!editing) {
+            // Caso especial: insert primero, luego edge function para crear+vincular
+            const insertRow: any = {
+              full_name: values.full_name, type: values.type,
+              tenant_id: tenantId!, status: values.status || 'activo',
+              email: values.email, phone: values.phone || null,
+              id_number: values.id_number || null,
+              specialty: values.type === 'tecnico' ? (values.specialty || null) : null,
+              contract_type: values.contract_type || 'empresa',
+              monthly_salary: values.contract_type === 'empresa' ? (values.monthly_salary || 0) : 0,
+              hourly_rate: values.contract_type !== 'empresa' ? (values.hourly_rate || 0) : 0,
+              notes: values.notes || null,
+            };
+            const { data: ins, error: insErr } = await supabase.from('personnel').insert([insertRow]).select('id').single();
+            if (insErr) throw insErr;
+            const { data: r2, error: fn2 } = await supabase.functions.invoke('create-user', {
+              body: {
+                action: 'create_and_link_personnel',
+                email: values.email, password: values.new_user_password,
+                fullName: values.full_name, role: values.type, personnelId: ins.id,
+              },
+            });
+            if (fn2 || r2?.error) {
+              await supabase.from('personnel').delete().eq('id', ins.id);
+              throw new Error(r2?.error || fn2?.message || 'Error creando usuario');
+            }
+            await log('personal', 'crear_persona', 'personnel', ins.id, values.full_name);
+            return;
+          }
+          throw new Error(result?.error || fnErr?.message || 'Error creando usuario');
+        }
+        finalUserId = result.user_id;
+      }
+
       const row: any = {
         full_name: values.full_name,
         type: values.type,
@@ -186,6 +243,7 @@ export default function Personal() {
         status: values.status || 'activo',
         notes: values.notes || null,
         tenant_id: tenantId!,
+        user_id: finalUserId,
       };
       if (editing) {
         const { error } = await supabase.from('personnel').update(row).eq('id', editing.id);
