@@ -945,20 +945,11 @@ function ApproveModal({ open, onClose, oc, userId, qc, onDone }: any) {
   const handleApprove = async () => {
     setSaving(true);
     try {
-      let sigUrl = null;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'));
-        if (blob) {
-          const path = `signatures/approve_${oc.id}_${Date.now()}.png`;
-          await supabase.storage.from('documents').upload(path, blob);
-          const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(path);
-          sigUrl = publicUrl;
-        }
-      }
+      const blob = await sigRef.current?.toBlob('image/png') ?? null;
+      const sigUrl = await uploadSignature(blob, oc.tenant_id, `approve_${oc.id}`);
       await supabase.from('purchase_orders').update({
         status: 'aprobada', approved_by: userId, approved_at: new Date().toISOString(),
-        total_approved: amount, approval_notes: notes || null, approved_signature_url: sigUrl,
+        total_approved: amount, approval_notes: notes || null, approved_signature_url: sigUrl || null,
       }).eq('id', oc.id);
       toast.success('Orden aprobada');
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
@@ -983,14 +974,7 @@ function ApproveModal({ open, onClose, oc, userId, qc, onDone }: any) {
           </div>
           <div>
             <Label className="text-xs font-dm">Firma del aprobador</Label>
-            <canvas
-              ref={canvasRef}
-              className="w-full border border-border rounded-lg bg-white cursor-crosshair touch-none"
-              style={{ height: 120 }}
-              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
-            />
-            <Button variant="ghost" size="sm" className="text-[10px] font-dm mt-1" onClick={clearSig}>Limpiar firma</Button>
+            <SignaturePad ref={sigRef} height={120} />
           </div>
         </div>
         <DialogFooter>
