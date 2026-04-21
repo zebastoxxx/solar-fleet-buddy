@@ -25,6 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
 import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
@@ -275,10 +276,7 @@ export default function Compras() {
       {isLoading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground font-dm">
-          <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No hay órdenes de compra</p>
-        </div>
+        <EmptyState icon="🛒" title="Sin órdenes de compra" description="Aún no hay OC registradas. Crea la primera." />
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
           <Table>

@@ -10,6 +10,7 @@ import { FilterPills } from '@/components/ui/filter-pills';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { StatusIndicator } from '@/components/ui/status-indicator';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -132,7 +133,7 @@ export default function Dashboard() {
               {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-xl" />)}
             </div>
           ) : !machines.data?.length ? (
-            <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin máquinas registradas</p>
+            <EmptyState icon="🚜" title="Sin máquinas" description="Aún no se ha registrado ninguna máquina en la flota." size="sm" />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {machines.data.map((m) => (
@@ -165,7 +166,7 @@ export default function Dashboard() {
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
             </div>
           ) : !recentOTs.data?.length ? (
-            <p className="text-sm text-muted-foreground font-dm py-8 text-center">Sin órdenes de trabajo</p>
+            <EmptyState icon="🛠️" title="Sin OT" description="Aún no se han creado órdenes de trabajo." size="sm" />
           ) : (
             <div className="space-y-2">
               {recentOTs.data.map((ot) => (

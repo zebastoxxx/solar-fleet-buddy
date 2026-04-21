@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -310,7 +311,7 @@ export default function MaquinaDetalle() {
                 {allConditionsOptimal && <span className="text-[11px] font-semibold text-success bg-success-bg px-2 py-0.5 rounded-full font-dm">En óptimas condiciones ✓</span>}
               </div>
               {conditions.isLoading ? <Skeleton className="h-32" /> : !conditions.data?.length ? (
-                <p className="text-sm text-muted-foreground font-dm">Sin datos de condición registrados</p>
+                <EmptyState icon="📊" title="Sin datos de condición" description="No hay registros de condición para esta máquina." size="sm" />
               ) : (
                 <div className="space-y-3">
                   {conditions.data.map((c) => (
@@ -331,7 +332,7 @@ export default function MaquinaDetalle() {
         <TabsContent value="ot">
           <div className="rounded-xl border border-border bg-card p-6">
             {ots.isLoading ? <Skeleton className="h-48" /> : !ots.data?.length ? (
-              <p className="text-sm text-muted-foreground font-dm text-center py-8">Sin órdenes de trabajo registradas</p>
+              <EmptyState icon="🛠️" title="Sin OT" description="Esta máquina no tiene órdenes de trabajo registradas." />
             ) : (
               <div className="relative border-l-2 border-border ml-4 space-y-4">
                 {ots.data.map((ot) => (
@@ -361,7 +362,7 @@ export default function MaquinaDetalle() {
         <TabsContent value="preop">
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             {preops.isLoading ? <Skeleton className="h-48 m-4" /> : !preops.data?.length ? (
-              <p className="text-sm text-muted-foreground font-dm text-center py-8">Sin preoperacionales registrados</p>
+              <EmptyState icon="✅" title="Sin preoperacionales" description="Aún no hay inspecciones preoperacionales para esta máquina." />
             ) : (
               <table className="w-full">
                 <thead><tr className="bg-muted">{['Fecha', 'Operario', 'Tipo', 'Horómetro', 'Críticos', 'Estado'].map((h) => (
@@ -517,7 +518,7 @@ export default function MaquinaDetalle() {
         <TabsContent value="alertas">
           <div className="rounded-xl border border-border bg-card p-6">
             {alerts.isLoading ? <Skeleton className="h-32" /> : !alerts.data?.length ? (
-              <p className="text-sm text-muted-foreground font-dm text-center py-8">Sin alertas registradas</p>
+              <EmptyState icon="🔔" title="Sin alertas" description="No hay alertas activas para esta máquina." />
             ) : (
               <div className="space-y-2">
                 {alerts.data.filter((a) => !a.resolved).map((a) => (

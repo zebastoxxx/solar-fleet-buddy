@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
@@ -651,7 +652,7 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
           {isTecnico && (
             <TabsContent value="ots">
               {ots.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center font-dm">Sin órdenes de trabajo</p>
+                <EmptyState icon="🛠️" title="Sin OT" description="Este técnico no tiene órdenes de trabajo asignadas." size="sm" />
               ) : (
                 <Table>
                   <TableHeader><TableRow className="bg-secondary">
@@ -680,7 +681,7 @@ function PersonDetailModal({ person, onClose, onEdit }: { person: PersonRow | nu
           {!isTecnico && (
             <TabsContent value="preops">
               {preops.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center font-dm">Sin preoperacionales</p>
+                <EmptyState icon="✅" title="Sin preoperacionales" description="Este operario aún no ha completado preoperacionales." size="sm" />
               ) : (
                 <Table>
                   <TableHeader><TableRow className="bg-secondary">

@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { generateDeliveryActPDF, downloadPDF } from '@/lib/pdf-generator';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -272,9 +273,8 @@ function ConsumablesTab({ consumables, loading, search, setSearch, tenantId, use
       {loading ? (
         <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <Package className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground font-dm">Sin consumibles registrados. Agrega el primero.</p>
+        <div className="rounded-xl border border-border bg-card">
+          <EmptyState icon="📦" title="Sin consumibles" description="Aún no se han registrado consumibles. Agrega el primero para empezar." />
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
@@ -834,7 +834,7 @@ function HistoryModal({ open, onClose, consumable }: any) {
         <div className="space-y-1 mt-4">
           <p className="text-xs font-dm uppercase tracking-wider text-muted-foreground font-semibold">Movimientos</p>
           {isLoading ? <Skeleton className="h-20 w-full" /> : movements.length === 0 ? (
-            <p className="text-sm text-muted-foreground font-dm py-4 text-center">Sin movimientos registrados</p>
+            <EmptyState icon="📋" title="Sin movimientos" description="No se han registrado movimientos para este consumible." size="sm" />
           ) : movements.map((mv: any) => (
             <div key={mv.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
               <span className="text-lg">{mv.movement_type === 'entrada' ? '📥' : '📤'}</span>
