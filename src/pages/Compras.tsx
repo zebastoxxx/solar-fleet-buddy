@@ -940,56 +940,7 @@ function ApproveModal({ open, onClose, oc, userId, qc, onDone }: any) {
   const [amount, setAmount] = useState(oc.total_estimated || 0);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = 120 * dpr;
-    canvas.style.height = '120px';
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(dpr, dpr);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, rect.width, 120);
-    }
-  }, []);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
-
-  const startDraw = (e: any) => {
-    e.preventDefault();
-    drawingRef.current = true;
-    lastPointRef.current = getPos(e);
-  };
-  const draw = (e: any) => {
-    if (!drawingRef.current || !canvasRef.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current.getContext('2d')!;
-    const pos = getPos(e);
-    const last = lastPointRef.current!;
-    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(pos.x, pos.y);
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
-    lastPointRef.current = pos;
-  };
-  const stopDraw = () => { drawingRef.current = false; lastPointRef.current = null; };
-
-  const clearSig = () => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, rect.width, 120);
-  };
+  const sigRef = useRef<SignaturePadRef>(null);
 
   const handleApprove = async () => {
     setSaving(true);
