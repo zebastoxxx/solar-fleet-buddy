@@ -1163,11 +1163,14 @@ function AssignToolModal({ open, onClose, tool, tenantId, userId, userName, log,
         reason: `Asignada a ${selectedOTData?.code}`, registered_by: userId,
       });
 
+      const sigBlob = signature ? await dataUrlToBlob(signature) : null;
+      const sigUrl = await uploadSignature(sigBlob, tenantId, `tool_assign_${tool.id}`, signature || undefined);
+
       await supabase.from('delivery_acts').insert({
         tenant_id: tenantId, act_type: 'herramienta_ot', work_order_id: selectedOT,
         personnel_id: selectedTech,
         items: [{ tool_id: tool.id, name: tool.name, code: tool.internal_code }],
-        signature_delivery_url: signature,
+        signature_delivery_url: sigUrl,
       });
 
       // Generate PDF
@@ -1760,10 +1763,15 @@ function SendKitModal({ open, onClose, kit, tenantId, userId, userName, log, qc 
         is_returnable: i.is_returnable,
       }));
 
+      const sigDelBlob = sigSupervisor ? await dataUrlToBlob(sigSupervisor) : null;
+      const sigRecBlob = sigOperario ? await dataUrlToBlob(sigOperario) : null;
+      const sigDelUrl = await uploadSignature(sigDelBlob, tenantId, `kit_send_sup_${kit.id}`, sigSupervisor || undefined);
+      const sigRecUrl = await uploadSignature(sigRecBlob, tenantId, `kit_send_op_${kit.id}`, sigOperario || undefined);
+
       await supabase.from('delivery_acts').insert({
         tenant_id: tenantId, act_type: 'kit_campo', kit_id: kit.id,
         personnel_id: operarioId, items: itemsToSend,
-        signature_delivery_url: sigSupervisor, signature_receipt_url: sigOperario,
+        signature_delivery_url: sigDelUrl, signature_receipt_url: sigRecUrl,
       });
 
       // Mark tools as in_uso
@@ -1918,8 +1926,10 @@ function ReceiveKitModal({ open, onClose, kit, tenantId, userId, log, qc }: any)
       await supabase.from('inventory_kits').update({ status: 'en_bodega' }).eq('id', kit.id);
 
       if (lastAct) {
+        const sigBlob = signature ? await dataUrlToBlob(signature) : null;
+        const sigUrl = await uploadSignature(sigBlob, tenantId, `kit_receive_${kit.id}`, signature || undefined);
         await supabase.from('delivery_acts').update({
-          received_at: new Date().toISOString(), signature_receipt_url: signature,
+          received_at: new Date().toISOString(), signature_receipt_url: sigUrl,
         }).eq('id', lastAct.id);
       }
 
