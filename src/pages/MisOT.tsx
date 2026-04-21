@@ -789,7 +789,7 @@ function OTActiveView({ otId }: { otId: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground font-dm">Sin repuestos registrados</p>
+            <p className="text-xs text-muted-foreground font-dm py-2 text-center">Sin repuestos registrados</p>
           )}
         </div>
 
