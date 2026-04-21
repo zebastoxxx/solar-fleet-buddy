@@ -554,6 +554,9 @@ export default function MaquinaDetalle() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="font-barlow">Subir Documento</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-2">
+            <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[11px] font-dm text-warning-foreground">
+              Tamaño máximo 100&nbsp;MB. Si la carga falla silenciosamente, desactiva bloqueadores de anuncios (uBlock/AdBlock) para este sitio.
+            </div>
             <div><Label className="font-dm text-xs">Nombre *</Label><Input value={docForm.name} onChange={(e) => setDocForm({ ...docForm, name: e.target.value })} /></div>
             <div><Label className="font-dm text-xs">Tipo</Label>
               <Select value={docForm.doc_type} onValueChange={(v) => setDocForm({ ...docForm, doc_type: v })}>
