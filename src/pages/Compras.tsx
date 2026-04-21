@@ -27,6 +27,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 // ─── Constants ──────────────────────────────────────
 const STATUS_OPTIONS = [
