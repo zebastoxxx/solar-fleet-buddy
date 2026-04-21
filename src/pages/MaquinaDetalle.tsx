@@ -572,6 +572,27 @@ export default function MaquinaDetalle() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete document confirmation */}
+      {deleteDocTarget && (
+        <ConfirmDialog
+          open={!!deleteDocTarget}
+          onClose={() => setDeleteDocTarget(null)}
+          title="Eliminar documento"
+          message={`¿Seguro que deseas eliminar "${deleteDocTarget.name}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          isLoading={deleteDoc.isPending}
+          onConfirm={async () => {
+            try {
+              await deleteDoc.mutateAsync({ id: deleteDocTarget.id, fileUrl: deleteDocTarget.file_url });
+              toast({ title: '✓ Documento eliminado' });
+              setDeleteDocTarget(null);
+            } catch (err: any) {
+              toast({ title: 'Error', description: err?.message ?? 'No se pudo eliminar', variant: 'destructive' });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
