@@ -78,68 +78,23 @@ const TOOL_STATUS_STYLES: Record<string, { bg: string; text: string; label: stri
   de_baja: { bg: 'bg-muted', text: 'text-muted-foreground', label: '✕ De baja' },
 };
 
-// ─── Signature Canvas ───────────────────────────────
-function SignatureCanvas({ onSignature, height = 150 }: { onSignature: (data: string | null) => void; height?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const hasDrawn = useRef(false);
+// ─── Signature Canvas (wrapper sobre SignaturePad reutilizable) ───
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
+import { forwardRef as _forwardRef } from 'react';
 
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const start = (e: any) => {
-    drawing.current = true;
-    hasDrawn.current = true;
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const move = (e: any) => {
-    if (!drawing.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const pos = getPos(e);
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    onSignature(canvasRef.current!.toDataURL('image/png'));
-  };
-
-  const end = () => { drawing.current = false; };
-
-  const clear = () => {
-    const ctx = canvasRef.current!.getContext('2d')!;
-    ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-    hasDrawn.current = false;
-    onSignature(null);
-  };
-
-  return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        width={600}
+const SignatureCanvas = _forwardRef<SignaturePadRef, { onSignature: (data: string | null) => void; height?: number }>(
+  function SignatureCanvas({ onSignature, height = 150 }, ref) {
+    return (
+      <SignaturePad
+        ref={ref}
         height={height}
-        className="w-full border-2 border-dashed border-border rounded-xl bg-card touch-none"
-        style={{ height: `${height}px` }}
-        onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
-        onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+        onChange={(d) => onSignature(d)}
+        onClear={() => onSignature(null)}
       />
-      <Button variant="ghost" size="sm" onClick={clear} className="mt-1 text-xs text-muted-foreground">
-        Limpiar firma
-      </Button>
-    </div>
-  );
-}
+    );
+  }
+);
 
 // ─── Main Inventario Page ───────────────────────────
 export default function Inventario() {
