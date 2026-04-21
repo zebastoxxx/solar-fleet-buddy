@@ -960,7 +960,8 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
     if (!hasSig) { toast.error('Firma requerida para cerrar la OT'); return; }
     setSaving(true);
     try {
-      const sigUrl = canvasRef.current?.toDataURL('image/png') || '';
+      const blob = await sigRef.current?.toBlob('image/png') ?? null;
+      const sigUrl = await uploadSignature(blob, user!.tenant_id, `ot_tech_${otId}`);
       await supabase.from('work_orders').update({
         status: 'cerrada' as any, closed_at: new Date().toISOString(),
         actual_hours: actualHours, parts_cost: partsCost, labor_cost: laborCost,
