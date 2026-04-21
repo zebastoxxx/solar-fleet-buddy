@@ -29,6 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
+import { uploadSignature } from '@/lib/upload-signature';
 
 // ─── PROBLEM CHECKBOXES ───
 const PROBLEM_OPTIONS: Record<string, string[]> = {
@@ -1040,75 +1042,6 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
   const statusOrder = TIMELINE_STEPS;
   const currentIdx = statusOrder.indexOf(ot.status);
 
-  // Canvas signature setup with proper DPR scaling
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const setupCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = 160 * dpr;
-      canvas.style.height = '160px';
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-        ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.shadowBlur = 0;
-      }
-    };
-    setTimeout(setupCanvas, 150);
-  }, [ot.status]);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-  const startDraw = (x: number, y: number) => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    isDrawing.current = true;
-    lastPoint.current = { x, y };
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-  const draw = (x: number, y: number) => {
-    if (!isDrawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const prev = lastPoint.current;
-    if (prev) {
-      const dx = Math.abs(x - prev.x);
-      const dy = Math.abs(y - prev.y);
-      if (dx < 2 && dy < 2) return;
-      ctx.quadraticCurveTo(prev.x, prev.y, (x + prev.x) / 2, (y + prev.y) / 2);
-      ctx.stroke();
-    }
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    lastPoint.current = { x, y };
-    setHasSig(true);
-  };
-  const endDraw = () => { isDrawing.current = false; lastPoint.current = null; };
-  const clearSig = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-      setHasSig(false);
-    }
-  };
-
   const handleMarkStarted = async () => {
     setSaving(true);
     try {
@@ -1124,7 +1057,8 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
     if (!hasSig) { toast.error('Firma requerida'); return; }
     setSaving(true);
     try {
-      const sigUrl = canvasRef.current?.toDataURL('image/png') || '';
+      const sigBlob = await sigRef.current?.toBlob('image/png');
+      const sigUrl = await uploadSignature(sigBlob ?? null, tenantId, `ot_${ot.code}_supervisor`, sigRef.current?.toDataURL('image/png'));
       const partsCost = parts.reduce((sum: number, p: any) => sum + (p.quantity * (p.unit_cost || 0)), 0);
       const totalCost = partsCost + (ot.external_cost || 0); // labor_cost = 0 por ahora
 
@@ -1492,14 +1426,12 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
               <Textarea placeholder="Notas del supervisor..." value={supervisorNotes} onChange={(e) => setSupervisorNotes(e.target.value)} rows={3} />
               <div>
                 <Label className="font-barlow uppercase text-xs mb-2 block">Firma del supervisor</Label>
-                <canvas ref={canvasRef} className="w-full h-40 border-2 border-dashed border-border rounded-xl bg-white cursor-crosshair touch-none"
-                  onMouseDown={(e) => { const p = getPos(e); startDraw(p.x, p.y); }}
-                  onMouseMove={(e) => { const p = getPos(e); draw(p.x, p.y); }}
-                  onMouseUp={endDraw} onMouseLeave={endDraw}
-                  onTouchStart={(e) => { e.preventDefault(); const p = getPos(e); startDraw(p.x, p.y); }}
-                  onTouchMove={(e) => { e.preventDefault(); const p = getPos(e); draw(p.x, p.y); }}
-                  onTouchEnd={endDraw} />
-                <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={clearSig}>Limpiar firma</Button>
+                <SignaturePad
+                  ref={sigRef}
+                  height={160}
+                  onChange={() => setHasSig(true)}
+                  onClear={() => setHasSig(false)}
+                />
               </div>
               <Button className="w-full h-12 bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase"
                 disabled={saving || !hasSig} onClick={handleSign}>
