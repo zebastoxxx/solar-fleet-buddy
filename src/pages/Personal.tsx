@@ -40,6 +40,9 @@ const personSchema = z.object({
   hourly_rate: z.coerce.number().min(0).optional(),
   status: z.string().default('activo'),
   notes: z.string().optional(),
+  user_id: z.string().nullable().optional(),
+  // Solo cuando se va a crear un usuario nuevo
+  new_user_password: z.string().optional(),
 });
 
 type PersonForm = z.infer<typeof personSchema>;
@@ -48,6 +51,7 @@ type PersonRow = {
   phone: string | null; email: string | null; specialty: string | null;
   hourly_rate: number | null; monthly_salary: number | null; contract_type: string | null;
   status: string | null; notes: string | null;
+  user_id: string | null;
   tenant_id: string; created_at: string | null;
 };
 
