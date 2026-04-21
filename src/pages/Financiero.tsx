@@ -330,7 +330,7 @@ export default function Financiero() {
   });
 
   // ─── CSV Export ───
-  const exportCSV = useCallback(() => {
+  const exportCSV = useCallback(async () => {
     const rows = filteredEntries.map(e => {
       const cat = categories.find(c => c.id === e.category_id);
       const machine = machines.find(m => m.id === e.machine_id);
