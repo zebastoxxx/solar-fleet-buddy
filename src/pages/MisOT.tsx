@@ -1022,14 +1022,7 @@ function CloseOTSheet({ open, onClose, ot, otId, personnelId, hourlyRate, usedPa
           {/* Signature */}
           <div>
             <Label className="font-barlow uppercase text-xs mb-2 block">Firma del técnico</Label>
-            <canvas ref={canvasRef} className="w-full h-[180px] border-2 border-dashed border-border rounded-xl bg-white cursor-crosshair touch-none"
-              onMouseDown={(e) => { const p = getPos(e); startDraw(p.x, p.y); }}
-              onMouseMove={(e) => { const p = getPos(e); draw(p.x, p.y); }}
-              onMouseUp={endDraw} onMouseLeave={endDraw}
-              onTouchStart={(e) => { e.preventDefault(); const p = getPos(e); startDraw(p.x, p.y); }}
-              onTouchMove={(e) => { e.preventDefault(); const p = getPos(e); draw(p.x, p.y); }}
-              onTouchEnd={endDraw} />
-            <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={clearSig}>Limpiar firma</Button>
+            <SignaturePad ref={sigRef} height={180} onChange={() => setHasSig(true)} onClear={() => setHasSig(false)} />
           </div>
 
           <Button className="w-full h-[52px] bg-[hsl(var(--gold))] hover:bg-[hsl(var(--gold-dim))] text-white font-barlow uppercase"
