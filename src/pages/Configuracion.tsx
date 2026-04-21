@@ -23,6 +23,7 @@ import { Download, Plus, CheckCircle, Eye, EyeOff, Dice5, Users, Building2, Slid
 import { FolderArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatCOP } from '@/lib/format';
 import type { UserRole } from '@/types';
 
 const TABS = [
