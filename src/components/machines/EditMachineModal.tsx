@@ -44,6 +44,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
     name: '', internal_code: '', type: '', brand: '', model: '', year: '',
     serial_number: '', horometer_current: '0', monthly_cost_estimate: '', notes: '',
     weight_kg: '', max_capacity: '', max_height: '', engine_model: '', fuel_type: '', plate_number: '',
+    daily_rental_rate: '',
   });
 
   const [alerts, setAlerts] = useState<MaintenanceAlert[]>([]);
