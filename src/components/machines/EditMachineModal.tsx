@@ -80,6 +80,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
         weight_kg: String(machine.weight_kg ?? ''), max_capacity: machine.max_capacity || '',
         max_height: (machine as any).max_height || '', engine_model: (machine as any).engine_model || '',
         fuel_type: (machine as any).fuel_type || '', plate_number: (machine as any).plate_number || '',
+        daily_rental_rate: (machine as any).daily_rental_rate != null ? String((machine as any).daily_rental_rate) : '',
       });
     }
   }, [machine]);
