@@ -110,44 +110,63 @@ export async function generateMachineReportPDF(data: MachineReportData): Promise
   doc.setFontSize(8);
   doc.text(`Generado: ${new Date().toLocaleDateString('es-CO')} ${new Date().toLocaleTimeString('es-CO')}`, 196, 24, { align: 'right' });
 
-  let y = 38;
+  let y = 36;
+
+  // Machine photo (top)
+  if (m.cover_photo_url) {
+    try {
+      const resp = await fetch(m.cover_photo_url);
+      const blob = await resp.blob();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      const fmt = (blob.type.includes('png') ? 'PNG' : 'JPEG') as 'PNG' | 'JPEG';
+      doc.addImage(dataUrl, fmt, 14, y, 60, 45);
+    } catch { /* skip if image fails */ }
+  }
+
+  // Datos del equipo (al lado de la foto)
+  const dataX = m.cover_photo_url ? 80 : 14;
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-  doc.text('DATOS DEL EQUIPO', 14, y); y += 8;
-
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-  const fields: [string, any][] = [
-    ['Código Interno', m.internal_code], ['Nombre', m.name], ['Marca', m.brand], ['Modelo', m.model],
-    ['Año', m.year], ['Nº Serie', m.serial_number], ['Tipo', m.type], ['Estado', m.status],
-    ['Horómetro actual', `${Number(m.horometer_current ?? 0).toLocaleString()} h`],
-    ['Peso (kg)', m.weight_kg], ['Capacidad máx.', m.max_capacity],
-    ['Altura máx.', (m as any).max_height], ['Motor', (m as any).engine_model],
-    ['Combustible', (m as any).fuel_type], ['Placa', (m as any).plate_number],
+  doc.text('DATOS DEL EQUIPO', dataX, y + 4);
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  let dy = y + 10;
+  const dataFields: [string, any][] = [
+    ['Código', m.internal_code], ['Nombre', m.name],
+    ['Marca / Modelo', `${m.brand ?? '—'} ${m.model ?? ''}`.trim()],
+    ['Año', m.year], ['Nº Serie', m.serial_number],
+    ['Tipo', m.type], ['Estado', m.status],
+    ['Horómetro', `${Number(m.horometer_current ?? 0).toLocaleString()} h`],
+    ['Placa', (m as any).plate_number],
   ];
+  dataFields.forEach(([label, val]) => {
+    doc.setFont('helvetica', 'bold'); doc.text(`${label}:`, dataX, dy);
+    doc.setFont('helvetica', 'normal'); doc.text(String(val ?? '—').substring(0, 60), dataX + 30, dy);
+    dy += 5;
+  });
 
+  y = Math.max(y + 50, dy + 4);
+
+  // Detalles adicionales
+  doc.setDrawColor(212, 136, 30); doc.line(14, y, 196, y); y += 6;
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  const extraFields: [string, any][] = [
+    ['Peso (kg)', m.weight_kg], ['Capacidad máx.', m.max_capacity], ['Altura máx.', (m as any).max_height],
+    ['Motor', (m as any).engine_model], ['Combustible', (m as any).fuel_type],
+  ];
   let col = 0;
-  fields.forEach(([label, val]) => {
+  extraFields.forEach(([label, val]) => {
     const x = col === 0 ? 14 : col === 1 ? 80 : 146;
     doc.setFont('helvetica', 'bold'); doc.text(`${label}:`, x, y);
-    doc.setFont('helvetica', 'normal'); doc.text(String(val ?? '—'), x + 1, y + 4);
+    doc.setFont('helvetica', 'normal'); doc.text(String(val ?? '—').substring(0, 25), x + 1, y + 4);
     col++;
     if (col >= 3) { col = 0; y += 10; }
   });
   if (col > 0) y += 10;
-
-  // Financials summary
-  if (data.financials) {
-    y += 4;
-    doc.setDrawColor(212, 136, 30); doc.line(14, y, 196, y); y += 8;
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text('INDICADORES FINANCIEROS', 14, y); y += 7;
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    const f = data.financials;
-    doc.text(`Ingresos totales: $${Number(f.total_income ?? 0).toLocaleString()}`, 14, y);
-    doc.text(`Gastos totales: $${Number(f.total_expenses ?? 0).toLocaleString()}`, 80, y);
-    doc.text(`Utilidad: $${Number(f.profit ?? 0).toLocaleString()}`, 146, y); y += 5;
-    doc.text(`Margen: ${Number(f.profit_margin_pct ?? 0).toFixed(1)}%`, 14, y); y += 4;
-  }
 
   // Conditions
   if (data.conditions.length > 0) {
@@ -167,27 +186,50 @@ export async function generateMachineReportPDF(data: MachineReportData): Promise
     });
   }
 
-  // OT History
+  // OT History — Descripción, Técnico(s), Horómetro
   if (data.ots.length > 0) {
     y += 4;
-    if (y > 240) { doc.addPage(); y = 20; }
+    if (y > 230) { doc.addPage(); y = 20; }
     doc.setDrawColor(212, 136, 30); doc.line(14, y, 196, y); y += 8;
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text('HISTORIAL DE ÓRDENES DE TRABAJO', 14, y); y += 7;
+    doc.text('HISTORIAL DE TRABAJOS REALIZADOS', 14, y); y += 7;
     doc.setFillColor(240, 237, 232); doc.rect(14, y - 4, 182, 7, 'F');
     doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text('Código', 16, y); doc.text('Tipo', 42, y); doc.text('Estado', 68, y);
-    doc.text('Fecha', 100, y); doc.text('Horas', 130, y); doc.text('Costo', 150, y); y += 7;
-    doc.setFont('helvetica', 'normal');
-    data.ots.forEach((ot) => {
-      if (y > 275) { doc.addPage(); y = 20; }
-      doc.text(ot.code ?? '', 16, y);
-      doc.text(ot.type ?? '', 42, y);
-      doc.text(ot.status ?? '', 68, y);
-      doc.text(ot.created_at ? new Date(ot.created_at).toLocaleDateString('es-CO') : '', 100, y);
-      doc.text(ot.actual_hours ? `${ot.actual_hours}h` : '—', 130, y);
-      doc.text(ot.total_cost ? `$${Number(ot.total_cost).toLocaleString()}` : '—', 150, y);
-      y += 5;
+    doc.text('OT / Fecha', 16, y);
+    doc.text('Descripción del trabajo', 50, y);
+    doc.text('Técnico(s)', 130, y);
+    doc.text('Horómetro', 175, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    data.ots.forEach((ot: any) => {
+      const desc = (ot.technician_notes || ot.problem_description || '—') as string;
+      const techs = Array.isArray(ot.work_order_technicians) && ot.work_order_technicians.length
+        ? ot.work_order_technicians.map((t: any) => t.personnel?.full_name).filter(Boolean).join(', ')
+        : '—';
+      const horo = ot.horometer_end != null
+        ? `${Number(ot.horometer_end).toLocaleString()} h`
+        : ot.horometer_start != null
+          ? `${Number(ot.horometer_start).toLocaleString()} h`
+          : '—';
+      const dateStr = ot.created_at ? new Date(ot.created_at).toLocaleDateString('es-CO') : '';
+
+      const descLines = doc.splitTextToSize(desc, 75);
+      const techLines = doc.splitTextToSize(techs, 42);
+      const rowH = Math.max(descLines.length, techLines.length, 2) * 4 + 3;
+
+      if (y + rowH > 280) { doc.addPage(); y = 20; }
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(ot.code ?? '—', 16, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text(dateStr, 16, y + 4);
+      doc.setFontSize(8);
+      doc.text(descLines, 50, y);
+      doc.text(techLines, 130, y);
+      doc.text(horo, 175, y);
+      y += rowH;
     });
   }
 
