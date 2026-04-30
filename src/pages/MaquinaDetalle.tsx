@@ -62,16 +62,19 @@ export default function MaquinaDetalle() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const user = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<string>('ficha');
   const machine = useMachine(id!);
-  const conditions = useMachineConditions(id!);
-  const ots = useMachineOTs(id!);
-  const preops = useMachinePreops(id!);
-  const kits = useMachineKits(id!);
-  const projects = useMachineProjects(id!);
-  const docs = useMachineDocuments(id!);
-  const costs = useMachineCosts(id!);
-  const alerts = useMachineAlerts(id!);
-  const financials = useMachineFinancials(id!);
+  // Ficha tab needs conditions + OTs (chart) + financials. PDF también los usa.
+  const fichaActive = activeTab === 'ficha';
+  const conditions = useMachineConditions(id!, fichaActive);
+  const ots = useMachineOTs(id!, fichaActive || activeTab === 'ot');
+  const preops = useMachinePreops(id!, activeTab === 'preop');
+  const kits = useMachineKits(id!, activeTab === 'inventario');
+  const projects = useMachineProjects(id!, activeTab === 'proyectos');
+  const docs = useMachineDocuments(id!, activeTab === 'docs');
+  const costs = useMachineCosts(id!, activeTab === 'financiero');
+  const alerts = useMachineAlerts(id!, activeTab === 'alertas');
+  const financials = useMachineFinancials(id!, fichaActive || activeTab === 'financiero');
   const updateStatus = useUpdateMachineStatus();
   const updateMachine = useUpdateMachine();
   const uploadDoc = useUploadMachineDocument();
