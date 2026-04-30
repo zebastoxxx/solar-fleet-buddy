@@ -255,7 +255,7 @@ export default function Cotizaciones() {
   // Delete mutation
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quotations').delete().eq('id', id);
+      const { error } = await supabase.from('quotations').delete().eq('tenant_id', user!.tenant_id).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -266,7 +266,7 @@ export default function Cotizaciones() {
 
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('quotations').delete().in('id', ids);
+      const { error } = await supabase.from('quotations').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -932,13 +932,6 @@ function QuoteFormModal({
                   <Input type="number" className="h-7 w-32 text-xs" value={freight} onChange={e => setFreight(parseFloat(e.target.value) || 0)} />
                 </div>
                 <span className="font-barlow font-semibold">{formatCOP(Number(freight))}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">+ Flete / Transporte</span>
-                  <Input type="number" className="h-7 w-32 text-xs" value={freight} onChange={e => setFreight(parseFloat(e.target.value) || 0)} />
-                </div>
-                <span className="font-barlow font-semibold">{formatCOP(freight)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
