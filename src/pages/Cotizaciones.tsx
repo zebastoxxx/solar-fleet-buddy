@@ -935,13 +935,6 @@ function QuoteFormModal({
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">+ Flete / Transporte</span>
-                  <Input type="number" className="h-7 w-32 text-xs" value={freight} onChange={e => setFreight(parseFloat(e.target.value) || 0)} />
-                </div>
-                <span className="font-barlow font-semibold">{formatCOP(freight)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">- Descuento</span>
                   <Input type="number" className="h-7 w-20 text-xs" value={discountPct} onChange={e => setDiscountPct(parseFloat(e.target.value) || 0)} />
                   <span className="text-[10px] text-muted-foreground">%</span>
