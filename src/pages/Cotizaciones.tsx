@@ -255,7 +255,7 @@ export default function Cotizaciones() {
   // Delete mutation
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quotations').delete().eq('id', id);
+      const { error } = await supabase.from('quotations').delete().eq('tenant_id', user!.tenant_id).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -266,7 +266,7 @@ export default function Cotizaciones() {
 
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('quotations').delete().in('id', ids);
+      const { error } = await supabase.from('quotations').delete().eq('tenant_id', user!.tenant_id).in('id', ids);
       if (error) throw error;
     },
     onSuccess: () => {
