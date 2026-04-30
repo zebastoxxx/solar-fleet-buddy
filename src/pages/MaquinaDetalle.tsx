@@ -110,9 +110,17 @@ export default function MaquinaDetalle() {
   const handleDownloadPDF = async () => {
     if (!m) return;
     try {
+      // Asegurar datos para el PDF aunque la tab activa no los haya cargado
+      const [condRes, otsRes, finRes] = await Promise.all([
+        conditions.data ? Promise.resolve({ data: conditions.data }) : supabase.from('machine_conditions').select('*').eq('machine_id', id!),
+        ots.data ? Promise.resolve({ data: ots.data }) : supabase.from('work_orders').select('id, code, type, status, priority, problem_description, actual_hours, total_cost, created_at, closed_at').eq('machine_id', id!).order('created_at', { ascending: false }),
+        financials.data !== undefined ? Promise.resolve({ data: financials.data }) : supabase.from('machine_financials').select('*').eq('machine_id', id!).maybeSingle(),
+      ]);
       const blob = await generateMachineReportPDF({
-        machine: m, conditions: conditions.data ?? [], ots: ots.data ?? [],
-        financials: financials.data,
+        machine: m,
+        conditions: (condRes.data as any) ?? [],
+        ots: (otsRes.data as any) ?? [],
+        financials: (finRes.data as any) ?? null,
       });
       downloadPDF(blob, `Hoja_de_Vida_${m.internal_code}_${format(new Date(), 'yyyyMMdd')}.pdf`);
       toast({ title: '📄 Hoja de vida descargada' });
