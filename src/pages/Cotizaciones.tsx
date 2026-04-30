@@ -386,6 +386,7 @@ export default function Cotizaciones() {
           rates={rates}
           clients={clients}
           projects={projects}
+          machines={machinesList}
           tenantId={user!.tenant_id}
           userId={user!.id}
         />
