@@ -153,8 +153,8 @@ export default function Maquinas() {
     return <span className="text-[11px] font-semibold text-success font-dm">✅ {margin.toFixed(0)}%</span>;
   };
 
-  // Table columns
-  const tableColumns: Column<any>[] = [
+  // Table columns (memoized to keep stable reference and avoid re-renders)
+  const tableColumns = useMemo<Column<any>[]>(() => [
     { key: 'internal_code', label: 'Código', sortable: true, width: '90px' },
     { key: 'name', label: 'Nombre', sortable: true, render: (r) => <span className="font-semibold">{r.name}</span> },
     { key: 'type', label: 'Tipo', sortable: true, render: (r) => TYPE_LABELS[r.type] ?? r.type },
@@ -162,7 +162,7 @@ export default function Maquinas() {
     { key: 'horometer_current', label: 'Horómetro', sortable: true, align: 'right', render: (r) => `${Number(r.horometer_current ?? 0).toLocaleString()} h` },
     { key: 'project_name', label: 'Proyecto', render: (r) => (r as any).projects?.name ?? '—' },
     { key: 'profit_margin', label: 'Rentabilidad', sortable: true, align: 'center', render: (r) => profitBadge(r.profit_margin) },
-  ];
+  ], []);
 
   return (
     <div className="space-y-4">
