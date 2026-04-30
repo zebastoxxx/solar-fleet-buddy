@@ -113,7 +113,11 @@ export default function MaquinaDetalle() {
       // Asegurar datos para el PDF aunque la tab activa no los haya cargado
       const [condRes, otsRes, finRes] = await Promise.all([
         conditions.data ? Promise.resolve({ data: conditions.data }) : supabase.from('machine_conditions').select('*').eq('machine_id', id!),
-        ots.data ? Promise.resolve({ data: ots.data }) : supabase.from('work_orders').select('id, code, type, status, priority, problem_description, actual_hours, total_cost, created_at, closed_at').eq('machine_id', id!).order('created_at', { ascending: false }),
+        supabase
+          .from('work_orders')
+          .select('id, code, type, status, problem_description, technician_notes, horometer_start, horometer_end, created_at, closed_at, work_order_technicians(personnel:personnel_id(full_name))')
+          .eq('machine_id', id!)
+          .order('created_at', { ascending: false }),
         financials.data !== undefined ? Promise.resolve({ data: financials.data }) : supabase.from('machine_financials').select('*').eq('machine_id', id!).maybeSingle(),
       ]);
       const blob = await generateMachineReportPDF({
