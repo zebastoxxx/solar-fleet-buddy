@@ -89,14 +89,18 @@ interface EquipmentRate {
 
 interface ItemDraft {
   tempId: string;
+  machine_id: string | null;
   rate_id: string | null;
   description: string;
   category: string;
-  period_type: string;
-  quantity: number;
-  unit_price: number;
+  period_type: string;        // 'por_dias' | 'global' | 'mensual' | ...
+  quantity: number;           // siempre 1 para máquinas
+  unit_price: number;         // legacy: subtotal/día, mantenemos = daily_rate
+  daily_rate: number;
+  days: number;
   include_operator: boolean;
-  operator_price: number;
+  operator_price: number;        // legacy mensual
+  operator_daily_rate: number;   // nuevo: $/día operador
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -112,7 +116,12 @@ const BIZ_STYLES: Record<string, { label: string; cls: string }> = {
 };
 
 function calcItemSubtotal(item: ItemDraft): number {
-  return (item.unit_price + (item.include_operator ? item.operator_price : 0)) * item.quantity;
+  if (item.period_type === 'global') {
+    return (item.unit_price + (item.include_operator ? item.operator_price : 0)) * (item.quantity || 1);
+  }
+  const days = item.days || 0;
+  const op = item.include_operator ? (item.operator_daily_rate || 0) : 0;
+  return ((item.daily_rate || 0) + op) * days;
 }
 
 function getPriceByPeriod(rate: EquipmentRate, period: string): number {
