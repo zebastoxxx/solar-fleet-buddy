@@ -217,7 +217,10 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
             <div><Label className="font-dm text-xs">Placa</Label><Input value={form.plate_number} onChange={(e) => set('plate_number', e.target.value)} /></div>
           </div>
 
-          <div><Label className="font-dm text-xs">Costo estimado mensual (COP)</Label><Input type="number" value={form.monthly_cost_estimate} onChange={(e) => set('monthly_cost_estimate', e.target.value)} /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><Label className="font-dm text-xs">Costo estimado mensual (COP)</Label><Input type="number" value={form.monthly_cost_estimate} onChange={(e) => set('monthly_cost_estimate', e.target.value)} /></div>
+            <div><Label className="font-dm text-xs">Precio diario alquiler (COP)</Label><Input type="number" value={form.daily_rental_rate} onChange={(e) => set('daily_rental_rate', e.target.value)} placeholder="Tarifa estándar por día" /></div>
+          </div>
           <div><Label className="font-dm text-xs">Notas</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} /></div>
 
           {/* Maintenance alerts */}
