@@ -19,10 +19,10 @@ export function useMachine(id: string) {
   });
 }
 
-export function useMachineConditions(machineId: string) {
+export function useMachineConditions(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-conditions', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     staleTime: 30000,
     queryFn: async () => {
       const { data } = await supabase.from('machine_conditions').select('*').eq('machine_id', machineId);
@@ -31,10 +31,10 @@ export function useMachineConditions(machineId: string) {
   });
 }
 
-export function useMachineOTs(machineId: string) {
+export function useMachineOTs(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-ots', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     staleTime: 30000,
     queryFn: async () => {
       const { data } = await supabase
@@ -47,10 +47,10 @@ export function useMachineOTs(machineId: string) {
   });
 }
 
-export function useMachinePreops(machineId: string) {
+export function useMachinePreops(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-preops', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     staleTime: 30000,
     queryFn: async () => {
       const { data } = await supabase
@@ -64,10 +64,10 @@ export function useMachinePreops(machineId: string) {
   });
 }
 
-export function useMachineKits(machineId: string) {
+export function useMachineKits(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-kits', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase.from('inventory_kits').select('*, inventory_kit_items(*)').eq('machine_id', machineId);
       return data ?? [];
@@ -75,10 +75,10 @@ export function useMachineKits(machineId: string) {
   });
 }
 
-export function useMachineProjects(machineId: string) {
+export function useMachineProjects(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-projects', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase
         .from('project_machines')
@@ -90,10 +90,10 @@ export function useMachineProjects(machineId: string) {
   });
 }
 
-export function useMachineDocuments(machineId: string) {
+export function useMachineDocuments(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-documents', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase.from('machine_documents').select('*').eq('machine_id', machineId).order('uploaded_at', { ascending: false });
       return data ?? [];
@@ -101,10 +101,10 @@ export function useMachineDocuments(machineId: string) {
   });
 }
 
-export function useMachineCosts(machineId: string) {
+export function useMachineCosts(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-costs', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase.from('cost_entries').select('*').eq('machine_id', machineId).order('cost_date', { ascending: true });
       return data ?? [];
@@ -112,10 +112,10 @@ export function useMachineCosts(machineId: string) {
   });
 }
 
-export function useMachineAlerts(machineId: string) {
+export function useMachineAlerts(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-alerts', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase.from('alerts').select('*').eq('machine_id', machineId).order('created_at', { ascending: false });
       return data ?? [];
@@ -123,10 +123,10 @@ export function useMachineAlerts(machineId: string) {
   });
 }
 
-export function useMachineFinancials(machineId: string) {
+export function useMachineFinancials(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-financials', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase
         .from('machine_financials')
@@ -138,10 +138,10 @@ export function useMachineFinancials(machineId: string) {
   });
 }
 
-export function useMachineMaintenanceAlerts(machineId: string) {
+export function useMachineMaintenanceAlerts(machineId: string, enabled = true) {
   return useQuery({
     queryKey: ['machine-maint-alerts', machineId],
-    enabled: !!machineId,
+    enabled: !!machineId && enabled,
     queryFn: async () => {
       const { data } = await supabase.from('machine_maintenance_alerts').select('*').eq('machine_id', machineId).order('created_at', { ascending: false });
       return data ?? [];

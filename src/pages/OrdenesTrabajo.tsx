@@ -450,7 +450,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: machines = [] } = useQuery({
     queryKey: ['machines-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('machines').select('*').eq('tenant_id', tenantId).order('name');
+      const { data } = await supabase.from('machines').select('id, name, internal_code, status, type, horometer_current').eq('tenant_id', tenantId).order('name');
       return data || [];
     },
     enabled: open && !!tenantId,
@@ -475,7 +475,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('projects').select('*').eq('tenant_id', tenantId).eq('status', 'activo').order('name');
+      const { data } = await supabase.from('projects').select('id, name').eq('tenant_id', tenantId).eq('status', 'activo').order('name');
       return data || [];
     },
     enabled: open && !!tenantId,
@@ -484,7 +484,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('suppliers').select('*').eq('tenant_id', tenantId).eq('status', 'activo').order('name');
+      const { data } = await supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).eq('status', 'activo').order('name');
       return data || [];
     },
     enabled: open && !!tenantId,
@@ -493,7 +493,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: tools = [] } = useQuery({
     queryKey: ['tools-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('inventory_tools').select('*').eq('tenant_id', tenantId).eq('status', 'disponible').order('name');
+      const { data } = await supabase.from('inventory_tools').select('id, name, internal_code').eq('tenant_id', tenantId).eq('status', 'disponible').order('name');
       return data || [];
     },
     enabled: open && step === 5 && !!tenantId,
@@ -502,7 +502,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: taskTemplates = [] } = useQuery({
     queryKey: ['task-templates', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('task_templates').select('*').eq('tenant_id', tenantId).eq('active', true).order('name');
+      const { data } = await supabase.from('task_templates').select('id, name, description, estimated_minutes').eq('tenant_id', tenantId).eq('active', true).order('name');
       return data || [];
     },
     enabled: open && step === 4 && !!tenantId,

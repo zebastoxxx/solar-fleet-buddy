@@ -62,16 +62,19 @@ export default function MaquinaDetalle() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const user = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<string>('ficha');
   const machine = useMachine(id!);
-  const conditions = useMachineConditions(id!);
-  const ots = useMachineOTs(id!);
-  const preops = useMachinePreops(id!);
-  const kits = useMachineKits(id!);
-  const projects = useMachineProjects(id!);
-  const docs = useMachineDocuments(id!);
-  const costs = useMachineCosts(id!);
-  const alerts = useMachineAlerts(id!);
-  const financials = useMachineFinancials(id!);
+  // Ficha tab needs conditions + OTs (chart) + financials. PDF también los usa.
+  const fichaActive = activeTab === 'ficha';
+  const conditions = useMachineConditions(id!, fichaActive);
+  const ots = useMachineOTs(id!, fichaActive || activeTab === 'ot');
+  const preops = useMachinePreops(id!, activeTab === 'preop');
+  const kits = useMachineKits(id!, activeTab === 'inventario');
+  const projects = useMachineProjects(id!, activeTab === 'proyectos');
+  const docs = useMachineDocuments(id!, activeTab === 'docs');
+  const costs = useMachineCosts(id!, activeTab === 'financiero');
+  const alerts = useMachineAlerts(id!, activeTab === 'alertas');
+  const financials = useMachineFinancials(id!, fichaActive || activeTab === 'financiero');
   const updateStatus = useUpdateMachineStatus();
   const updateMachine = useUpdateMachine();
   const uploadDoc = useUploadMachineDocument();
@@ -107,9 +110,17 @@ export default function MaquinaDetalle() {
   const handleDownloadPDF = async () => {
     if (!m) return;
     try {
+      // Asegurar datos para el PDF aunque la tab activa no los haya cargado
+      const [condRes, otsRes, finRes] = await Promise.all([
+        conditions.data ? Promise.resolve({ data: conditions.data }) : supabase.from('machine_conditions').select('*').eq('machine_id', id!),
+        ots.data ? Promise.resolve({ data: ots.data }) : supabase.from('work_orders').select('id, code, type, status, priority, problem_description, actual_hours, total_cost, created_at, closed_at').eq('machine_id', id!).order('created_at', { ascending: false }),
+        financials.data !== undefined ? Promise.resolve({ data: financials.data }) : supabase.from('machine_financials').select('*').eq('machine_id', id!).maybeSingle(),
+      ]);
       const blob = await generateMachineReportPDF({
-        machine: m, conditions: conditions.data ?? [], ots: ots.data ?? [],
-        financials: financials.data,
+        machine: m,
+        conditions: (condRes.data as any) ?? [],
+        ots: (otsRes.data as any) ?? [],
+        financials: (finRes.data as any) ?? null,
       });
       downloadPDF(blob, `Hoja_de_Vida_${m.internal_code}_${format(new Date(), 'yyyyMMdd')}.pdf`);
       toast({ title: '📄 Hoja de vida descargada' });
@@ -272,7 +283,7 @@ export default function MaquinaDetalle() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="ficha" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-card border border-border h-auto flex-wrap overflow-x-auto w-full">
           <TabsTrigger value="ficha" className="font-dm text-xs">Ficha Técnica</TabsTrigger>
           <TabsTrigger value="ot" className="font-dm text-xs">Historial OT</TabsTrigger>
