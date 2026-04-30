@@ -131,8 +131,9 @@ export default function MaquinaDetalle() {
 
   const handleInlineEdit = async (field: string, value: string) => {
     try {
-      const parsed = ['weight_kg', 'horometer_current', 'year'].includes(field)
-        ? (Number(value) || null) : (value || null);
+      const numericFields = ['weight_kg', 'horometer_current', 'year', 'daily_rental_rate'];
+      const parsed = numericFields.includes(field)
+        ? (Number(String(value).replace(/[^0-9.\-]/g, '')) || null) : (value || null);
       await updateMachine.mutateAsync({ id: id!, updates: { [field]: parsed } });
       machine.refetch();
       toast({ title: 'Campo actualizado' });
