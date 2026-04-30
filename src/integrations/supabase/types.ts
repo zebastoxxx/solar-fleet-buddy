@@ -1008,6 +1008,7 @@ export type Database = {
           cover_photo_url: string | null
           created_at: string | null
           current_project_id: string | null
+          daily_rental_rate: number | null
           engine_model: string | null
           fuel_type: string | null
           horometer_current: number | null
@@ -1033,6 +1034,7 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string | null
           current_project_id?: string | null
+          daily_rental_rate?: number | null
           engine_model?: string | null
           fuel_type?: string | null
           horometer_current?: number | null
@@ -1058,6 +1060,7 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string | null
           current_project_id?: string | null
+          daily_rental_rate?: number | null
           engine_model?: string | null
           fuel_type?: string | null
           horometer_current?: number | null
@@ -1832,9 +1835,13 @@ export type Database = {
       quotation_items: {
         Row: {
           category: string | null
+          daily_rate: number | null
+          days: number | null
           description: string
           id: string
           include_operator: boolean | null
+          machine_id: string | null
+          operator_daily_rate: number | null
           operator_price: number | null
           period_type: string | null
           quantity: number | null
@@ -1847,9 +1854,13 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          daily_rate?: number | null
+          days?: number | null
           description: string
           id?: string
           include_operator?: boolean | null
+          machine_id?: string | null
+          operator_daily_rate?: number | null
           operator_price?: number | null
           period_type?: string | null
           quantity?: number | null
@@ -1862,9 +1873,13 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          daily_rate?: number | null
+          days?: number | null
           description?: string
           id?: string
           include_operator?: boolean | null
+          machine_id?: string | null
+          operator_daily_rate?: number | null
           operator_price?: number | null
           period_type?: string | null
           quantity?: number | null
@@ -1876,6 +1891,20 @@ export type Database = {
           unit_price?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quotation_items_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machine_financials"
+            referencedColumns: ["machine_id"]
+          },
+          {
+            foreignKeyName: "quotation_items_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotation_items_quotation_id_fkey"
             columns: ["quotation_id"]
@@ -1914,6 +1943,8 @@ export type Database = {
           iva_pct: number | null
           notes: string | null
           pdf_url: string | null
+          period_end_date: string | null
+          period_start_date: string | null
           project_id: string | null
           quote_number: string | null
           rejected_at: string | null
@@ -1941,6 +1972,8 @@ export type Database = {
           iva_pct?: number | null
           notes?: string | null
           pdf_url?: string | null
+          period_end_date?: string | null
+          period_start_date?: string | null
           project_id?: string | null
           quote_number?: string | null
           rejected_at?: string | null
@@ -1968,6 +2001,8 @@ export type Database = {
           iva_pct?: number | null
           notes?: string | null
           pdf_url?: string | null
+          period_end_date?: string | null
+          period_start_date?: string | null
           project_id?: string | null
           quote_number?: string | null
           rejected_at?: string | null

@@ -44,6 +44,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
     name: '', internal_code: '', type: '', brand: '', model: '', year: '',
     serial_number: '', horometer_current: '0', monthly_cost_estimate: '', notes: '',
     weight_kg: '', max_capacity: '', max_height: '', engine_model: '', fuel_type: '', plate_number: '',
+    daily_rental_rate: '',
   });
 
   const [alerts, setAlerts] = useState<MaintenanceAlert[]>([]);
@@ -79,6 +80,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
         weight_kg: String(machine.weight_kg ?? ''), max_capacity: machine.max_capacity || '',
         max_height: (machine as any).max_height || '', engine_model: (machine as any).engine_model || '',
         fuel_type: (machine as any).fuel_type || '', plate_number: (machine as any).plate_number || '',
+        daily_rental_rate: (machine as any).daily_rental_rate != null ? String((machine as any).daily_rental_rate) : '',
       });
     }
   }, [machine]);
@@ -110,6 +112,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
         max_capacity: form.max_capacity || null, max_height: form.max_height || null,
         engine_model: form.engine_model || null, fuel_type: form.fuel_type || null,
         plate_number: form.plate_number || null,
+        daily_rental_rate: form.daily_rental_rate ? Number(form.daily_rental_rate) : null,
       };
 
       const { error } = await supabase.from('machines').update(updates).eq('id', machine.id);
@@ -214,7 +217,10 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
             <div><Label className="font-dm text-xs">Placa</Label><Input value={form.plate_number} onChange={(e) => set('plate_number', e.target.value)} /></div>
           </div>
 
-          <div><Label className="font-dm text-xs">Costo estimado mensual (COP)</Label><Input type="number" value={form.monthly_cost_estimate} onChange={(e) => set('monthly_cost_estimate', e.target.value)} /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><Label className="font-dm text-xs">Costo estimado mensual (COP)</Label><Input type="number" value={form.monthly_cost_estimate} onChange={(e) => set('monthly_cost_estimate', e.target.value)} /></div>
+            <div><Label className="font-dm text-xs">Precio diario alquiler (COP)</Label><Input type="number" value={form.daily_rental_rate} onChange={(e) => set('daily_rental_rate', e.target.value)} placeholder="Tarifa estándar por día" /></div>
+          </div>
           <div><Label className="font-dm text-xs">Notas</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} /></div>
 
           {/* Maintenance alerts */}

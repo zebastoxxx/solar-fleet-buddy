@@ -25,8 +25,11 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Plus, Eye, Pencil, Trash2, FileText, Download, Send, CheckCircle, XCircle,
-  X, Clock, Filter, RotateCcw, FileDown
+  X, Clock, Filter, RotateCcw, FileDown, Calendar as CalendarIcon
 } from 'lucide-react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 // jsPDF cargado dinámicamente dentro de generatePDF para no inflar el bundle inicial.
 
 // ─── Types ───
@@ -89,14 +92,18 @@ interface EquipmentRate {
 
 interface ItemDraft {
   tempId: string;
+  machine_id: string | null;
   rate_id: string | null;
   description: string;
   category: string;
-  period_type: string;
-  quantity: number;
-  unit_price: number;
+  period_type: string;        // 'por_dias' | 'global' | 'mensual' | ...
+  quantity: number;           // siempre 1 para máquinas
+  unit_price: number;         // legacy: subtotal/día, mantenemos = daily_rate
+  daily_rate: number;
+  days: number;
   include_operator: boolean;
-  operator_price: number;
+  operator_price: number;        // legacy mensual
+  operator_daily_rate: number;   // nuevo: $/día operador
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -112,7 +119,12 @@ const BIZ_STYLES: Record<string, { label: string; cls: string }> = {
 };
 
 function calcItemSubtotal(item: ItemDraft): number {
-  return (item.unit_price + (item.include_operator ? item.operator_price : 0)) * item.quantity;
+  if (item.period_type === 'global') {
+    return (item.unit_price + (item.include_operator ? item.operator_price : 0)) * (item.quantity || 1);
+  }
+  const days = item.days || 0;
+  const op = item.include_operator ? (item.operator_daily_rate || 0) : 0;
+  return ((item.daily_rate || 0) + op) * days;
 }
 
 function getPriceByPeriod(rate: EquipmentRate, period: string): number {
@@ -189,6 +201,20 @@ export default function Cotizaciones() {
         .from('projects')
         .select('id, name, client_id')
         .eq('tenant_id', user!.tenant_id)
+        .order('name');
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: machinesList = [] } = useQuery({
+    queryKey: ['machines-for-quotes', user?.tenant_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('machines')
+        .select('id, internal_code, name, type, brand, model, daily_rental_rate')
+        .eq('tenant_id', user!.tenant_id)
+        .eq('active', true)
         .order('name');
       return data ?? [];
     },
@@ -386,6 +412,7 @@ export default function Cotizaciones() {
           rates={rates}
           clients={clients}
           projects={projects}
+          machines={machinesList}
           tenantId={user!.tenant_id}
           userId={user!.id}
         />
@@ -441,7 +468,7 @@ export default function Cotizaciones() {
 // FORM MODAL (Create / Edit)
 // ═══════════════════════════════════════════
 function QuoteFormModal({
-  open, onClose, editData, rates, clients, projects, tenantId, userId
+  open, onClose, editData, rates, clients, projects, machines, tenantId, userId
 }: {
   open: boolean;
   onClose: () => void;
@@ -449,6 +476,7 @@ function QuoteFormModal({
   rates: EquipmentRate[];
   clients: any[];
   projects: any[];
+  machines: any[];
   tenantId: string;
   userId: string;
 }) {
@@ -459,15 +487,31 @@ function QuoteFormModal({
   const [bizLine, setBizLine] = useState(editData?.business_line || 'renta_equipos');
   const [title, setTitle] = useState(editData?.title || '');
   const [clientId, setClientId] = useState(editData?.client_id || '');
-  const [projectId, setProjectId] = useState(editData?.project_id || '');
+  const [projectId, setProjectId] = useState(editData?.project_id || '__none__');
   const [validityDays, setValidityDays] = useState(editData?.validity_days ?? 15);
   const [notes, setNotes] = useState(editData?.notes || '');
   const [items, setItems] = useState<ItemDraft[]>([]);
   const [freight, setFreight] = useState(editData?.freight_amount ?? 0);
   const [discountPct, setDiscountPct] = useState(editData?.discount_pct ?? 0);
   const [ivaPct, setIvaPct] = useState(editData?.iva_pct ?? 19);
+  const [periodStart, setPeriodStart] = useState<Date | undefined>(
+    (editData as any)?.period_start_date ? new Date((editData as any).period_start_date) : undefined
+  );
+  const [periodEnd, setPeriodEnd] = useState<Date | undefined>(
+    (editData as any)?.period_end_date ? new Date((editData as any).period_end_date) : undefined
+  );
   const [saving, setSaving] = useState(false);
   const [loadedItems, setLoadedItems] = useState(false);
+
+  // Días calculados desde el calendario
+  const daysFromPeriod = useMemo(() => {
+    if (periodStart && periodEnd) {
+      const ms = periodEnd.getTime() - periodStart.getTime();
+      const d = Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
+      return d > 0 ? d : 0;
+    }
+    return 0;
+  }, [periodStart, periodEnd]);
 
   // Load existing items when editing
   const { data: existingItems } = useQuery({
@@ -484,42 +528,67 @@ function QuoteFormModal({
   });
 
   if (isEdit && existingItems && !loadedItems) {
-    setItems(existingItems.map(it => ({
+    setItems(existingItems.map((it: any) => ({
       tempId: it.id,
+      machine_id: it.machine_id ?? null,
       rate_id: it.rate_id,
       description: it.description,
       category: it.category || '',
-      period_type: it.period_type || 'mensual',
-      quantity: Number(it.quantity),
-      unit_price: Number(it.unit_price),
-      include_operator: it.include_operator,
-      operator_price: Number(it.operator_price),
+      period_type: it.period_type || 'por_dias',
+      quantity: Number(it.quantity ?? 1),
+      unit_price: Number(it.unit_price ?? 0),
+      daily_rate: Number(it.daily_rate ?? it.unit_price ?? 0),
+      days: Number(it.days ?? it.quantity ?? 1),
+      include_operator: !!it.include_operator,
+      operator_price: Number(it.operator_price ?? 0),
+      operator_daily_rate: Number(it.operator_daily_rate ?? 0),
     })));
     setLoadedItems(true);
   }
 
+  // Si cambian fechas globales, sincroniza days en todos los ítems no-globales
+  React.useEffect(() => {
+    if (daysFromPeriod > 0) {
+      setItems(prev => prev.map(it => it.period_type === 'global' ? it : { ...it, days: daysFromPeriod }));
+    }
+  }, [daysFromPeriod]);
+
   const filteredProjects = clientId
-    ? projects.filter(p => p.client_id === clientId)
+    ? projects.filter(p => p.client_id === clientId || !p.client_id)
     : projects;
+
+  const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: c.name })), [clients]);
+  const projectOptions = useMemo(() => [
+    { value: '__none__', label: 'Ninguno' },
+    ...filteredProjects.map(p => ({ value: p.id, label: p.name })),
+  ], [filteredProjects]);
+  const machineOptions = useMemo(() => machines.map(m => ({
+    value: m.id,
+    label: `${m.name}${m.internal_code ? ' · ' + m.internal_code : ''}`,
+  })), [machines]);
 
   // Totals calculation
   const itemsSubtotal = items.reduce((s, it) => s + calcItemSubtotal(it), 0);
   const discountAmount = itemsSubtotal * (discountPct / 100);
-  const baseGravable = itemsSubtotal + freight - discountAmount;
+  const baseGravable = itemsSubtotal + Number(freight) - discountAmount;
   const ivaAmount = baseGravable * (ivaPct / 100);
   const grandTotal = baseGravable + ivaAmount;
 
   const addItem = () => {
     setItems(prev => [...prev, {
       tempId: crypto.randomUUID(),
+      machine_id: null,
       rate_id: null,
       description: '',
       category: '',
-      period_type: 'mensual',
+      period_type: 'por_dias',
       quantity: 1,
       unit_price: 0,
+      daily_rate: 0,
+      days: daysFromPeriod || 1,
       include_operator: false,
       operator_price: 0,
+      operator_daily_rate: 0,
     }]);
   };
 
@@ -531,25 +600,19 @@ function QuoteFormModal({
     setItems(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const selectRate = (idx: number, rateId: string) => {
-    const rate = rates.find(r => r.id === rateId);
-    if (!rate) return;
-    const period = items[idx].period_type || 'mensual';
+  const selectMachine = (idx: number, machineId: string) => {
+    const m = machines.find((x: any) => x.id === machineId);
+    if (!m) return;
+    const suggestedRate = Number(m.daily_rental_rate || 0);
     updateItem(idx, {
-      rate_id: rateId,
-      description: rate.equipment,
-      category: rate.category,
-      unit_price: getPriceByPeriod(rate, period),
-      operator_price: rate.operator_monthly || 0,
-    });
-  };
-
-  const changePeriod = (idx: number, period: string) => {
-    const item = items[idx];
-    const rate = item.rate_id ? rates.find(r => r.id === item.rate_id) : null;
-    updateItem(idx, {
-      period_type: period,
-      ...(rate ? { unit_price: getPriceByPeriod(rate, period) } : {}),
+      machine_id: machineId,
+      rate_id: null,
+      description: `${m.name}${m.internal_code ? ' (' + m.internal_code + ')' : ''}`,
+      category: m.type || '',
+      daily_rate: suggestedRate,
+      unit_price: suggestedRate,
+      period_type: 'por_dias',
+      quantity: 1,
     });
   };
 
@@ -557,10 +620,13 @@ function QuoteFormModal({
     if (!title.trim()) { toast.error('Ingresa un título'); return; }
     if (!clientId) { toast.error('Selecciona un cliente'); return; }
     if (bizLine === 'renta_equipos' && items.length === 0) { toast.error('Agrega al menos un equipo'); return; }
+    if (periodStart && periodEnd && periodEnd < periodStart) {
+      toast.error('La fecha final no puede ser anterior a la inicial'); return;
+    }
 
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         tenant_id: tenantId,
         client_id: clientId || null,
         project_id: projectId && projectId !== '__none__' ? projectId : null,
@@ -571,11 +637,13 @@ function QuoteFormModal({
         subtotal: itemsSubtotal,
         discount_pct: discountPct,
         discount_amount: discountAmount,
-        freight_amount: freight,
+        freight_amount: Number(freight),
         iva_pct: ivaPct,
         iva_amount: ivaAmount,
         total: grandTotal,
-        status: sendStatus || (isEdit ? editData.status : 'borrador'),
+        period_start_date: periodStart ? format(periodStart, 'yyyy-MM-dd') : null,
+        period_end_date: periodEnd ? format(periodEnd, 'yyyy-MM-dd') : null,
+        status: sendStatus || (isEdit ? editData!.status : 'borrador'),
         ...(sendStatus === 'enviada' ? { sent_at: new Date().toISOString() } : {}),
         ...(!isEdit ? { created_by: userId } : {}),
       };
@@ -583,11 +651,9 @@ function QuoteFormModal({
       let quotationId: string;
 
       if (isEdit) {
-        const { error } = await supabase.from('quotations').update(payload).eq('id', editData.id);
+        const { error } = await supabase.from('quotations').update(payload).eq('id', editData!.id);
         if (error) throw error;
-        quotationId = editData.id;
-
-        // Delete old items
+        quotationId = editData!.id;
         await supabase.from('quotation_items').delete().eq('quotation_id', quotationId);
       } else {
         const { data, error } = await supabase.from('quotations').insert(payload).select('id').single();
@@ -595,19 +661,22 @@ function QuoteFormModal({
         quotationId = data.id;
       }
 
-      // Insert items
       if (items.length > 0) {
         const itemPayloads = items.map((it, idx) => ({
           quotation_id: quotationId,
           tenant_id: tenantId,
+          machine_id: it.machine_id || null,
           rate_id: it.rate_id || null,
           description: it.description,
           category: it.category || null,
           period_type: it.period_type,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
+          quantity: 1,
+          unit_price: it.daily_rate,
+          daily_rate: it.daily_rate,
+          days: it.period_type === 'global' ? null : it.days,
           include_operator: it.include_operator,
-          operator_price: it.operator_price,
+          operator_price: it.operator_daily_rate,
+          operator_daily_rate: it.operator_daily_rate,
           subtotal: calcItemSubtotal(it),
           sort_order: idx,
         }));
@@ -625,8 +694,6 @@ function QuoteFormModal({
       setSaving(false);
     }
   };
-
-  const categories = [...new Set(rates.map(r => r.category))];
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -656,12 +723,6 @@ function QuoteFormModal({
               </div>
             </div>
 
-            {bizLine === 'ejecucion_proyectos' && (
-              <div className="rounded-lg border border-[hsl(var(--gold)/0.3)] bg-[hsl(var(--gold)/0.05)] p-3 text-sm font-dm text-muted-foreground">
-                ⚠️ Módulo en desarrollo — próximamente. Solo puedes guardar como borrador.
-              </div>
-            )}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="text-xs font-dm font-medium text-muted-foreground">Título *</label>
@@ -669,27 +730,75 @@ function QuoteFormModal({
               </div>
               <div>
                 <label className="text-xs font-dm font-medium text-muted-foreground">Cliente *</label>
-                <Select value={clientId} onValueChange={v => { setClientId(v); setProjectId(''); }}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={clientId}
+                  onValueChange={v => { setClientId(v); setProjectId('__none__'); }}
+                  options={clientOptions}
+                  placeholder="Seleccionar cliente"
+                  searchPlaceholder="Buscar cliente..."
+                />
               </div>
               <div>
                 <label className="text-xs font-dm font-medium text-muted-foreground">Proyecto</label>
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Ninguno</SelectItem>
-                    {filteredProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={projectId}
+                  onValueChange={setProjectId}
+                  options={projectOptions}
+                  placeholder="Opcional"
+                  searchPlaceholder="Buscar proyecto..."
+                />
               </div>
               <div>
                 <label className="text-xs font-dm font-medium text-muted-foreground">Validez (días)</label>
                 <Input type="number" value={validityDays} onChange={e => setValidityDays(parseInt(e.target.value) || 15)} />
               </div>
+
+              {/* Periodo cotizado */}
+              <div>
+                <label className="text-xs font-dm font-medium text-muted-foreground">Periodo: inicio (opcional)</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn('w-full justify-start text-left font-normal h-10 font-dm', !periodStart && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {periodStart ? format(periodStart, 'PPP', { locale: es }) : 'Seleccionar fecha'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={periodStart} onSelect={setPeriodStart} className="p-3 pointer-events-auto" />
+                    {periodStart && (
+                      <div className="p-2 border-t border-border">
+                        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setPeriodStart(undefined)}>Limpiar</Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <label className="text-xs font-dm font-medium text-muted-foreground">Periodo: fin (opcional)</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn('w-full justify-start text-left font-normal h-10 font-dm', !periodEnd && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {periodEnd ? format(periodEnd, 'PPP', { locale: es }) : 'Seleccionar fecha'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={periodEnd} onSelect={setPeriodEnd} className="p-3 pointer-events-auto" disabled={(d) => periodStart ? d < periodStart : false} />
+                    {periodEnd && (
+                      <div className="p-2 border-t border-border">
+                        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setPeriodEnd(undefined)}>Limpiar</Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {daysFromPeriod > 0 && (
+                <div className="sm:col-span-2 text-xs text-muted-foreground font-dm bg-muted/40 px-3 py-2 rounded-md">
+                  📅 Periodo cotizado: <strong className="text-foreground">{daysFromPeriod} día(s)</strong>. Se aplicará automáticamente a los equipos por días.
+                </div>
+              )}
+
               <div className="sm:col-span-2">
                 <label className="text-xs font-dm font-medium text-muted-foreground">Notas internas</label>
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="No aparecen en el PDF" />
@@ -715,52 +824,68 @@ function QuoteFormModal({
                 <div className="space-y-3">
                   {items.map((item, idx) => (
                     <div key={item.tempId} className="rounded-lg border border-border bg-card p-3 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
-                        {/* Equipment selector */}
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-dm text-muted-foreground">Equipo</label>
-                          <Select value={item.rate_id || 'custom'} onValueChange={v => v === 'custom' ? updateItem(idx, { rate_id: null }) : selectRate(idx, v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="custom">✏️ Personalizado</SelectItem>
-                              {categories.map(cat => (
-                                <React.Fragment key={cat}>
-                                  <SelectItem value={`_cat_${cat}`} disabled className="font-bold text-xs opacity-60">{cat}</SelectItem>
-                                  {rates.filter(r => r.category === cat).map(r => (
-                                    <SelectItem key={r.id} value={r.id}>{r.equipment}</SelectItem>
-                                  ))}
-                                </React.Fragment>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {!item.rate_id && (
-                            <Input className="mt-1 h-8 text-xs" value={item.description} onChange={e => updateItem(idx, { description: e.target.value })} placeholder="Descripción" />
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        {/* Máquina */}
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-dm text-muted-foreground">Máquina</label>
+                          <SearchableSelect
+                            value={item.machine_id || ''}
+                            onValueChange={v => selectMachine(idx, v)}
+                            options={machineOptions}
+                            placeholder="Buscar máquina..."
+                            searchPlaceholder="Buscar por nombre o código..."
+                          />
+                          {!item.machine_id && (
+                            <Input className="mt-1 h-8 text-xs" value={item.description} onChange={e => updateItem(idx, { description: e.target.value })} placeholder="Descripción libre (opcional)" />
                           )}
                         </div>
-                        <div>
-                          <label className="text-[10px] font-dm text-muted-foreground">Período</label>
-                          <Select value={item.period_type} onValueChange={v => changePeriod(idx, v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+
+                        {/* Período */}
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-dm text-muted-foreground">Modo</label>
+                          <Select value={item.period_type} onValueChange={v => updateItem(idx, { period_type: v })}>
+                            <SelectTrigger className="h-10 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="diario">Diario</SelectItem>
-                              <SelectItem value="semanal">Semanal</SelectItem>
-                              <SelectItem value="mensual">Mensual</SelectItem>
+                              <SelectItem value="por_dias">Por días</SelectItem>
                               <SelectItem value="global">Global</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <div>
-                          <label className="text-[10px] font-dm text-muted-foreground">Cant.</label>
-                          <Input type="number" min={1} className="h-8 text-xs" value={item.quantity} onChange={e => updateItem(idx, { quantity: parseFloat(e.target.value) || 1 })} />
+
+                        {/* Días */}
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-dm text-muted-foreground">{item.period_type === 'global' ? 'Cant.' : 'Días'}</label>
+                          <Input
+                            type="number" min={0}
+                            className="h-10 text-xs"
+                            value={item.period_type === 'global' ? item.quantity : item.days}
+                            onChange={e => {
+                              const n = parseFloat(e.target.value) || 0;
+                              if (item.period_type === 'global') updateItem(idx, { quantity: n || 1 });
+                              else updateItem(idx, { days: n });
+                            }}
+                          />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-dm text-muted-foreground">Precio Unit.</label>
-                          <Input type="number" className="h-8 text-xs" value={item.unit_price} onChange={e => updateItem(idx, { unit_price: parseFloat(e.target.value) || 0 })} />
+
+                        {/* Tarifa diaria / Precio global */}
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-dm text-muted-foreground">{item.period_type === 'global' ? 'Precio' : '$/día máquina'}</label>
+                          <Input
+                            type="number"
+                            className="h-10 text-xs"
+                            value={item.period_type === 'global' ? item.unit_price : item.daily_rate}
+                            onChange={e => {
+                              const n = parseFloat(e.target.value) || 0;
+                              if (item.period_type === 'global') updateItem(idx, { unit_price: n });
+                              else updateItem(idx, { daily_rate: n, unit_price: n });
+                            }}
+                          />
                         </div>
-                        <div className="flex items-end gap-2">
+
+                        <div className="sm:col-span-2 flex items-end gap-2">
                           <div className="flex-1">
                             <label className="text-[10px] font-dm text-muted-foreground">Subtotal</label>
-                            <div className="h-8 flex items-center text-xs font-barlow font-semibold text-foreground">
+                            <div className="h-10 flex items-center text-xs font-barlow font-semibold text-foreground">
                               {formatCOP(calcItemSubtotal(item))}
                             </div>
                           </div>
@@ -769,14 +894,20 @@ function QuoteFormModal({
                           </Button>
                         </div>
                       </div>
+
                       {/* Operator toggle */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <Checkbox checked={item.include_operator} onCheckedChange={v => updateItem(idx, { include_operator: !!v })} id={`op-${idx}`} />
                         <label htmlFor={`op-${idx}`} className="text-xs font-dm text-muted-foreground cursor-pointer">Incluir operador</label>
                         {item.include_operator && (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground font-dm">$/mes:</span>
-                            <Input type="number" className="h-7 w-28 text-xs" value={item.operator_price} onChange={e => updateItem(idx, { operator_price: parseFloat(e.target.value) || 0 })} />
+                            <span className="text-[10px] text-muted-foreground font-dm">$/día operador:</span>
+                            <Input type="number" className="h-7 w-32 text-xs" value={item.operator_daily_rate} onChange={e => updateItem(idx, { operator_daily_rate: parseFloat(e.target.value) || 0 })} />
+                            {item.period_type !== 'global' && (
+                              <span className="text-[10px] text-muted-foreground font-dm">
+                                × {item.days} día(s) = <strong className="text-foreground">{formatCOP((item.operator_daily_rate || 0) * (item.days || 0))}</strong>
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -794,6 +925,13 @@ function QuoteFormModal({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal equipos</span>
                 <span className="font-barlow font-semibold">{formatCOP(itemsSubtotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">+ Flete / Transporte</span>
+                  <Input type="number" className="h-7 w-32 text-xs" value={freight} onChange={e => setFreight(parseFloat(e.target.value) || 0)} />
+                </div>
+                <span className="font-barlow font-semibold">{formatCOP(Number(freight))}</span>
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">

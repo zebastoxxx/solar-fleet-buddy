@@ -131,8 +131,9 @@ export default function MaquinaDetalle() {
 
   const handleInlineEdit = async (field: string, value: string) => {
     try {
-      const parsed = ['weight_kg', 'horometer_current', 'year'].includes(field)
-        ? (Number(value) || null) : (value || null);
+      const numericFields = ['weight_kg', 'horometer_current', 'year', 'daily_rental_rate'];
+      const parsed = numericFields.includes(field)
+        ? (Number(String(value).replace(/[^0-9.\-]/g, '')) || null) : (value || null);
       await updateMachine.mutateAsync({ id: id!, updates: { [field]: parsed } });
       machine.refetch();
       toast({ title: 'Campo actualizado' });
@@ -310,6 +311,12 @@ export default function MaquinaDetalle() {
               <EditableField label="Motor" field="engine_model" value={(m as any).engine_model} />
               <EditableField label="Combustible" field="fuel_type" value={(m as any).fuel_type} />
               <EditableField label="Placa" field="plate_number" value={(m as any).plate_number} />
+              <EditableField
+                label="Precio diario alquiler (COP)"
+                field="daily_rental_rate"
+                value={(m as any).daily_rental_rate != null ? Number((m as any).daily_rental_rate).toLocaleString('es-CO') : null}
+                type="number"
+              />
             </div>
             {m.notes && (
               <div><p className="text-[11px] uppercase text-muted-foreground font-dm mb-1">Notas</p><p className="text-sm font-dm text-foreground">{m.notes}</p></div>
