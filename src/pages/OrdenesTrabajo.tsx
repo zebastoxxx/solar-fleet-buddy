@@ -450,7 +450,7 @@ function CreateOTModal({ open, onClose, tenantId, userId }: { open: boolean; onC
   const { data: machines = [] } = useQuery({
     queryKey: ['machines-ot', tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from('machines').select('id, name, internal_code, status, type').eq('tenant_id', tenantId).order('name');
+      const { data } = await supabase.from('machines').select('id, name, internal_code, status, type, horometer_current').eq('tenant_id', tenantId).order('name');
       return data || [];
     },
     enabled: open && !!tenantId,
