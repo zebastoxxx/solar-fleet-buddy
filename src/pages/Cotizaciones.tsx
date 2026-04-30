@@ -25,8 +25,11 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Plus, Eye, Pencil, Trash2, FileText, Download, Send, CheckCircle, XCircle,
-  X, Clock, Filter, RotateCcw, FileDown
+  X, Clock, Filter, RotateCcw, FileDown, Calendar as CalendarIcon
 } from 'lucide-react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 // jsPDF cargado dinámicamente dentro de generatePDF para no inflar el bundle inicial.
 
 // ─── Types ───
