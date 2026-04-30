@@ -112,6 +112,7 @@ export function EditMachineModal({ open, onClose, machine }: Props) {
         max_capacity: form.max_capacity || null, max_height: form.max_height || null,
         engine_model: form.engine_model || null, fuel_type: form.fuel_type || null,
         plate_number: form.plate_number || null,
+        daily_rental_rate: form.daily_rental_rate ? Number(form.daily_rental_rate) : null,
       };
 
       const { error } = await supabase.from('machines').update(updates).eq('id', machine.id);
