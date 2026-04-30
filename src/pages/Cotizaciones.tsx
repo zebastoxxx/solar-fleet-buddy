@@ -195,6 +195,20 @@ export default function Cotizaciones() {
     enabled: !!user,
   });
 
+  const { data: machinesList = [] } = useQuery({
+    queryKey: ['machines-for-quotes', user?.tenant_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('machines')
+        .select('id, internal_code, name, type, brand, model, daily_rental_rate')
+        .eq('tenant_id', user!.tenant_id)
+        .eq('active', true)
+        .order('name');
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
   // Metrics
   const metrics = useMemo(() => {
     const now = new Date();
