@@ -275,7 +275,7 @@ export default function MaquinaDetalle() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="ficha" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-card border border-border h-auto flex-wrap overflow-x-auto w-full">
           <TabsTrigger value="ficha" className="font-dm text-xs">Ficha Técnica</TabsTrigger>
           <TabsTrigger value="ot" className="font-dm text-xs">Historial OT</TabsTrigger>
