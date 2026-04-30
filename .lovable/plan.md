@@ -1,60 +1,70 @@
+Plan propuesto para trabajar el módulo de Cotizaciones sin romper lo existente:
 
+1. Corregir el error de seguridad al guardar cotizaciones
+   - Ajustar las políticas de `quotations`, `quotation_items` y `quote_equipment_rates` para que tengan `WITH CHECK (tenant_id = get_user_tenant_id())` en inserts/updates.
+   - Mantener aislamiento por empresa/tenant, sin abrir datos entre tenants.
+   - Revisar si hay otras políticas similares que estén causando el mismo patrón de error, pero aplicar el cambio inmediato a Cotizaciones.
 
-## Plan: Plantilla preoperacional universal con inhabilitación automática de máquinas
+2. Agregar tarifa diaria estándar a Máquinas
+   - Añadir campo en base de datos para precio diario de alquiler de máquina, por ejemplo `machines.daily_rental_rate` numérico, nullable y default 0.
+   - Mostrar/editar este valor en la ficha técnica de máquina y en el modal de edición de máquina.
+   - Formato COP y etiqueta clara: “Precio diario de alquiler”.
 
-### Resumen
-Reemplazar las plantillas por tipo de máquina con una **plantilla universal única** basada en el Excel proporcionado. Todos los ítems incluyen la opción "N/A" (ya existe en el UI). Al enviar un Formato A con ítems **críticos** marcados como "malo", el sistema automáticamente cambia la máquina a estado `en_campo_dañada` y genera alertas.
+3. Reemplazar selects simples por buscadores en Cotizaciones
+   - Cliente: cambiar `Select` por `SearchableSelect`, con búsqueda en la lista desplegable.
+   - Proyecto: cambiar `Select` por `SearchableSelect`, listando todos los proyectos del tenant y filtrando por cliente cuando aplique.
+   - Corregir el bug donde Proyecto se está comportando como Cliente o no lista correctamente proyectos.
+   - Usar el valor sentinela `__none__` para “Sin proyecto”, evitando valores vacíos problemáticos.
 
-### Ítems del Excel (9 categorías, ~48 ítems)
+4. Conectar Equipos de cotización con máquinas reales
+   - Dejar de depender del selector de tarifas genéricas como principal.
+   - Cargar máquinas reales desde `machines` con campos mínimos: `id, internal_code, name, type, brand, model, daily_rental_rate`.
+   - Reemplazar “Personalizado” como opción principal por un buscador de máquinas.
+   - Al seleccionar una máquina, llenar descripción y precio diario sugerido desde la máquina.
+   - El precio diario quedará editable manualmente en la cotización.
 
-Los ítems marcados con **★** son críticos (amarillos en el Excel). Muchos ítems ya dicen "(SI APLICA)" lo cual refuerza que el operario puede marcar N/A.
+5. Ajustar modelo de ítems de cotización para renta por días
+   - Añadir columnas opcionales a `quotation_items`:
+     - `machine_id` para relacionar el ítem con una máquina real.
+     - `days` para cantidad de días cotizados.
+     - `daily_rate` como tarifa diaria editable.
+     - `operator_daily_rate` para operador por día.
+   - Mantener compatibilidad con columnas actuales (`quantity`, `unit_price`, `operator_price`, `period_type`, `subtotal`) para no romper PDF/listados actuales.
+   - Para renta de equipos, usar fórmula:
+     - Subtotal máquina = `daily_rate * days`
+     - Subtotal operador = `operator_daily_rate * days` si está incluido
+     - Subtotal ítem = `(daily_rate + operator_daily_rate) * days`
+   - Quitar la UX de “Cantidad” para máquinas, porque cada máquina es única. Si necesitan dos máquinas, agregan dos ítems.
 
-| Categoría | Ítems | Críticos ★ |
-|---|---|---|
-| ESTRUCTURA | 9 ítems (carrocería, escalera, vidrios, limpiabrisas, retrovisores, asiento, puertas, horquillas, mástil) | Ninguno |
-| CANASTA/PLATAFORMA | 3 (canasta, puntos de anclaje, barandas) | Ninguno |
-| LLANTAS | 1 (llantas en buen estado) | Ninguno |
-| ORUGAS | 3 (orugas, tren de rodaje, barra defensiva) | Ninguno |
-| FLUIDOS E INDICADORES | 4 | ★ Nivel aceite, ★ Nivel agua/refrigerante, ★ Indicadores, ★ Tanque combustible |
-| SEGURIDAD | 9 | ★ Frenos, ★ Parada de emergencia, ★ Estado de baterías |
-| LUCES Y SONIDOS | 6 (delanteras, traseras, direccionales, alarma retroceso, pito, baliza) | Ninguno |
-| ESTADO MECÁNICO | 11 | ★ Equipos sin fugas, ★ Freno de servicio, ★ Cilindros en buen estado, ★ Estado del bastidor |
-| MANDOS Y FUNCIONES | 5 | ★ Funciones de control hidráulico, ★ Pedales y/o mandos en buen estado |
+6. Fechas opcionales del periodo cotizado
+   - Añadir en `quotations`:
+     - `period_start_date`
+     - `period_end_date`
+   - En el formulario, agregar calendarios opcionales para fecha inicio y fecha fin.
+   - Usar el componente existente `Calendar` con `pointer-events-auto` para que funcione bien dentro del diálogo.
+   - Si ambas fechas están seleccionadas, calcular automáticamente días cotizados y aplicar ese número a los ítems de renta.
+   - Si no hay fechas, permitir ingresar los días manualmente por ítem.
+   - Validar que la fecha final no sea anterior a la inicial.
 
-### Opción N/A
-El componente `ChecklistItem` **ya tiene el botón N/A** (línea 587: `<button ... onClick={() => onResult('na')}>N/A</button>`). El tipo `ItemResult = 'bueno' | 'malo' | 'na'` ya lo soporta. Los ítems que dicen "(SI APLICA)" simplemente se marcan N/A si no aplican a esa máquina. No se requiere cambio en la lógica de N/A.
+7. Actualizar PDF y detalle de cotización
+   - Mostrar proyecto correcto, periodo cotizado si existe, días, tarifa diaria y operador por día.
+   - Cambiar textos tipo “$/mes” a “$/día” cuando aplique.
+   - Mantener flete, descuento, IVA y total como están.
 
-### Validación de completitud
-Actualmente, `step2Valid` requiere que **todos** los ítems tengan respuesta (bueno, malo o N/A). Esto ya funciona correctamente: el operario debe responder cada ítem pero puede elegir N/A para los que no apliquen.
+8. QA funcional
+   - Crear cotización nueva como supervisor/gerente con cliente, proyecto, máquina real, fechas y operador.
+   - Confirmar que guarda sin error RLS.
+   - Confirmar que al seleccionar máquina trae el precio diario y permite editarlo.
+   - Confirmar que si se cambian fechas se recalculan días y subtotales.
+   - Confirmar que si no hay fechas se puede cotizar por días manuales.
 
----
+Archivos principales a modificar:
+- `src/pages/Cotizaciones.tsx`
+- `src/pages/MaquinaDetalle.tsx`
+- `src/components/machines/EditMachineModal.tsx`
+- migración de base de datos para políticas RLS y nuevos campos
 
-### Cambios a implementar
-
-#### 1. Reescribir `src/data/preop-templates.ts`
-- Eliminar todas las plantillas por tipo (minicargador, retroexcavadora, telehandler, manlift, camion_grua, hincadora, otro).
-- Exportar una constante `PREOP_UNIVERSAL: PreopTemplate` con las 9 secciones y los ~48 ítems exactos del Excel.
-- Los 13 ítems críticos marcados con `critical: true`.
-- Mantener las interfaces `PreopItem`, `PreopSection`, `PreopTemplate`.
-
-#### 2. Modificar `src/pages/PreoperacionalOperario.tsx` — FormatoA
-- **Selección de plantilla** (líneas 253-256): Cambiar de `PREOP_TEMPLATES[machineType]` a usar siempre `PREOP_UNIVERSAL`. Eliminar `templateMissing` y el componente `MissingTemplateState`.
-- **handleSave** (líneas 270-330): Después de guardar exitosamente, si `has_critical_failures === true`:
-  - Actualizar la máquina: `supabase.from('machines').update({ status: 'en_campo_dañada' }).eq('id', machineId)`
-  - La alerta ya se crea (líneas 312-319), solo agregar los nombres de los ítems críticos fallidos al mensaje.
-- **Bottom nav** (líneas 407-421): Eliminar la condición de `templateMissing` del botón.
-
-#### 3. Verificar `src/pages/Preoperacionales.tsx`
-- El modal de detalle (`PreopDetailModal`) ya agrupa ítems por sección dinámicamente desde la DB. No requiere cambios.
-
-#### 4. Verificar Dashboard y MaquinaDetalle
-- El Dashboard ya muestra alertas críticas con banner rojo. El `StatusIndicator` ya tiene `en_campo_dañada` con punto rojo palpitante. No requiere cambios.
-- `MaquinaDetalle.tsx` ya permite cambiar el estado manualmente a cualquier valor (superadmins/supervisores). No requiere cambios.
-
-### Archivos a modificar
-1. `src/data/preop-templates.ts` — reescribir completamente
-2. `src/pages/PreoperacionalOperario.tsx` — simplificar plantilla + auto-inhabilitar máquina
-
-### Sin cambios de base de datos
-No se requieren migraciones. Se usan las tablas y columnas existentes (`preop_records`, `preop_items`, `alerts`, `machines`).
-
+Notas técnicas:
+- No editaré `src/integrations/supabase/client.ts` ni `types.ts` manualmente.
+- Usaré Lovable Cloud para la migración.
+- Mantendré las políticas con aislamiento por `tenant_id`, no permisos públicos abiertos.
