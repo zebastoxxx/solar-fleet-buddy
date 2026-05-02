@@ -30,6 +30,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Trash2, RotateCcw, Upload, Download, FileText, Users, Archive } from 'lucide-react';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
 import { PreviewButton } from '@/components/ui/DocumentPreview';
+import { openSigned } from '@/components/ui/SignedAnchor';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -721,8 +722,8 @@ function ClientDetailModal({ client, onClose, onEdit, onDelete }: {
                               {doc.file_url && (
                                 <>
                                   <PreviewButton url={doc.file_url} name={doc.name} />
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSigned(doc.file_url)}>
+                                    <Download className="h-3.5 w-3.5" />
                                   </Button>
                                 </>
                               )}

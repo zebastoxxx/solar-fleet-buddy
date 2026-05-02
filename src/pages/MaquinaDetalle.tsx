@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PreviewButton } from '@/components/ui/DocumentPreview';
+import { openSigned } from '@/components/ui/SignedAnchor';
 import { ArrowLeft, Edit, Plus, ChevronDown, FileDown, Upload, Camera, Archive, Download, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { downloadDocsAsZip } from '@/lib/download-docs-zip';
@@ -475,8 +476,8 @@ export default function MaquinaDetalle() {
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] uppercase text-muted-foreground font-dm">{doc.doc_type ?? 'otro'}</span>
                           <PreviewButton url={doc.file_url} name={doc.name} />
-                          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                            <a href={doc.file_url} download={doc.name} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSigned(doc.file_url)}>
+                            <Download className="h-3.5 w-3.5" />
                           </Button>
                           {canManageDocs && (
                             <Button
