@@ -39,13 +39,19 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 // ─── Zod Schemas ────────────────────────────────────
 const consumableSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
-  category: z.enum(['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros']),
-  unit: z.enum(['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par']),
+  category: z.string().min(1, 'Selecciona o agrega una categoría'),
+  unit: z.string().min(1, 'Selecciona o agrega una unidad'),
+  area: z.string().optional().nullable(),
   stock_current: z.coerce.number().min(0).default(0),
   stock_minimum: z.coerce.number().min(0).default(0),
   unit_cost: z.coerce.number().min(0).default(0),
   supplier_id: z.string().optional().nullable(),
 });
+
+// Default seed values for the lookup selects (kept for backwards compatibility
+// with consumibles already saved with the legacy enum values)
+const DEFAULT_CATEGORIES = ['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros'];
+const DEFAULT_UNITS = ['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par'];
 
 const toolSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
