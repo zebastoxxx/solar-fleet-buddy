@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compress';
+import { useSignedUrl } from '@/hooks/useSignedUrl';
 
 interface Props {
   currentUrl?: string | null;
@@ -49,6 +50,8 @@ export function MachinePhotoUpload({ currentUrl, machineId, onUrlChange, onFileS
   };
 
   const displayUrl = preview || currentUrl;
+  const signedCurrent = useSignedUrl(preview ? null : currentUrl);
+  const renderUrl = preview || signedCurrent;
   const h = size === 'sm' ? 'h-24' : 'h-[140px]';
 
   return (
@@ -60,9 +63,9 @@ export function MachinePhotoUpload({ currentUrl, machineId, onUrlChange, onFileS
       )}
       onClick={() => inputRef.current?.click()}
     >
-      {displayUrl ? (
+      {renderUrl ? (
         <>
-          <img src={displayUrl} alt="Foto máquina" className="w-full h-full object-cover" />
+          <img src={renderUrl} alt="Foto máquina" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <Camera className="h-6 w-6 text-white" />
           </div>

@@ -10,6 +10,7 @@ import type { PreopSection, PreopItem } from '@/data/preop-templates';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
 import { LogOut, ChevronLeft, ChevronDown, ChevronUp, AlertTriangle, WifiOff, CheckCircle2, Camera, Image as ImageIcon } from 'lucide-react';
 import { compressImage } from '@/lib/image-compress';
 import { Button } from '@/components/ui/button';
@@ -591,7 +592,7 @@ function ChecklistItem({ item, result, observation, onResult, onObservation }: {
           <div className="flex gap-2">
             {photoUrl && (
               <div className="h-16 w-16 rounded-lg overflow-hidden border border-border">
-                <img src={photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
+                <SignedImage src={photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
               </div>
             )}
             <label className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 text-muted-foreground">

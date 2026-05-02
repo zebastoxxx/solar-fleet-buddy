@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { deleteMachines } from '@/lib/cascade-delete';
 import { CreateMachineModal } from '@/components/machines/CreateMachineModal';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
@@ -224,7 +225,7 @@ export default function Maquinas() {
               {/* Compact photo area */}
               <div className="h-[70px] sm:h-[90px] bg-muted flex items-center justify-center overflow-hidden">
                 {m.cover_photo_url ? (
-                  <img src={m.cover_photo_url} alt={m.name} className="w-full h-full object-cover" />
+                  <SignedImage src={m.cover_photo_url} alt={m.name} className="w-full h-full object-cover" fallback={<span className="text-3xl opacity-20">⚙️</span>} />
                 ) : (
                   <span className="text-3xl opacity-20">⚙️</span>
                 )}

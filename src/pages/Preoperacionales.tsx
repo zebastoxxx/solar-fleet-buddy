@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Download, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
 
 export default function Preoperacionales() {
   usePageTitle('Preoperacionales');
@@ -341,7 +342,7 @@ function PreopDetailModal({ id, onClose }: { id: string; onClose: () => void }) 
             {record.digital_signature_url && (
               <div className="mt-3">
                 <p className="text-xs text-muted-foreground font-dm mb-1">Firma digital</p>
-                <img src={record.digital_signature_url} alt="Firma" className="h-24 border border-border rounded-lg" />
+                <SignedImage src={record.digital_signature_url} alt="Firma" className="h-24 border border-border rounded-lg" />
               </div>
             )}
 

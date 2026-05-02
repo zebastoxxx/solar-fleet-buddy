@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { toast } from 'sonner';
+import { openSigned } from '@/components/ui/SignedAnchor';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -691,8 +692,8 @@ function SupplierDetailModal({ supplier, onClose, onEdit, onDelete }: {
                           <TableCell>
                             <div className="flex gap-1">
                               {doc.file_url && (
-                                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><Download className="h-3.5 w-3.5" /></a>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSigned(doc.file_url)}>
+                                  <Download className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteDocTarget(doc)}><Trash2 className="h-3.5 w-3.5" /></Button>

@@ -1,5 +1,6 @@
 // Dynamic import of jszip — keeps it out of the main bundle.
 import { format } from 'date-fns';
+import { getSignedFileUrl } from '@/lib/signed-url';
 
 interface DocEntry {
   file_url: string | null;
@@ -23,7 +24,8 @@ export async function downloadDocsAsZip(
   for (let i = 0; i < validDocs.length; i++) {
     const doc = validDocs[i];
     try {
-      const res = await fetch(doc.file_url!);
+      const signed = (await getSignedFileUrl(doc.file_url!)) || doc.file_url!;
+      const res = await fetch(signed);
       if (!res.ok) continue;
       const blob = await res.blob();
 

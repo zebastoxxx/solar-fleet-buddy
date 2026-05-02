@@ -8,6 +8,7 @@ import { useOTTimerStore, useChrono } from '@/stores/otTimerStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
 import { LogOut, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Camera, Image as ImageIcon, Mic, MicOff, Plus, Pause, Play, CheckCircle2, Clock, Send, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -479,9 +480,9 @@ function OTActiveView({ otId }: { otId: string }) {
 
   const handleDeletePhoto = async (photo: any) => {
     try {
-      // Extract storage path from public URL
+      // Extract storage path from URL (supports legacy public and signed URLs)
       const url = new URL(photo.photo_url);
-      const pathMatch = url.pathname.match(/\/object\/public\/ot-photos\/(.+)/);
+      const pathMatch = url.pathname.match(/\/object\/(?:public|sign)\/ot-photos\/(.+)/);
       if (pathMatch) {
         await supabase.storage.from('ot-photos').remove([decodeURIComponent(pathMatch[1])]);
       }
@@ -749,7 +750,7 @@ function OTActiveView({ otId }: { otId: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {filteredPhotos.map((p: any) => (
               <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
-                <img src={p.photo_url} alt="" className="w-full h-full object-cover" />
+                <SignedImage src={p.photo_url} alt="" className="w-full h-full object-cover" />
                 <button
                   onClick={() => handleDeletePhoto(p)}
                   className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
