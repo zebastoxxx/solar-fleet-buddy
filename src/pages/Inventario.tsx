@@ -502,28 +502,51 @@ function ConsumableFormModal({ open, onClose, editing, tenantId, userId, log, qc
               <FormField control={form.control} name="category" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-dm text-xs">Categoría *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="font-dm text-sm"><SelectValue placeholder="Selecciona" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros'].map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <LookupSelect
+                      type="category"
+                      value={field.value}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      defaults={DEFAULT_CATEGORIES}
+                      addLabel="Nueva categoría"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="unit" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-dm text-xs">Unidad *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="font-dm text-sm"><SelectValue placeholder="Selecciona" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par'].map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <LookupSelect
+                      type="unit"
+                      value={field.value}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      defaults={DEFAULT_UNITS}
+                      addLabel="Nueva unidad"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="area" render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel className="font-dm text-xs">Área de ubicación</FormLabel>
+                  <FormControl>
+                    <LookupSelect
+                      type="area"
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      addLabel="Nueva área"
+                      placeholder="Selecciona o agrega un área"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
