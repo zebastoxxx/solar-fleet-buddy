@@ -9,6 +9,7 @@ import { useChrono, useOTTimerStore } from '@/stores/otTimerStore';
 import { format, differenceInSeconds } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
 import { Plus, Search, Wrench, Eye, UserPlus, Download, Trash2, Edit, ChevronDown, ChevronUp, ArrowUpDown, Calendar, X, Settings } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -1353,7 +1354,7 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {photosByPhase[p].map((ph: any) => (
                         <div key={ph.id} className="aspect-square rounded-lg overflow-hidden border border-border">
-                          <img src={ph.photo_url} alt="" className="w-full h-full object-cover" />
+                          <SignedImage src={ph.photo_url} alt="" className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>

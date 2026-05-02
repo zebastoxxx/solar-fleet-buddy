@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLog } from '@/hooks/useLog';
 import { toast } from 'sonner';
+import { SignedImage } from '@/components/ui/SignedImage';
+import { openSigned } from '@/components/ui/SignedAnchor';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -759,7 +761,7 @@ function DetailOCModal({ open, onClose, oc, tenantId, userId, userRole, log, qc,
               {oc.approved_signature_url && (
                 <div>
                   <span className="text-xs font-dm text-muted-foreground">Firma de aprobación:</span>
-                  <img src={oc.approved_signature_url} alt="Firma" className="h-16 mt-1 rounded border border-border bg-white" />
+                  <SignedImage src={oc.approved_signature_url} alt="Firma" className="h-16 mt-1 rounded border border-border bg-white" />
                 </div>
               )}
             </TabsContent>
@@ -808,7 +810,7 @@ function DetailOCModal({ open, onClose, oc, tenantId, userId, userRole, log, qc,
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs font-dm" onClick={() => window.open(d.file_url, '_blank')}>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs font-dm" onClick={() => openSigned(d.file_url)}>
                           <Download className="h-3 w-3" />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => deleteDoc(d.id)}>
