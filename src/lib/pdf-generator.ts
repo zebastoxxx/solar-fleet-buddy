@@ -1,4 +1,5 @@
 // Dynamic import of jspdf — keeps it out of the main bundle.
+import { getSignedFileUrl } from '@/lib/signed-url';
 type JsPdfModule = typeof import('jspdf');
 let _jsPdfPromise: Promise<JsPdfModule> | null = null;
 const loadJsPdf = () => (_jsPdfPromise ??= import('jspdf'));
@@ -115,16 +116,19 @@ export async function generateMachineReportPDF(data: MachineReportData): Promise
   // Machine photo (top)
   if (m.cover_photo_url) {
     try {
-      const resp = await fetch(m.cover_photo_url);
-      const blob = await resp.blob();
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result as string);
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-      });
-      const fmt = (blob.type.includes('png') ? 'PNG' : 'JPEG') as 'PNG' | 'JPEG';
-      doc.addImage(dataUrl, fmt, 14, y, 60, 45);
+      const signed = await getSignedFileUrl(m.cover_photo_url);
+      if (signed) {
+        const resp = await fetch(signed);
+        const blob = await resp.blob();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
+        const fmt = (blob.type.includes('png') ? 'PNG' : 'JPEG') as 'PNG' | 'JPEG';
+        doc.addImage(dataUrl, fmt, 14, y, 60, 45);
+      }
     } catch { /* skip if image fails */ }
   }
 
