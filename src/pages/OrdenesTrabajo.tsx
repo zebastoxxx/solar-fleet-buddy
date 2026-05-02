@@ -1422,13 +1422,13 @@ function DetailOTModal({ ot: initialOT, onClose, tenantId, userId }: { ot: any; 
         {ot.technician_signature_url && (
           <div className="space-y-1">
             <h3 className="font-barlow text-sm uppercase text-muted-foreground">Firma del técnico</h3>
-            <img src={ot.technician_signature_url} alt="Firma técnico" className="h-20 border border-border rounded-lg" />
+            <SignedImage src={ot.technician_signature_url} alt="Firma técnico" className="h-20 border border-border rounded-lg" />
           </div>
         )}
         {ot.supervisor_signature_url && (
           <div className="space-y-1">
             <h3 className="font-barlow text-sm uppercase text-muted-foreground">Firma del supervisor</h3>
-            <img src={ot.supervisor_signature_url} alt="Firma supervisor" className="h-20 border border-border rounded-lg" />
+            <SignedImage src={ot.supervisor_signature_url} alt="Firma supervisor" className="h-20 border border-border rounded-lg" />
           </div>
         )}
 
