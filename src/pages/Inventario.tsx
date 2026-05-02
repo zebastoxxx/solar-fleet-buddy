@@ -35,6 +35,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { generateDeliveryActPDF, downloadPDF } from '@/lib/pdf-generator';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LookupSelect } from '@/components/inventory/LookupSelect';
 
 // ─── Zod Schemas ────────────────────────────────────
 const consumableSchema = z.object({
