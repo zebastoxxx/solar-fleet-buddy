@@ -35,17 +35,24 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { generateDeliveryActPDF, downloadPDF } from '@/lib/pdf-generator';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LookupSelect } from '@/components/inventory/LookupSelect';
 
 // ─── Zod Schemas ────────────────────────────────────
 const consumableSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
-  category: z.enum(['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros']),
-  unit: z.enum(['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par']),
+  category: z.string().min(1, 'Selecciona o agrega una categoría'),
+  unit: z.string().min(1, 'Selecciona o agrega una unidad'),
+  area: z.string().optional().nullable(),
   stock_current: z.coerce.number().min(0).default(0),
   stock_minimum: z.coerce.number().min(0).default(0),
   unit_cost: z.coerce.number().min(0).default(0),
   supplier_id: z.string().optional().nullable(),
 });
+
+// Default seed values for the lookup selects (kept for backwards compatibility
+// with consumibles already saved with the legacy enum values)
+const DEFAULT_CATEGORIES = ['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros'];
+const DEFAULT_UNITS = ['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par'];
 
 const toolSchema = z.object({
   name: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -440,11 +447,12 @@ function ConsumableFormModal({ open, onClose, editing, tenantId, userId, log, qc
       name: editing.name,
       category: editing.category,
       unit: editing.unit,
+      area: editing.area || '',
       stock_current: editing.stock_current ?? 0,
       stock_minimum: editing.stock_minimum ?? 0,
       unit_cost: editing.unit_cost ?? 0,
       supplier_id: editing.supplier_id || undefined,
-    } : { stock_current: 0, stock_minimum: 0, unit_cost: 0 },
+    } : { stock_current: 0, stock_minimum: 0, unit_cost: 0, area: '' },
   });
 
   const onSubmit = async (vals: ConsumableForm) => {
@@ -494,28 +502,51 @@ function ConsumableFormModal({ open, onClose, editing, tenantId, userId, log, qc
               <FormField control={form.control} name="category" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-dm text-xs">Categoría *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="font-dm text-sm"><SelectValue placeholder="Selecciona" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {['combustible', 'lubricante', 'refrigerante', 'desengrasante', 'grasas', 'filtros', 'otros'].map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <LookupSelect
+                      type="category"
+                      value={field.value}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      defaults={DEFAULT_CATEGORIES}
+                      addLabel="Nueva categoría"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="unit" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-dm text-xs">Unidad *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger className="font-dm text-sm"><SelectValue placeholder="Selecciona" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {['galón', 'litro', 'kg', 'unidad', 'ml', 'm', 'par'].map(u => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <LookupSelect
+                      type="unit"
+                      value={field.value}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      defaults={DEFAULT_UNITS}
+                      addLabel="Nueva unidad"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="area" render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel className="font-dm text-xs">Área de ubicación</FormLabel>
+                  <FormControl>
+                    <LookupSelect
+                      type="area"
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      tenantId={tenantId}
+                      userId={userId}
+                      addLabel="Nueva área"
+                      placeholder="Selecciona o agrega un área"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />

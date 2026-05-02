@@ -507,7 +507,8 @@ export type Database = {
       inventory_consumables: {
         Row: {
           active: boolean | null
-          category: Database["public"]["Enums"]["inventory_category"]
+          area: string | null
+          category: string
           created_at: string | null
           id: string
           name: string
@@ -520,7 +521,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
-          category: Database["public"]["Enums"]["inventory_category"]
+          area?: string | null
+          category: string
           created_at?: string | null
           id?: string
           name: string
@@ -533,7 +535,8 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
-          category?: Database["public"]["Enums"]["inventory_category"]
+          area?: string | null
+          category?: string
           created_at?: string | null
           id?: string
           name?: string
@@ -661,6 +664,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inventory_lookups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          lookup_type: string
+          tenant_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lookup_type: string
+          tenant_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lookup_type?: string
+          tenant_id?: string
+          value?: string
+        }
+        Relationships: []
       }
       inventory_movements: {
         Row: {
