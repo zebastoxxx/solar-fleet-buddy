@@ -447,11 +447,12 @@ function ConsumableFormModal({ open, onClose, editing, tenantId, userId, log, qc
       name: editing.name,
       category: editing.category,
       unit: editing.unit,
+      area: editing.area || '',
       stock_current: editing.stock_current ?? 0,
       stock_minimum: editing.stock_minimum ?? 0,
       unit_cost: editing.unit_cost ?? 0,
       supplier_id: editing.supplier_id || undefined,
-    } : { stock_current: 0, stock_minimum: 0, unit_cost: 0 },
+    } : { stock_current: 0, stock_minimum: 0, unit_cost: 0, area: '' },
   });
 
   const onSubmit = async (vals: ConsumableForm) => {
