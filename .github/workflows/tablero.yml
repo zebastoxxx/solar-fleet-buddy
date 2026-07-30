@@ -1,0 +1,105 @@
+## Mantiene el tablero de la fábrica conectado al trabajo real, sin que nadie se acuerde.
+##
+## Todo issue y todo PR entra solo al Project y su estado se mueve solo. Si un PR cierra
+## un issue, se mueve el ISSUE y no se añade el PR: una fila por unidad de trabajo, no dos.
+##
+## Requiere el secret PROJECTS_TOKEN (PAT fine-grained con permiso de solo-lectura+escritura
+## en Projects del usuario). El GITHUB_TOKEN por defecto NO sirve: no alcanza los Projects V2
+## de una cuenta personal. Sin el secret el workflow se salta entero, no falla.
+name: Tablero de la fábrica
+
+on:
+  issues:
+    types: [opened, reopened, closed]
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar con el Project
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          PROJECT_OWNER: zebastoxxx
+          PROJECT_NUMBER: '1'
+          # Nombre del cliente tal cual debe verse en el tablero. Cambiar por proyecto.
+          CLIENTE: 'Up CLIENTE: '' Down'
+          EVENTO: ${{ github.event_name }}
+          ACCION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          ISSUE_NODE: ${{ github.event.issue.node_id }}
+          PR_NODE: ${{ github.event.pull_request.node_id }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::notice::Sin PROJECTS_TOKEN — el tablero no se sincroniza. Añadí el secret para activarlo."
+            exit 0
+          fi
+
+          # --- Qué mover y a qué estado -------------------------------------------------
+          if [ "$EVENTO" = "issues" ]; then
+            TARGET=$ISSUE_NODE
+            [ "$ACCION" = "closed" ] && ESTADO="✔️" || ESTADO="📥"
+          else
+            # Si el PR cierra un issue, el tablero sigue al ISSUE y no añade el PR: una fila
+            # por unidad de trabajo, no dos.
+            TARGET=$(gh api graphql -f query='
+              query($owner:String!,$repo:String!,$num:Int!){
+                repository(owner:$owner,name:$repo){
+                  pullRequest(number:$num){ closingIssuesReferences(first:1){ nodes{ id } } } } }' \
+              -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F num="$PR_NUM" \
+              --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[0].id // empty')
+            # closingIssuesReferences solo se llena con las palabras clave EN INGLÉS de GitHub
+            # (closes/fixes/resolves). Aquí se escribe en español, así que casi siempre viene
+            # vacío aunque el issue sí se cierre — el enlace suele vivir en el mensaje del
+            # commit, no en el cuerpo del PR. Por eso se busca también a mano, en los dos
+            # idiomas. Sin esto el tablero acaba con el issue y su PR como filas separadas.
+            if [ -z "$TARGET" ]; then
+              N=$(gh pr view "$PR_NUM" -R "$REPO" --json title,body -q '.title + " " + .body' \
+                  | grep -oiE '(closes?d?|fix(es|ed)?|resolves?d?|cierra|corrige|resuelve)[[:space:]]+#[0-9]+' \
+                  | head -1 | grep -oE '[0-9]+' || true)
+              [ -n "$N" ] && TARGET=$(gh api "repos/$REPO/issues/$N" --jq '.node_id' 2>/dev/null || true)
+            fi
+            [ -z "$TARGET" ] && TARGET=$PR_NODE
+            if [ "$ACCION" = "closed" ]; then
+              [ "$MERGED" = "true" ] && ESTADO="✔️" || exit 0   # PR descartado: no se toca el tablero
+            else
+              ESTADO="🔗"
+            fi
+          fi
+
+          # --- IDs del Project (por nombre: sobreviven a que se reordenen los campos) ----
+          P=$(gh api graphql -f query='
+            query($owner:String!,$num:Int!){
+              user(login:$owner){ projectV2(number:$num){
+                id
+                fields(first:50){ nodes{
+                  ... on ProjectV2SingleSelectField { id name options{ id name } }
+                  ... on ProjectV2Field { id name } } } } } }' \
+            -f owner="$PROJECT_OWNER" -F num="$PROJECT_NUMBER" --jq '.data.user.projectV2')
+          PID=$(jq -r '.id' <<<"$P")
+          F_STATUS=$(jq -r '.fields.nodes[]|select(.name=="Status")|.id' <<<"$P")
+          O_STATUS=$(jq -r --arg e "$ESTADO" '.fields.nodes[]|select(.name=="Status")|.options[]|select(.name|startswith($e))|.id' <<<"$P")
+          F_CLIENTE=$(jq -r '.fields.nodes[]|select(.name=="Cliente")|.id' <<<"$P")
+
+          # --- Añadir (idempotente: si ya está, devuelve el item existente) -------------
+          ITEM=$(gh api graphql -f query='
+            mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }' \
+            -f p="$PID" -f c="$TARGET" --jq '.data.addProjectV2ItemById.item.id')
+
+          set_field() {
+            gh api graphql -f query='
+              mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
+                updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }' \
+              -f p="$PID" -f i="$ITEM" -f f="$1" -f v="$2" >/dev/null
+          }
+          set_field "$F_STATUS" "{\"singleSelectOptionId\":\"$O_STATUS\"}"
+          [ -n "${CLIENTE:-}" ] && set_field "$F_CLIENTE" "{\"text\":\"$CLIENTE\"}"
+
+          echo "::notice::Tablero actualizado — $ESTADO ($EVENTO/$ACCION)"
