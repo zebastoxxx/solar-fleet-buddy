@@ -93,13 +93,16 @@ jobs:
             mutation($p:ID!,$c:ID!){ addProjectV2ItemById(input:{projectId:$p,contentId:$c}){ item{ id } } }' \
             -f p="$PID" -f c="$TARGET" --jq '.data.addProjectV2ItemById.item.id')
 
+          # El valor va INTERPOLADO en la query, no como variable: 'gh api graphql -f'
+          # manda todo como String y `value` es de tipo ProjectV2FieldValue (un objeto)
+          # → "provided invalid value", y el item entraba al tablero sin estado.
+          # Tampoco sirve 'gh project item-edit', que sería más legible: ese subcomando
+          # exige los scopes read:org y read:discussion además de project.
           set_field() {
-            gh api graphql -f query='
-              mutation($p:ID!,$i:ID!,$f:ID!,$v:ProjectV2FieldValue!){
-                updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:$v}){ clientMutationId } }' \
-              -f p="$PID" -f i="$ITEM" -f f="$1" -f v="$2" >/dev/null
+            gh api graphql -f query="mutation{ updateProjectV2ItemFieldValue(input:{
+              projectId:\"$PID\",itemId:\"$ITEM\",fieldId:\"$1\",value:$2}){ clientMutationId } }" >/dev/null
           }
-          set_field "$F_STATUS" "{\"singleSelectOptionId\":\"$O_STATUS\"}"
-          [ -n "${CLIENTE:-}" ] && set_field "$F_CLIENTE" "{\"text\":\"$CLIENTE\"}"
+          set_field "$F_STATUS" "{singleSelectOptionId:\"$O_STATUS\"}"
+          [ -n "${CLIENTE:-}" ] && set_field "$F_CLIENTE" "{text:\"$CLIENTE\"}"
 
           echo "::notice::Tablero actualizado — $ESTADO ($EVENTO/$ACCION)"
