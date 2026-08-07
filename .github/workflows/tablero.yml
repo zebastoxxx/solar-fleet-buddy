@@ -1,11 +1,20 @@
 ## Mantiene el tablero de la fábrica conectado al trabajo real, sin que nadie se acuerde.
 ##
-## Todo issue y todo PR entra solo al Project y su estado se mueve solo. Si un PR cierra
-## un issue, se mueve el ISSUE y no se añade el PR: una fila por unidad de trabajo, no dos.
+## Todo issue y todo PR entra solo al Project, su estado se mueve solo, y queda etiquetado
+## con el cliente y el entregable al que pertenece. Si un PR cierra un issue, se mueve el
+## ISSUE y no se añade el PR: una fila por unidad de trabajo, no dos.
 ##
-## Requiere el secret PROJECTS_TOKEN (PAT fine-grained con permiso de solo-lectura+escritura
-## en Projects del usuario). El GITHUB_TOKEN por defecto NO sirve: no alcanza los Projects V2
-## de una cuenta personal. Sin el secret el workflow se salta entero, no falla.
+## Los sub-issues NO necesitan nada especial aquí: un sub-issue es un issue, así que el
+## evento `opened` ya lo mete al tablero como fila propia, y los campos nativos del Project
+## (Parent issue, Sub-issues progress) se llenan solos. Aparecen en el tablero segundos
+## después de crearse — no hay que esperar al deploy para saber qué se descubrió.
+##
+## Requiere el secret PROJECTS_TOKEN (PAT clásico con scopes `repo` + `project`). El
+## GITHUB_TOKEN por defecto NO sirve: no alcanza los Projects V2 de una cuenta personal.
+## Sin el secret el workflow se salta entero, no falla.
+##
+## Si GitHub Actions está caído o bloqueado (p. ej. por facturación), el mismo trabajo lo
+## hace `sf tablero` desde la máquina local. Ver scripts/tablero-sync.sh.
 name: Tablero de la fábrica
 
 on:
@@ -13,6 +22,9 @@ on:
     types: [opened, reopened, closed]
   pull_request:
     types: [opened, reopened, ready_for_review, closed]
+  # Vercel publica un deployment por PR: de ahí sale la URL de preview que se ve en el
+  # tablero. Sin esto el estado 🔗 existía pero no había nada que abrir.
+  deployment_status:
 
 permissions:
   contents: read
@@ -26,14 +38,23 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
           PROJECT_OWNER: zebastoxxx
           PROJECT_NUMBER: '1'
-          # Nombre del cliente tal cual debe verse en el tablero. Cambiar por proyecto.
-          CLIENTE: 'Up CLIENTE: '' Down'
+          # Identidad de este repo en el tablero. Se rellena al instalar el pack.
+          # CLIENTE: nombre del cliente tal cual debe verse ("Comercol", "Health Check").
+          # SUBPROYECTO: el entregable. Debe coincidir EXACTO con una opción del campo
+          #   del Project: SaaS | CRM | Landing Page | Embudo Ventas | Automatización | Interno
+          CLIENTE: 'Up & Down'
+          SUBPROYECTO: 'SaaS'
           EVENTO: ${{ github.event_name }}
           ACCION: ${{ github.event.action }}
           MERGED: ${{ github.event.pull_request.merged }}
           ISSUE_NODE: ${{ github.event.issue.node_id }}
           PR_NODE: ${{ github.event.pull_request.node_id }}
           PR_NUM: ${{ github.event.pull_request.number }}
+          DEPLOY_STATE: ${{ github.event.deployment_status.state }}
+          DEPLOY_ENV: ${{ github.event.deployment.environment }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+          DEPLOY_URL_ALT: ${{ github.event.deployment_status.target_url }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -42,37 +63,62 @@ jobs:
             exit 0
           fi
 
-          # --- Qué mover y a qué estado -------------------------------------------------
-          if [ "$EVENTO" = "issues" ]; then
-            TARGET=$ISSUE_NODE
-            [ "$ACCION" = "closed" ] && ESTADO="✔️" || ESTADO="📥"
-          else
-            # Si el PR cierra un issue, el tablero sigue al ISSUE y no añade el PR: una fila
-            # por unidad de trabajo, no dos.
-            TARGET=$(gh api graphql -f query='
+          # --- Del PR al issue que cierra ------------------------------------------------
+          # closingIssuesReferences solo se llena con las palabras clave EN INGLÉS de GitHub
+          # (closes/fixes/resolves). Aquí se escribe en español, así que casi siempre viene
+          # vacío aunque el issue sí se cierre — el enlace suele vivir en el mensaje del
+          # commit, no en el cuerpo del PR. Por eso se busca también a mano, en los dos
+          # idiomas. Sin esto el tablero acaba con el issue y su PR como filas separadas.
+          issue_de_pr() {
+            local num="$1" id
+            id=$(gh api graphql -f query='
               query($owner:String!,$repo:String!,$num:Int!){
                 repository(owner:$owner,name:$repo){
                   pullRequest(number:$num){ closingIssuesReferences(first:1){ nodes{ id } } } } }' \
-              -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F num="$PR_NUM" \
+              -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F num="$num" \
               --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[0].id // empty')
-            # closingIssuesReferences solo se llena con las palabras clave EN INGLÉS de GitHub
-            # (closes/fixes/resolves). Aquí se escribe en español, así que casi siempre viene
-            # vacío aunque el issue sí se cierre — el enlace suele vivir en el mensaje del
-            # commit, no en el cuerpo del PR. Por eso se busca también a mano, en los dos
-            # idiomas. Sin esto el tablero acaba con el issue y su PR como filas separadas.
-            if [ -z "$TARGET" ]; then
-              N=$(gh pr view "$PR_NUM" -R "$REPO" --json title,body -q '.title + " " + .body' \
+            if [ -z "$id" ]; then
+              local n
+              n=$(gh pr view "$num" -R "$REPO" --json title,body -q '.title + " " + .body' \
                   | grep -oiE '(closes?d?|fix(es|ed)?|resolves?d?|cierra|corrige|resuelve)[[:space:]]+#[0-9]+' \
                   | head -1 | grep -oE '[0-9]+' || true)
-              [ -n "$N" ] && TARGET=$(gh api "repos/$REPO/issues/$N" --jq '.node_id' 2>/dev/null || true)
+              [ -n "$n" ] && id=$(gh api "repos/$REPO/issues/$n" --jq '.node_id' 2>/dev/null || true)
             fi
-            [ -z "$TARGET" ] && TARGET=$PR_NODE
-            if [ "$ACCION" = "closed" ]; then
-              [ "$MERGED" = "true" ] && ESTADO="✔️" || exit 0   # PR descartado: no se toca el tablero
-            else
+            printf '%s' "$id"
+          }
+
+          # --- Qué mover, a qué estado, y con qué preview -------------------------------
+          PREVIEW=''
+          case "$EVENTO" in
+            issues)
+              TARGET=$ISSUE_NODE
+              [ "$ACCION" = "closed" ] && ESTADO="✔️" || ESTADO="📥"
+              ;;
+            pull_request)
+              TARGET=$(issue_de_pr "$PR_NUM")
+              [ -z "$TARGET" ] && TARGET=$PR_NODE
+              if [ "$ACCION" = "closed" ]; then
+                [ "$MERGED" = "true" ] && ESTADO="✔️" || exit 0   # PR descartado: no se toca el tablero
+              else
+                ESTADO="🔗"
+              fi
+              ;;
+            deployment_status)
+              # Solo el preview de un PR interesa. El deploy a producción no mueve el tablero:
+              # eso ya lo hizo el merge del PR.
+              [ "$DEPLOY_STATE" = "success" ] || exit 0
+              case "$DEPLOY_ENV" in *[Pp]review*) ;; *) exit 0 ;; esac
+              [ -n "$DEPLOY_URL" ] || DEPLOY_URL="${DEPLOY_URL_ALT:-}"
+              [ -n "$DEPLOY_URL" ] || exit 0
+              N=$(gh api "repos/$REPO/commits/$DEPLOY_SHA/pulls" --jq '.[0].number // empty' 2>/dev/null || true)
+              [ -n "$N" ] || { echo "::notice::Preview sin PR asociado ($DEPLOY_SHA) — nada que mover."; exit 0; }
+              TARGET=$(issue_de_pr "$N")
+              [ -z "$TARGET" ] && TARGET=$(gh api "repos/$REPO/pulls/$N" --jq '.node_id')
               ESTADO="🔗"
-            fi
-          fi
+              PREVIEW="$DEPLOY_URL"
+              ;;
+            *) exit 0 ;;
+          esac
 
           # --- IDs del Project (por nombre: sobreviven a que se reordenen los campos) ----
           P=$(gh api graphql -f query='
@@ -87,6 +133,9 @@ jobs:
           F_STATUS=$(jq -r '.fields.nodes[]|select(.name=="Status")|.id' <<<"$P")
           O_STATUS=$(jq -r --arg e "$ESTADO" '.fields.nodes[]|select(.name=="Status")|.options[]|select(.name|startswith($e))|.id' <<<"$P")
           F_CLIENTE=$(jq -r '.fields.nodes[]|select(.name=="Cliente")|.id' <<<"$P")
+          F_PREVIEW=$(jq -r '.fields.nodes[]|select(.name=="Preview")|.id' <<<"$P")
+          F_SUB=$(jq -r '.fields.nodes[]|select(.name=="Subproyecto")|.id' <<<"$P")
+          O_SUB=$(jq -r --arg s "$SUBPROYECTO" '.fields.nodes[]|select(.name=="Subproyecto")|.options[]?|select(.name==$s)|.id' <<<"$P")
 
           # --- Añadir (idempotente: si ya está, devuelve el item existente) -------------
           ITEM=$(gh api graphql -f query='
@@ -104,5 +153,9 @@ jobs:
           }
           set_field "$F_STATUS" "{singleSelectOptionId:\"$O_STATUS\"}"
           [ -n "${CLIENTE:-}" ] && set_field "$F_CLIENTE" "{text:\"$CLIENTE\"}"
+          # Si SUBPROYECTO no coincide con ninguna opción del Project, O_SUB queda vacío y
+          # se salta en silencio: mejor una tarjeta sin subproyecto que un workflow rojo.
+          [ -n "${O_SUB:-}" ] && set_field "$F_SUB" "{singleSelectOptionId:\"$O_SUB\"}"
+          [ -n "$PREVIEW" ] && set_field "$F_PREVIEW" "{text:\"$PREVIEW\"}"
 
-          echo "::notice::Tablero actualizado — $ESTADO ($EVENTO/$ACCION)"
+          echo "::notice::Tablero actualizado — $ESTADO ${CLIENTE:-?}/${SUBPROYECTO:-?} ($EVENTO/${ACCION:-$DEPLOY_STATE})${PREVIEW:+ · $PREVIEW}"
